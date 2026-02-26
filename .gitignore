@@ -1,0 +1,10 @@
+
+
+# Not Add & Commit
+*.bak
+*.xls
+*.xlsx
+*.xlsm
+.excel/
+
+
