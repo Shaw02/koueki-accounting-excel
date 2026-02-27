@@ -5,6 +5,7 @@
 *.xls
 *.xlsx
 *.xlsm
+*.pdf
 .excel/
 
 

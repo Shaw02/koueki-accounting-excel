@@ -31,28 +31,29 @@ Public Const styPerformance = 7     '実績の開始位置
 '==============================
 Public Const JOURNAL_HEADER_ROW As Long = 7
 
-Public Const COL_DATE As Long = 1
+Public Const COL_DATE          As Long = 1
 
 ' --- 借方 ---
-Public Const COL_CR_ACC_NO_I   As Long = 2
-Public Const COL_CR_ACC_NO_S   As Long = 3
-Public Const COL_CR_ACC_NO_S2  As Long = 4
-Public Const COL_CR_SUB_NO_I   As Long = 5
-Public Const COL_CR_SUB_NO_S   As Long = 6
-Public Const COL_CR_KBN        As Long = 7   ' 借方：一般/指定区分
-Public Const COL_CR_MONEY      As Long = 8
+Public Const COL_DR_ACC_NO_I   As Long = 2
+Public Const COL_DR_ACC_NO_S   As Long = 3
+Public Const COL_DR_ACC_NO_S2  As Long = 4
+Public Const COL_DR_SUB_NO_I   As Long = 5
+Public Const COL_DR_SUB_NO_S   As Long = 6
+Public Const COL_DR_CLASS      As Long = 7   ' 借方：一般/指定区分
+Public Const COL_DR_MONEY      As Long = 8
 
 ' --- 貸方 ---
-Public Const COL_DR_ACC_NO_I   As Long = 9
-Public Const COL_DR_ACC_NO_S   As Long = 10
-Public Const COL_DR_ACC_NO_S2  As Long = 11
-Public Const COL_DR_SUB_NO_I   As Long = 12
-Public Const COL_DR_SUB_NO_S   As Long = 13
-Public Const COL_DR_KBN        As Long = 14  ' 貸方：一般/指定区分
-Public Const COL_DR_MONEY      As Long = 15
+Public Const COL_CR_ACC_NO_I   As Long = 9
+Public Const COL_CR_ACC_NO_S   As Long = 10
+Public Const COL_CR_ACC_NO_S2  As Long = 11
+Public Const COL_CR_SUB_NO_I   As Long = 12
+Public Const COL_CR_SUB_NO_S   As Long = 13
+Public Const COL_CR_CLASS      As Long = 14  ' 貸方：一般/指定区分
+Public Const COL_CR_MONEY      As Long = 15
 
 ' --- 摘要 ---
 Public Const COL_SUMMARY       As Long = 16
+
 
 '=======================================================
 '       グローバル変数　宣言
@@ -60,24 +61,43 @@ Public Const COL_SUMMARY       As Long = 16
 '仕訳帳からの読み込み用
 Public iYear                        '日付
 Public sSummary As String           '摘要
-       
-        '借方
-Public iCrAccountNo                 '勘定科目コード
-Public sCrAccountNo As String       '勘定科目名
-Public iCrSubAccountNo              '補助科目コード
-Public sCrSubAccountNo As String    '補助科目名
-Public iCrClass                     '区分コード（一般／指定）
-Public sCrClass As String           '区分名（一般／指定）
-Public iCrMoney                     '金額
+
+Public Type entrySide
+    AccountCode      As Variant     ' 勘定科目コード
+    MajorAccount     As String      ' 大科目（VLookup）
+    MiddleAccount    As String      ' 中科目（VLookup）
+    SubAccountCode   As Variant     ' 補助科目コード
+    SubAccountName   As String      ' 補助科目名（VLookup）
+    Class            As Integer     ' 0:一般(含む空白) / 1:指定
+    Amount           As Currency    ' 金額
+End Type
+
+Public Type AccountingEntry
+    EntryDate       As Variant       ' 日付
+    Debit           As entrySide     ' 借方
+    Credit          As entrySide     ' 貸方
+    Summary         As String        ' 摘要
+End Type
         
-        '貸方
-Public iDrAccountNo                 '勘定科目コード
-Public sDrAccountNo As String       '勘定科目名
-Public iDrSubAccountNo              '補助科目コード
-Public sDrSubAccountNo As String    '補助科目名
-Public iDrClass                     '区分コード（一般／指定）
-Public sDrClass As String           '区分名（一般／指定）
-Public iDrMoney                     '金額
+Dim entry As AccountingEntry
+
+'        '借方
+'Public iCrAccountNo                 '勘定科目コード
+'Public sCrAccountNo As String       '勘定科目名
+'Public iCrSubAccountNo              '補助科目コード
+'Public sCrSubAccountNo As String    '補助科目名
+'Public iCrClass                     '区分コード（一般／指定）
+'Public sCrClass As String           '区分名（一般／指定）
+'Public iCrMoney                     '金額
+'
+'        '貸方
+'Public iDrAccountNo                 '勘定科目コード
+'Public sDrAccountNo As String       '勘定科目名
+'Public iDrSubAccountNo              '補助科目コード
+'Public sDrSubAccountNo As String    '補助科目名
+'Public iDrClass                     '区分コード（一般／指定）
+'Public sDrClass As String           '区分名（一般／指定）
+'Public iDrMoney                     '金額
 
 '=======================================================
 '       総勘定元帳・今期実績のクリア
@@ -154,19 +174,7 @@ End Sub
 '       y       入力Ｙ座標
 '
 '   Output:
-'       ＜以下グローバル変数＞
-'       iYear           日付
-'       iCrAccountNo    借方勘定科目コード
-'       sCrAccountNo    借方勘定科目
-'       iCrSubAccountNo 借方補助科目コード
-'       sCrSubAccountNo 借方補助科目
-'       iCrMoney        借方金額
-'       iDrAccountNo    貸方勘定科目コード
-'       sDrAccountNo    貸方勘定科目
-'       iDrSubAccountNo 貸方補助科目コード
-'       sDrSubAccountNo 貸方補助科目
-'       iDrMoney        貸方金額
-'       sSummary        摘要
+'       entry   仕訳帳 １行分
 '
 '=======================================================
 Sub ReadJournal(y As Variant)
@@ -174,52 +182,54 @@ Sub ReadJournal(y As Variant)
     '====================
     ' 年月日
     '====================
-    iYear = Sheet2.Cells(y, COL_DATE)
+    entry.EntryDate = Sheet2.Cells(y, COL_DATE)
 
     '====================
     ' 借方
     '====================
-    iCrAccountNo = Sheet2.Cells(y, COL_CR_ACC_NO_I)
-    sCrAccountNo = Sheet2.Cells(y, COL_CR_ACC_NO_S)
+    entry.Debit.AccountCode = Sheet2.Cells(y, COL_DR_ACC_NO_I)
+    entry.Debit.MajorAccount = Sheet2.Cells(y, COL_DR_ACC_NO_S)
+    entry.Debit.MiddleAccount = Sheet2.Cells(y, COL_DR_ACC_NO_S2)
 
-    If Sheet2.Cells(y, COL_CR_ACC_NO_S2) <> "" Then
-        sCrAccountNo = sCrAccountNo & "－" & Sheet2.Cells(y, COL_CR_ACC_NO_S2)
+    If entry.Debit.MiddleAccount <> "" Then
+         entry.Debit.MajorAccount = entry.Debit.MajorAccount & "－" & entry.Debit.MiddleAccount
     End If
 
-    iCrSubAccountNo = Sheet2.Cells(y, COL_CR_SUB_NO_I)
-    sCrSubAccountNo = Sheet2.Cells(y, COL_CR_SUB_NO_S)
-    sCrClass = Sheet2.Cells(y, COL_CR_KBN)
-    If Trim(sCrClass) = "指定" Then
-        iCrClass = 1
+    entry.Debit.SubAccountCode = Sheet2.Cells(y, COL_DR_SUB_NO_I)
+    entry.Debit.SubAccountName = Sheet2.Cells(y, COL_DR_SUB_NO_S)
+    entry.Debit.Amount = Sheet2.Cells(y, COL_DR_MONEY)
+    
+    If Trim(Sheet2.Cells(y, COL_DR_CLASS)) = "指定" Then
+        entry.Debit.Class = 1
     Else
-        iCrClass = 0
+        entry.Debit.Class = 0
     End If
-    iCrMoney = Sheet2.Cells(y, COL_CR_MONEY)
 
     '====================
     ' 貸方
     '====================
-    iDrAccountNo = Sheet2.Cells(y, COL_DR_ACC_NO_I)
-    sDrAccountNo = Sheet2.Cells(y, COL_DR_ACC_NO_S)
+    entry.Credit.AccountCode = Sheet2.Cells(y, COL_CR_ACC_NO_I)
+    entry.Credit.MajorAccount = Sheet2.Cells(y, COL_CR_ACC_NO_S)
+    entry.Credit.MiddleAccount = Sheet2.Cells(y, COL_CR_ACC_NO_S2)
 
-    If Sheet2.Cells(y, COL_DR_ACC_NO_S2) <> "" Then
-        sDrAccountNo = sDrAccountNo & "－" & Sheet2.Cells(y, COL_DR_ACC_NO_S2)
+    If entry.Credit.MiddleAccount <> "" Then
+         entry.Credit.MajorAccount = entry.Credit.MajorAccount & "－" & entry.Credit.MiddleAccount
     End If
 
-    iDrSubAccountNo = Sheet2.Cells(y, COL_DR_SUB_NO_I)
-    sDrSubAccountNo = Sheet2.Cells(y, COL_DR_SUB_NO_S)
-    sDrClass = Sheet2.Cells(y, COL_DR_KBN)
-    If Trim(sDrClass) = "指定" Then
-        iDrClass = 1
+    entry.Credit.SubAccountCode = Sheet2.Cells(y, COL_CR_SUB_NO_I)
+    entry.Credit.SubAccountName = Sheet2.Cells(y, COL_CR_SUB_NO_S)
+    entry.Credit.Amount = Sheet2.Cells(y, COL_CR_MONEY)
+    
+    If Trim(Sheet2.Cells(y, COL_CR_CLASS)) = "指定" Then
+        entry.Credit.Class = 1
     Else
-        iDrClass = 0
+        entry.Credit.Class = 0
     End If
-    iDrMoney = Sheet2.Cells(y, COL_DR_MONEY)
 
     '====================
     ' 摘要
     '====================
-    sSummary = Sheet2.Cells(y, COL_SUMMARY)
+    entry.Summary = Sheet2.Cells(y, COL_SUMMARY)
 
 End Sub
 '=======================================================
@@ -398,8 +408,11 @@ Sub main()
     '       4   残高
     '       5   補助簿の配列先頭
     '       6   補助簿の配列終了
-    '       7   勘定科目名（文字列データ）
-    Dim Account(99999, 8) As Variant
+    '       7   勘定科目名（文字列データ）大科目
+    '       8   勘定科目名（文字列データ）中科目
+    '       9   一般の残高
+    '       10  指定の残高
+    Dim Account(99999, 11) As Variant
     
     '--------------------------
     '補助科目　集計用
@@ -414,6 +427,8 @@ Sub main()
     '       6   一般／指定
     Dim SubAccount(99999, 7) As Variant
    
+    Dim entrySide As entrySide
+    
     '--------------------------
     '科目
     cntAccount = 0          '勘定科目数
@@ -421,12 +436,19 @@ Sub main()
     
     '--------------------------
     '正味財産の集計用
-    iNetAssets_End = 0      '一般正味財産期末残高
-    iNetAssets_Begin = 0    '一般正味財産期首残高
-    iNetAssets_Diff = 0     '当期一般正味財産増減額
-    iSpNetAssets_End = 0    '指定正味財産期末残高
-    iSpNetAssets_Begin = 0  '指定正味財産期首残高
-    iSpNetAssets_Diff = 0   '当期指定正味財産増減額
+    iNetAssets_End_p = 0        '一般正味財産期末残高
+    iNetAssets_Begin_p = 0      '一般正味財産期首残高
+    iNetAssets_Diff_p = 0       '当期一般正味財産増減額
+    iSpNetAssets_End_p = 0      '指定正味財産期末残高
+    iSpNetAssets_Begin_p = 0    '指定正味財産期首残高
+    iSpNetAssets_Diff_p = 0     '当期指定正味財産増減額
+    
+    iNetAssets_End = 0          '一般正味財産期末残高
+    iNetAssets_Begin = 0        '一般正味財産期首残高
+    iNetAssets_Diff = 0         '当期一般正味財産増減額
+    iSpNetAssets_End = 0        '指定正味財産期末残高
+    iSpNetAssets_Begin = 0      '指定正味財産期首残高
+    iSpNetAssets_Diff = 0       '当期指定正味財産増減額
     
     '--------------------------
     '初期化
@@ -450,58 +472,58 @@ Sub main()
     yInput = styPerformance
     Do
         '前期実績を1行読み込み
-        iAccountNo = Sheet10.Cells(yInput, 1)
-        sAccountNo = Sheet10.Cells(yInput, 2)
-        iSubAccountNo = Sheet10.Cells(yInput, 3)
-        sSubAccountNo = Sheet10.Cells(yInput, 4)
-        iClass = Sheet10.Cells(yInput, 5)
-        iMoney = Sheet10.Cells(yInput, 6)
+        entrySide.AccountCode = Sheet10.Cells(yInput, 1)
+        entrySide.MajorAccount = Sheet10.Cells(yInput, 2)
+        entrySide.SubAccountCode = Sheet10.Cells(yInput, 3)
+        entrySide.SubAccountName = Sheet10.Cells(yInput, 4)
+        entrySide.Class = Sheet10.Cells(yInput, 5)
+        entrySide.Amount = Sheet10.Cells(yInput, 6)
         
         '勘定科目コードの記載が無かったら、検索終了
-        If IsNull(iAccountNo) Or IsEmpty(iAccountNo) Then Exit Do
+        If IsNull(entrySide.AccountCode) Or IsEmpty(entrySide.AccountCode) Then Exit Do
         
         'すでに勘定科目があるか検索
         i = 0
         fThereIs = True
         While (i < cntAccount)
-            If (Account(i, 0) = iAccountNo) Then
+            If (Account(i, 0) = entrySide.AccountCode) Then
                 fThereIs = False
             End If
             i = i + 1
         Wend
         '初出の科目だったら
-        If (fThereIs = True) And (iMoney <> 0) Then
+        If (fThereIs = True) And (entrySide.Amount <> 0) Then
             '副科目コードに何も書いていなければ
-            If IsNull(iSubAccountNo) Or IsEmpty(iSubAccountNo) Then
+            If IsNull(entrySide.SubAccountCode) Or IsEmpty(entrySide.SubAccountCode) Then
                                                               
                 '前年度の増減額・期首残高・期末残高か？
-                Select Case iAccountNo
+                Select Case entrySide.AccountCode
                     Case idNetAssets_End
-                        iNetAssets_End_p = iMoney
+                        iNetAssets_End_p = entrySide.Amount
                     Case idNetAssets_Begin
-                        iNetAssets_Begin_p = iMoney
+                        iNetAssets_Begin_p = entrySide.Amount
                     Case idNetAssets_Diff
-                        iNetAssets_Diff_p = iMoney
+                        iNetAssets_Diff_p = entrySide.Amount
                     Case idSpNetAssets_End
-                        iSpNetAssets_End_p = iMoney
+                        iSpNetAssets_End_p = entrySide.Amount
                     Case idSpNetAssets_Begin
-                        iSpNetAssets_Begin_p = iMoney
+                        iSpNetAssets_Begin_p = entrySide.Amount
                     Case idSpNetAssets_Diff
-                        iSpNetAssets_Diff_p = iMoney
+                        iSpNetAssets_Diff_p = entrySide.Amount
                     Case Else
                         '上以外は、リスト化する
                 End Select
                         
                         '■To Do 財務諸表出力をまとめれたら、上 Switch の Case Else に移動
-                        Account(cntAccount, 0) = iAccountNo
-                        Account(cntAccount, 1) = iMoney   '前年度繰越金
-                        Account(cntAccount, 7) = sAccountNo
+                        Account(cntAccount, 0) = entrySide.AccountCode
+                        Account(cntAccount, 1) = entrySide.Amount   '前年度繰越金
+                        Account(cntAccount, 7) = entrySide.MajorAccount
                         cntAccount = cntAccount + 1
                             
                 '-------------------------------------------------
                 '■To Do 財務諸表出力は、まとめる。
                 '財務諸表（前年度）への出力
-                Call OutFinancialStatements(iAccountNo, iLastX, iMoney)
+                Call OutFinancialStatements(entrySide.AccountCode, iLastX, entrySide.Amount)
                 '-------------------------------------------------
 
             End If
@@ -526,24 +548,24 @@ Sub main()
         ReadJournal (yInput)
         
         '年月日の記載が無かったら、検索終了
-        If IsNull(iYear) Or IsEmpty(iYear) Then Exit Do
+        If IsNull(entry.EntryDate) Or IsEmpty(entry.EntryDate) Then Exit Do
         
-        iTotalCrMoney = iTotalCrMoney + iCrMoney
-        iTotalDrMoney = iTotalDrMoney + iDrMoney
+        iTotalDrMoney = iTotalDrMoney + entry.Debit.Amount
+        iTotalCrMoney = iTotalCrMoney + entry.Credit.Amount
 
         'すでに勘定科目があるか検索[借方]
         i = 0
         fThereIs = True
         While (i < cntAccount)
-            If (Account(i, 0) = iCrAccountNo) Then
+            If (Account(i, 0) = entry.Debit.AccountCode) Then
                 fThereIs = False
             End If
             i = i + 1
         Wend
         If (fThereIs = True) Then
-            Account(cntAccount, 0) = iCrAccountNo
+            Account(cntAccount, 0) = entry.Debit.AccountCode
             Account(cntAccount, 1) = 0  '前期繰越
-            Account(cntAccount, 7) = sCrAccountNo
+            Account(cntAccount, 7) = entry.Debit.MajorAccount
             cntAccount = cntAccount + 1
         End If
         
@@ -551,35 +573,35 @@ Sub main()
         i = 0
         fThereIs = True
         While (i < cntAccount)
-            If (Account(i, 0) = iDrAccountNo) Then
+            If (Account(i, 0) = entry.Credit.AccountCode) Then
                 fThereIs = False
             End If
             i = i + 1
         Wend
         If (fThereIs = True) Then
-            Account(cntAccount, 0) = iDrAccountNo
+            Account(cntAccount, 0) = entry.Credit.AccountCode
             Account(cntAccount, 1) = 0  '前期繰越
-            Account(cntAccount, 7) = sDrAccountNo
+            Account(cntAccount, 7) = entry.Credit.MajorAccount
             cntAccount = cntAccount + 1
         End If
     
         'チェック
         
         '資産じゃない場合、且つ、補助科目が未入力でないか、チェック
-        If (iCrAccountNo >= 20000) And (IsNull(iCrSubAccountNo) Or IsEmpty(iCrSubAccountNo)) Then
+        If (entry.Debit.AccountCode >= 20000) And (IsNull(entry.Debit.SubAccountCode) Or IsEmpty(entry.Debit.SubAccountCode)) Then
             MsgBox "仕訳帳 " & Str(yInput) & " 行目：借方に補助科目が必要です"
         End If
-        If (iDrAccountNo >= 20000) And (IsNull(iDrSubAccountNo) Or IsEmpty(iDrSubAccountNo)) Then
+        If (entry.Credit.AccountCode >= 20000) And (IsNull(entry.Credit.SubAccountCode) Or IsEmpty(entry.Credit.SubAccountCode)) Then
             MsgBox "仕訳帳 " & Str(yInput) & " 行目：貸方に補助科目が必要です"
         End If
         If (iTotalCrMoney <> iTotalDrMoney) Then
             MsgBox "仕訳帳 " & Str(yInput) & " 行目：貸方金額と借方金額の合計が一致しません。"
             End
         End If
-        If (iCrClass = 1) And (IsNull(iCrSubAccountNo) Or IsEmpty(iCrSubAccountNo)) Then
+        If (entry.Debit.Class = 1) And (IsNull(entry.Debit.SubAccountCode) Or IsEmpty(entry.Debit.SubAccountCode)) Then
             MsgBox "指定の場合、仕訳帳 " & Str(yInput) & " 行目：借方に補助科目が必要です"
         End If
-        If (iDrClass = 1) And (IsNull(iDrSubAccountNo) Or IsEmpty(iDrSubAccountNo)) Then
+        If (entry.Credit.Class = 1) And (IsNull(entry.Credit.SubAccountCode) Or IsEmpty(entry.Credit.SubAccountCode)) Then
             MsgBox "指定の場合、仕訳帳 " & Str(yInput) & " 行目：貸方に補助科目が必要です"
         End If
         
@@ -590,7 +612,7 @@ Sub main()
     '---------------------------------------
     '[1]-(3) ソート
     '---------------------------------------
-    Call QuickSort(Account(), 7, 0, 0, cntAccount - 1)
+    Call QuickSort(Account(), 10, 0, 0, cntAccount - 1)
     
     
     
@@ -637,28 +659,28 @@ Sub main()
         '前期実績の開始位置
         yInput = styPerformance
         Do
-            '前期実績読み込み
-            iAccountNo = Sheet10.Cells(yInput, 1)
-            sAccountNo = Sheet10.Cells(yInput, 2)
-            iSubAccountNo = Sheet10.Cells(yInput, 3)
-            sSubAccountNo = Sheet10.Cells(yInput, 4)
-            iClass = Sheet10.Cells(yInput, 5)
-            iMoney = Sheet10.Cells(yInput, 6)
+            '前期実績を1行読み込み
+            entrySide.AccountCode = Sheet10.Cells(yInput, 1)
+            entrySide.MajorAccount = Sheet10.Cells(yInput, 2)
+            entrySide.SubAccountCode = Sheet10.Cells(yInput, 3)
+            entrySide.SubAccountName = Sheet10.Cells(yInput, 4)
+            entrySide.Class = Sheet10.Cells(yInput, 5)
+            entrySide.Amount = Sheet10.Cells(yInput, 6)
 
             '勘定科目コードの記載が無かったら、前期実績の検索終了
-            If IsNull(iAccountNo) Or IsEmpty(iAccountNo) Then Exit Do
+            If IsNull(entrySide.AccountCode) Or IsEmpty(entrySide.AccountCode) Then Exit Do
 
             '同じ勘定科目かチェック
-            If Account(i, 0) = iAccountNo Then
+            If Account(i, 0) = entrySide.AccountCode Then
 
                 '補助科目コードに何か書かれているかチェック
-                If IsNull(iSubAccountNo) Or IsEmpty(iSubAccountNo) Then
+                If IsNull(entrySide.SubAccountCode) Or IsEmpty(entrySide.SubAccountCode) Then
                 Else
                     'すでに補助科目 且つ 同一の一般／指定があるか検索
                     iSub = stCntSubAccount
                     fThereIs = True
                     While (iSub < cntSubAccount)
-                        If ((SubAccount(iSub, 0) = iSubAccountNo)) And (SubAccount(iSub, 6) = iClass) Then
+                        If ((SubAccount(iSub, 0) = entrySide.SubAccountCode)) And (SubAccount(iSub, 6) = entrySide.Class) Then
                             fThereIs = False
                         End If
                         iSub = iSub + 1
@@ -668,10 +690,10 @@ Sub main()
                     If (fThereIs = True) And (iMoney <> 0) Then
                         '貸借対照表科目の場合、リスト化する
                         If (iAccountNo < 40000) Then
-                            SubAccount(cntSubAccount, 0) = iSubAccountNo
-                            SubAccount(cntSubAccount, 1) = iMoney   '前年度繰越金
-                            SubAccount(cntSubAccount, 5) = sSubAccountNo
-                            SubAccount(cntSubAccount, 6) = iClass
+                            SubAccount(cntSubAccount, 0) = entrySide.SubAccountCode
+                            SubAccount(cntSubAccount, 1) = entrySide.Amount   '前年度繰越金
+                            SubAccount(cntSubAccount, 5) = entrySide.SubAccountName
+                            SubAccount(cntSubAccount, 6) = entrySide.Class
                             cntSubAccount = cntSubAccount + 1
                         End If
                     End If
@@ -694,6 +716,7 @@ Sub main()
             '総勘定元帳へ科目名、等出力
             '1行目は勘定科目
             Sheet3.Range(Cells(yOutput, 1), Cells(yOutput, 7)).Merge
+            
             Sheet3.Cells(yOutput, 1) = Account(i, 7)
             Sheet3.Cells(yOutput, 1).Font.Underline = True
             Sheet3.Cells(yOutput, 1).Font.Size = 16
@@ -772,29 +795,29 @@ Sub main()
                 ReadJournal (yInput)
                 
                 '年月日の記載が無かったら、検索終了
-                If IsNull(iYear) Or IsEmpty(iYear) Then Exit Do
+                If IsNull(entry.EntryDate) Or IsEmpty(entry.EntryDate) Then Exit Do
     
                 '補助科目
                 iSubAccountNo = 0
                 
                 '借方に集計中の勘定科目が記載されていた場合
-                If Account(i, 0) = iCrAccountNo Then
-                    Account(i, 2) = Account(i, 2) + iCrMoney
-                    Account(i, 4) = Account(i, 4) + iCrMoney
+                If Account(i, 0) = entry.Debit.AccountCode Then
+                    Account(i, 2) = Account(i, 2) + entry.Debit.Amount
+                    Account(i, 4) = Account(i, 4) + entry.Debit.Amount
                     If Account(i, 0) >= 40000 And Account(i, 0) < 80000 Then
-                        If iCrClass = 1 Then
+                        If entry.Debit.Class = 1 Then
                             '指定正味財産
-                            iSpNetAssets_Diff = iSpNetAssets_Diff - iCrMoney
+                            iSpNetAssets_Diff = iSpNetAssets_Diff - entry.Debit.Amount
                         Else
                             '一般正味財産
-                            iNetAssets_Diff = iNetAssets_Diff - iCrMoney
+                            iNetAssets_Diff = iNetAssets_Diff - entry.Debit.Amount
                         End If
                     End If
                     
-                    Sheet3.Cells(yOutput, 1) = iYear
-                    Sheet3.Cells(yOutput, 2) = sDrAccountNo
-                    Sheet3.Cells(yOutput, 3) = sSummary
-                    Sheet3.Cells(yOutput, 4) = iCrMoney
+                    Sheet3.Cells(yOutput, 1) = entry.EntryDate
+                    Sheet3.Cells(yOutput, 2) = entry.Credit.MajorAccount
+                    Sheet3.Cells(yOutput, 3) = entry.Summary
+                    Sheet3.Cells(yOutput, 4) = entry.Debit.Amount
                     Sheet3.Cells(yOutput, 5) = ""
                     If Account(i, 4) < 0 Then
                         Sheet3.Cells(yOutput, 6) = "貸"
@@ -806,34 +829,34 @@ Sub main()
                     yOutput = yOutput + 1
                 
                     '補助科目コードに何か書かれているかチェック
-                    If IsNull(iCrSubAccountNo) Or IsEmpty(iCrSubAccountNo) Then
+                    If IsNull(entry.Debit.SubAccountCode) Or IsEmpty(entry.Debit.SubAccountCode) Then
                     Else
-                        iSubAccountNo = iCrSubAccountNo
-                        sSubAccountNo = sCrSubAccountNo
-                        iClass = iCrClass
+                        iSubAccountNo = entry.Debit.SubAccountCode
+                        sSubAccountNo = entry.Debit.SubAccountName
+                        iClass = entry.Debit.Class
                     End If
                 
                 End If
      
                 '貸方に集計中の勘定科目が記載されていた場合
-                If Account(i, 0) = iDrAccountNo Then
-                    Account(i, 3) = Account(i, 3) + iDrMoney
-                    Account(i, 4) = Account(i, 4) - iDrMoney
+                If Account(i, 0) = entry.Credit.AccountCode Then
+                    Account(i, 3) = Account(i, 3) + entry.Credit.Amount
+                    Account(i, 4) = Account(i, 4) - entry.Credit.Amount
                     If Account(i, 0) >= 40000 And Account(i, 0) < 80000 Then
-                        If iDrClass = 1 Then
+                        If entry.Credit.Class = 1 Then
                             '指定正味財産
-                            iSpNetAssets_Diff = iSpNetAssets_Diff + iDrMoney
+                            iSpNetAssets_Diff = iSpNetAssets_Diff + entry.Credit.Amount
                         Else
                             '一般正味財産
-                            iNetAssets_Diff = iNetAssets_Diff + iDrMoney
+                            iNetAssets_Diff = iNetAssets_Diff + entry.Credit.Amount
                         End If
                     End If
                     
-                    Sheet3.Cells(yOutput, 1) = iYear
-                    Sheet3.Cells(yOutput, 2) = sCrAccountNo
-                    Sheet3.Cells(yOutput, 3) = sSummary
+                    Sheet3.Cells(yOutput, 1) = entry.EntryDate
+                    Sheet3.Cells(yOutput, 2) = entry.Debit.MajorAccount
+                    Sheet3.Cells(yOutput, 3) = entry.Summary
                     Sheet3.Cells(yOutput, 4) = ""
-                    Sheet3.Cells(yOutput, 5) = iDrMoney
+                    Sheet3.Cells(yOutput, 5) = entry.Credit.Amount
                     If Account(i, 4) < 0 Then
                         Sheet3.Cells(yOutput, 6) = "貸"
                     Else
@@ -844,11 +867,11 @@ Sub main()
                     yOutput = yOutput + 1
                 
                     '補助科目コードに何か書かれているかチェック
-                    If IsNull(iDrSubAccountNo) Or IsEmpty(iDrSubAccountNo) Then
+                    If IsNull(entry.Credit.SubAccountCode) Or IsEmpty(entry.Credit.SubAccountCode) Then
                     Else
-                        iSubAccountNo = iDrSubAccountNo
-                        sSubAccountNo = sDrSubAccountNo
-                        iClass = iDrClass
+                        iSubAccountNo = entry.Credit.SubAccountCode
+                        sSubAccountNo = entry.Credit.SubAccountCode
+                        iClass = entry.Credit.Class
                     End If
                 
                 End If
@@ -912,7 +935,7 @@ Sub main()
             Sheet4.Activate
             
             'ソート
-            Call QuickSort(SubAccount(), 5, 0, Account(i, 5), Account(i, 6))
+            Call QuickSort(SubAccount(), 6, 0, Account(i, 5), Account(i, 6))
 
             '登録された勘定科目の分、繰り返す
             iSub = stCntSubAccount
@@ -1018,17 +1041,17 @@ Sub main()
                     ReadJournal (yInput)
                     
                     '年月日の記載が無かったら、検索終了
-                    If IsNull(iYear) Or IsEmpty(iYear) Then Exit Do
+                    If IsNull(entry.EntryDate) Or IsEmpty(entry.EntryDate) Then Exit Do
                    
                     '借方に集計中の勘定科目が記載されていた場合
-                    If (Account(i, 0) = iCrAccountNo) And (SubAccount(iSub, 0) = iCrSubAccountNo) And (SubAccount(iSub, 6) = iCrClass) Then
-                        SubAccount(iSub, 2) = SubAccount(iSub, 2) + iCrMoney
-                        SubAccount(iSub, 4) = SubAccount(iSub, 4) + iCrMoney
+                    If (Account(i, 0) = entry.Debit.AccountCode) And (SubAccount(iSub, 0) = entry.Debit.SubAccountCode) And (SubAccount(iSub, 6) = entry.Debit.Class) Then
+                        SubAccount(iSub, 2) = SubAccount(iSub, 2) + entry.Debit.Amount
+                        SubAccount(iSub, 4) = SubAccount(iSub, 4) + entry.Debit.Amount
                         
-                        Sheet4.Cells(ySubOutput, 1) = iYear
-                        Sheet4.Cells(ySubOutput, 2) = sDrAccountNo
-                        Sheet4.Cells(ySubOutput, 3) = sSummary
-                        Sheet4.Cells(ySubOutput, 4) = iCrMoney
+                        Sheet4.Cells(ySubOutput, 1) = entry.EntryDate
+                        Sheet4.Cells(ySubOutput, 2) = entry.Credit.MajorAccount  '相手科目
+                        Sheet4.Cells(ySubOutput, 3) = entry.Summary
+                        Sheet4.Cells(ySubOutput, 4) = entry.Debit.Amount
                         Sheet4.Cells(ySubOutput, 5) = ""
                         If SubAccount(iSub, 4) < 0 Then
                             Sheet4.Cells(ySubOutput, 6) = "貸"
@@ -1041,15 +1064,15 @@ Sub main()
                     End If
                     
                     '貸方に集計中の勘定科目が記載されていた場合
-                    If (Account(i, 0) = iDrAccountNo) And (SubAccount(iSub, 0) = iDrSubAccountNo) And (SubAccount(iSub, 6) = iDrClass) Then
-                        SubAccount(iSub, 3) = SubAccount(iSub, 3) + iDrMoney
-                        SubAccount(iSub, 4) = SubAccount(iSub, 4) - iDrMoney
+                    If (Account(i, 0) = entry.Credit.AccountCode) And (SubAccount(iSub, 0) = entry.Credit.SubAccountCode) And (SubAccount(iSub, 6) = entry.Credit.Class) Then
+                        SubAccount(iSub, 3) = SubAccount(iSub, 3) + entry.Credit.Amount
+                        SubAccount(iSub, 4) = SubAccount(iSub, 4) - entry.Credit.Amount
                         
-                        Sheet4.Cells(ySubOutput, 1) = iYear
-                        Sheet4.Cells(ySubOutput, 2) = sCrAccountNo
-                        Sheet4.Cells(ySubOutput, 3) = sSummary
+                        Sheet4.Cells(ySubOutput, 1) = entry.EntryDate
+                        Sheet4.Cells(ySubOutput, 2) = entry.Debit.MajorAccount   '相手科目
+                        Sheet4.Cells(ySubOutput, 3) = entry.Summary
                         Sheet4.Cells(ySubOutput, 4) = ""
-                        Sheet4.Cells(ySubOutput, 5) = iDrMoney
+                        Sheet4.Cells(ySubOutput, 5) = entry.Credit.Amount
                         If SubAccount(iSub, 4) < 0 Then
                             Sheet4.Cells(ySubOutput, 6) = "貸"
                         Else
