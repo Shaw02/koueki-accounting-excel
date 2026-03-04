@@ -147,8 +147,6 @@ Sub main()
     Dim db As journal
     Set db = New journal
 
-    Call db.readJournal
-
     '総勘定元帳＆補助元帳
     Dim gl As Ledger
     Set gl = New Ledger
@@ -209,7 +207,7 @@ Sub main()
         entrySide.ReadResults (yInput)
         
         '勘定科目コードの記載が無かったら、検索終了
-        If IsNull(entrySide.AccountCode) Or IsEmpty(entrySide.AccountCode) Then Exit Do
+        If entrySide.AccountCode = 99999 Then Exit Do
         
         'すでに勘定科目があるか検索
         i = 0
@@ -363,7 +361,7 @@ Sub main()
             entrySide.ReadResults (yInput)
 
             '勘定科目コードの記載が無かったら、前期実績の検索終了
-            If IsNull(entrySide.AccountCode) Or IsEmpty(entrySide.AccountCode) Then Exit Do
+            If entrySide.AccountCode = 99999 Then Exit Do
 
             '同じ勘定科目かチェック
             If Account(i, 0) = entrySide.AccountCode Then
@@ -420,7 +418,7 @@ Sub main()
             
             '--------------------------
             '2行目は勘定科目コード
-            Sheet3.Cells(yOutput, 1) = "勘定科目コード：" & Str(Account(i, 0))
+            Sheet3.Cells(yOutput, 1) = "勘定科目コード：" & str(Account(i, 0))
             yOutput = yOutput + 1
         
             '--------------------------
@@ -657,8 +655,8 @@ Sub main()
                 
                 '--------------------------
                 '2行目は勘定科目コード
-                Sheet4.Cells(ySubOutput, 1) = "勘定科目コード：" & Str(Account(i, 0))
-                Sheet4.Cells(ySubOutput, 3) = "補助科目コード：" & Str(SubAccount(iSub, 0))
+                Sheet4.Cells(ySubOutput, 1) = "勘定科目コード：" & str(Account(i, 0))
+                Sheet4.Cells(ySubOutput, 3) = "補助科目コード：" & str(SubAccount(iSub, 0))
                 ySubOutput = ySubOutput + 1
             
                 '--------------------------

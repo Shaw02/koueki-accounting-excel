@@ -30,24 +30,36 @@ Private Sub Class_Terminate()
 
 End Sub
 
-'=======================================================
+'==============================================================================
 '       財務諸表の０初期化
-'-------------------------------------------------------
+'==============================================================================
 Sub SheetClear()
 
+    '----------------------------------
+    '   変数宣言
+    '----------------------------------
+    Dim wsBS As Worksheet
+    Dim wsPL As Worksheet
+    
+    '----------------------------------
+    '   初期化
+    '----------------------------------
+    Set wsBS = ThisWorkbook.Worksheets("④貸借対照表")
+    Set wsPL = ThisWorkbook.Worksheets("⑤正味財産増減計算書")
+        
     Dim yOutBS As Long
     Dim yOutPL As Long
 
     '貸借対照表へ
     yOutBS = styFinancialStatements
     Do
-        If IsNull(Sheet6.Cells(yOutBS, 1)) Or IsEmpty(Sheet6.Cells(yOutBS, 1)) Then
+        If IsNull(wsBS.Cells(yOutBS, 1)) Or IsEmpty(wsBS.Cells(yOutBS, 1)) Then
         Else
-            If Sheet6.Cells(yOutBS, 1) = -1 Then
+            If wsBS.Cells(yOutBS, 1) = -1 Then
                 Exit Do
             Else
-                Sheet6.Cells(yOutBS, 6) = 0
-                Sheet6.Cells(yOutBS, 7) = 0
+                wsBS.Cells(yOutBS, 6) = 0
+                wsBS.Cells(yOutBS, 7) = 0
             End If
         End If
         yOutBS = yOutBS + 1
@@ -56,13 +68,13 @@ Sub SheetClear()
     '正味財産増減計算書へ
     yOutPL = styFinancialStatements
     Do
-        If IsNull(Sheet5.Cells(yOutPL, 1)) Or IsEmpty(Sheet5.Cells(yOutPL, 1)) Then
+        If IsNull(wsPL.Cells(yOutPL, 1)) Or IsEmpty(wsPL.Cells(yOutPL, 1)) Then
         Else
-            If Sheet5.Cells(yOutPL, 1) = -1 Then
+            If wsPL.Cells(yOutPL, 1) = -1 Then
                 Exit Do
             Else
-                Sheet5.Cells(yOutPL, 6) = 0
-                Sheet5.Cells(yOutPL, 7) = 0
+                wsPL.Cells(yOutPL, 6) = 0
+                wsPL.Cells(yOutPL, 7) = 0
             End If
         End If
         yOutPL = yOutPL + 1
@@ -70,9 +82,9 @@ Sub SheetClear()
 
 End Sub
 
-'=======================================================
+'==============================================================================
 '       財務諸表へ出力
-'-------------------------------------------------------
+'------------------------------------------------------------------------------
 '   Contents:
 '       正味財産増減計算書、若しくは貸借対照表の
 '       指定の勘定科目コードの欄に、金額を出力します。
@@ -86,30 +98,42 @@ End Sub
 '       Sheet "正味財産増減計算書"
 '       Sheet "貸借対照表"
 '
-'=======================================================
+'==============================================================================
 Sub OutFinancialStatements(idAccount As Variant, iColumn As Variant, iMoney As Currency)
 
+    '----------------------------------
+    '   変数宣言
+    '----------------------------------
+    Dim wsBS As Worksheet
+    Dim wsPL As Worksheet
+    
     Dim yOutBS As Long
     Dim yOutPL As Long
     Dim flagErr As Boolean
 
+    '----------------------------------
+    '   初期化
+    '----------------------------------
+    Set wsBS = ThisWorkbook.Worksheets("④貸借対照表")
+    Set wsPL = ThisWorkbook.Worksheets("⑤正味財産増減計算書")
+    
     '財務諸表への出力
     If (idAccount < 30000) Then
         '貸借対照表へ
         yOutBS = 6
         flagErr = True
         Do
-            If IsNull(Sheet6.Cells(yOutBS, 1)) Or IsEmpty(Sheet6.Cells(yOutBS, 1)) Then
+            If IsNull(wsBS.Cells(yOutBS, 1)) Or IsEmpty(wsBS.Cells(yOutBS, 1)) Then
             Else
-                If Sheet6.Cells(yOutBS, 1) = -1 Then
+                If wsBS.Cells(yOutBS, 1) = -1 Then
                     Exit Do
-                ElseIf Sheet6.Cells(yOutBS, 1) = idAccount Then
+                ElseIf wsBS.Cells(yOutBS, 1) = idAccount Then
                     If idAccount >= 10000 And idAccount < 20000 Then
                         '借方
-                        Sheet6.Cells(yOutBS, iColumn) = iMoney
+                        wsBS.Cells(yOutBS, iColumn) = iMoney
                     Else
                         '貸方
-                        Sheet6.Cells(yOutBS, iColumn) = -iMoney
+                        wsBS.Cells(yOutBS, iColumn) = -iMoney
                     End If
                     flagErr = False
                 End If
@@ -117,7 +141,7 @@ Sub OutFinancialStatements(idAccount As Variant, iColumn As Variant, iMoney As C
             yOutBS = yOutBS + 1
         Loop
         If flagErr = True Then
-            MsgBox "貸借対照表に勘定科目がありません。：勘定科目コード＝" & Str(idAccount)
+            MsgBox "貸借対照表に勘定科目がありません。：勘定科目コード＝" & str(idAccount)
             End
         End If
         
@@ -126,26 +150,26 @@ Sub OutFinancialStatements(idAccount As Variant, iColumn As Variant, iMoney As C
         yOutPL = 6
         flagErr = True
         Do
-            If IsNull(Sheet5.Cells(yOutPL, 1)) Or IsEmpty(Sheet5.Cells(yOutPL, 1)) Then
+            If IsNull(wsPL.Cells(yOutPL, 1)) Or IsEmpty(wsPL.Cells(yOutPL, 1)) Then
             Else
-                If Sheet5.Cells(yOutPL, 1) = -1 Then
+                If wsPL.Cells(yOutPL, 1) = -1 Then
                     Exit Do
-                ElseIf Sheet5.Cells(yOutPL, 1) = idAccount Then
+                ElseIf wsPL.Cells(yOutPL, 1) = idAccount Then
                     If idAccount >= 30000 And idAccount < 40000 Then
                         '集計結果
-                        Sheet5.Cells(yOutPL, iColumn) = iMoney
+                        wsPL.Cells(yOutPL, iColumn) = iMoney
                     ElseIf idAccount >= 40000 And idAccount < 50000 Then
                         '経常収益
-                        Sheet5.Cells(yOutPL, iColumn) = -iMoney
+                        wsPL.Cells(yOutPL, iColumn) = -iMoney
                     ElseIf idAccount >= 50000 And idAccount < 60000 Then
                         '経常費用
-                        Sheet5.Cells(yOutPL, iColumn) = iMoney
+                        wsPL.Cells(yOutPL, iColumn) = iMoney
                     ElseIf idAccount >= 60000 And idAccount < 70000 Then
                         '経常外収益
-                        Sheet5.Cells(yOutPL, iColumn) = -iMoney
+                        wsPL.Cells(yOutPL, iColumn) = -iMoney
                     ElseIf idAccount >= 70000 And idAccount < 80000 Then
                         '経常外費用
-                        Sheet5.Cells(yOutPL, iColumn) = iMoney
+                        wsPL.Cells(yOutPL, iColumn) = iMoney
                     End If
                     flagErr = False
                 End If
@@ -153,7 +177,7 @@ Sub OutFinancialStatements(idAccount As Variant, iColumn As Variant, iMoney As C
             yOutPL = yOutPL + 1
         Loop
         If flagErr = True Then
-            MsgBox "正味財産増減計算書に勘定科目がありません。：勘定科目コード＝" & Str(idAccount)
+            MsgBox "正味財産増減計算書に勘定科目がありません。：勘定科目コード＝" & str(idAccount)
             End
         End If
 

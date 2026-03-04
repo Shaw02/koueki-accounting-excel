@@ -12,6 +12,10 @@ Attribute VB_Exposed = False
 '==============================================================================
 Option Explicit
 
+Private Const ROW_CR_START As Long = 7
+Private Const ROW_GL_START As Long = 5
+Private Const ROW_SL_START As Long = 5
+
 
 
 
@@ -29,32 +33,59 @@ Private Sub Class_Terminate()
 
 End Sub
 
-'=======================================================
+'==============================================================================
 '       総勘定元帳・今期実績のクリア
-'-------------------------------------------------------
+'==============================================================================
 Sub SheetClear()
 '
-' GeneralAccountClear Macro
-'
-' Keyboard Shortcut: Ctrl+g
-'
-    '今期実績
-    Sheet11.Activate
-    Sheet11.Range("A7", Sheet11.Range("A7").SpecialCells(xlCellTypeLastCell)).Select
-    Selection.EntireRow.Delete
-    Sheet11.Range("A7").Select
+    '----------------------------------
+    '   変数宣言
+    '----------------------------------
+    Dim wsCR As Worksheet
+    Dim wsGL As Worksheet
+    Dim wsSL As Worksheet
     
-    '総勘定元帳
-    Sheet3.Activate
-    Sheet3.Range("A5", Sheet3.Range("A5").SpecialCells(xlCellTypeLastCell)).Select
-    Selection.EntireRow.Delete
-    Sheet3.Range("A5").Select
-
-    '補助元帳
-    Sheet4.Activate
-    Sheet4.Range("A5", Sheet4.Range("A5").SpecialCells(xlCellTypeLastCell)).Select
-    Selection.EntireRow.Delete
-    Sheet4.Range("A5").Select
+    '----------------------------------
+    '   初期化
+    '----------------------------------
+    Set wsCR = ThisWorkbook.Worksheets("今期実績")
+    Set wsGL = ThisWorkbook.Worksheets("②総勘定元帳")
+    Set wsSL = ThisWorkbook.Worksheets("③補助元帳")
+    
+    '----------------------------------
+    '   シートクリア
+    '----------------------------------
+    Call ClearSheet(wsCR, ROW_CR_START)
+    Call ClearSheet(wsGL, ROW_GL_START)
+    Call ClearSheet(wsSL, ROW_SL_START)
 
 End Sub
 
+'==============================================================================
+'      シートのクリア
+'------------------------------------------------------------------------------
+'   Contents:
+'       指定のシートをクリアします。
+'   Input:
+'       ws  クリアするシート
+'   Output:
+'       startRow    開始行
+'==============================================================================
+Private Sub ClearSheet(ws As Worksheet, startRow As Long)
+
+    '----------------------------------
+    '   変数宣言
+    '----------------------------------
+    Dim lastRow As Long
+    
+    '----------------------------------
+    '   シートクリア
+    '----------------------------------
+    With ws
+        lastRow = .Cells(.Rows.count, "A").End(xlUp).Row
+        If lastRow >= startRow Then
+            .Rows(startRow & ":" & lastRow).Delete
+        End If
+    End With
+
+End Sub
