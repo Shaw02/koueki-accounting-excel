@@ -39,7 +39,7 @@ Public Const styPerformance = 7     '実績の開始位置
 '       Data()  ソート後
 '
 '=======================================================
-Sub QuickSort(ByRef Data() As Variant, ByVal n As Variant, ByVal Key As Long, ByVal low As Long, ByVal high As Long)
+Sub QuickSort(ByRef Data() As Variant, ByVal n As Variant, ByVal key As Long, ByVal low As Long, ByVal high As Long)
 
     Dim i As Long
     Dim l As Long
@@ -48,15 +48,15 @@ Sub QuickSort(ByRef Data() As Variant, ByVal n As Variant, ByVal Key As Long, By
     r = high
 
     Dim pivot As Variant
-    pivot = Data((low + high) \ 2, Key)
+    pivot = Data((low + high) \ 2, key)
 
     Dim temp As Variant
     
     Do While (l <= r)
-        Do While (Data(l, Key) < pivot And l < high)
+        Do While (Data(l, key) < pivot And l < high)
             l = l + 1
         Loop
-        Do While (pivot < Data(r, Key) And r > low)
+        Do While (pivot < Data(r, key) And r > low)
             r = r - 1
         Loop
     
@@ -72,10 +72,10 @@ Sub QuickSort(ByRef Data() As Variant, ByVal n As Variant, ByVal Key As Long, By
     Loop
     
     If (low < r) Then
-        Call QuickSort(Data, n, Key, low, r)
+        Call QuickSort(Data, n, key, low, r)
     End If
     If (l < high) Then
-        Call QuickSort(Data, n, Key, l, high)
+        Call QuickSort(Data, n, key, l, high)
     End If
 
 End Sub
@@ -150,6 +150,9 @@ Sub main()
     '総勘定元帳＆補助元帳
     Dim gl As Ledger
     Set gl = New Ledger
+    
+    Dim le As LedgerEngine
+    Set le = New LedgerEngine
 
     '財務諸表
     Dim fs As FinancialStatements
@@ -204,7 +207,8 @@ Sub main()
     yInput = styPerformance
     Do
         '前期実績を1行読み込み
-        entrySide.ReadResults (yInput)
+        Call entrySide.ReadResults(yInput)
+        Call le.AddOpening(entrySide)
         
         '勘定科目コードの記載が無かったら、検索終了
         If entrySide.AccountCode = 99999 Then Exit Do
@@ -219,38 +223,39 @@ Sub main()
             i = i + 1
         Wend
         '初出の科目だったら
-        If (fThereIs = True) And (entrySide.Amount <> 0) Then
+        If (fThereIs = True) And (entrySide.amount <> 0) Then
             '副科目コードに何も書いていなければ
             If IsNull(entrySide.SubAccountCode) Or IsEmpty(entrySide.SubAccountCode) Then
                                                               
                 '前年度の増減額・期首残高・期末残高か？
                 Select Case entrySide.AccountCode
                     Case idNetAssets_End
-                        iNetAssets_End_p = entrySide.Amount
+                        iNetAssets_End_p = entrySide.amount
                     Case idNetAssets_Begin
-                        iNetAssets_Begin_p = entrySide.Amount
+                        iNetAssets_Begin_p = entrySide.amount
                     Case idNetAssets_Diff
-                        iNetAssets_Diff_p = entrySide.Amount
+                        iNetAssets_Diff_p = entrySide.amount
                     Case idSpNetAssets_End
-                        iSpNetAssets_End_p = entrySide.Amount
+                        iSpNetAssets_End_p = entrySide.amount
                     Case idSpNetAssets_Begin
-                        iSpNetAssets_Begin_p = entrySide.Amount
+                        iSpNetAssets_Begin_p = entrySide.amount
                     Case idSpNetAssets_Diff
-                        iSpNetAssets_Diff_p = entrySide.Amount
+                        iSpNetAssets_Diff_p = entrySide.amount
                     Case Else
                         '上以外は、リスト化する
                 End Select
                         
                         '■To Do 財務諸表出力をまとめれたら、上 Switch の Case Else に移動
                         Account(cntAccount, 0) = entrySide.AccountCode
-                        Account(cntAccount, 1) = entrySide.Amount   '前年度繰越金
+                        Account(cntAccount, 1) = entrySide.amount   '前年度繰越金
                         Account(cntAccount, 7) = entrySide.MajorAccount
+                        Account(cntAccount, 8) = entrySide.MiddleAccount
                         cntAccount = cntAccount + 1
-                            
+                        
                 '-------------------------------------------------
                 '■To Do 財務諸表出力は、まとめる。
                 '財務諸表（前年度）への出力
-                Call fs.OutFinancialStatements(entrySide.AccountCode, iLastX, entrySide.Amount)
+                Call fs.OutFinancialStatements(entrySide.AccountCode, iLastX, entrySide.amount)
                 '-------------------------------------------------
 
             End If
@@ -265,9 +270,17 @@ Sub main()
     '---------------------------------------
     For Each it In db.Items
         Set entry = it
+        Call le.AddJournal(entry)
         
-        '年月日の記載が無かったら、検索終了
-        If IsNull(entry.entryDate) Or IsEmpty(entry.entryDate) Then Exit For
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         'すでに勘定科目があるか検索[借方]
         i = 0
@@ -282,6 +295,7 @@ Sub main()
             Account(cntAccount, 0) = entry.Debit.AccountCode
             Account(cntAccount, 1) = 0  '前期繰越
             Account(cntAccount, 7) = entry.Debit.MajorAccount
+            Account(cntAccount, 8) = entry.Debit.MiddleAccount
             cntAccount = cntAccount + 1
         End If
         
@@ -298,10 +312,12 @@ Sub main()
             Account(cntAccount, 0) = entry.Credit.AccountCode
             Account(cntAccount, 1) = 0  '前期繰越
             Account(cntAccount, 7) = entry.Credit.MajorAccount
+            Account(cntAccount, 8) = entry.Credit.MiddleAccount
             cntAccount = cntAccount + 1
         End If
     Next
     
+    Call le.Final
     
     '---------------------------------------
     '[1]-(3) ソート
@@ -380,11 +396,11 @@ Sub main()
                     Wend
     
                     '前期繰越があれば、補助科目を処理用配列に追加
-                    If (fThereIs = True) And (entrySide.Amount <> 0) Then
+                    If (fThereIs = True) And (entrySide.amount <> 0) Then
                         '貸借対照表科目の場合、リスト化する
                         If (entrySide.AccountCode < 40000) Then
                             SubAccount(cntSubAccount, 0) = entrySide.SubAccountCode
-                            SubAccount(cntSubAccount, 1) = entrySide.Amount   '前年度繰越金
+                            SubAccount(cntSubAccount, 1) = entrySide.amount   '前年度繰越金
                             SubAccount(cntSubAccount, 5) = entrySide.SubAccountName
                             SubAccount(cntSubAccount, 6) = entrySide.Class
                             cntSubAccount = cntSubAccount + 1
@@ -409,8 +425,12 @@ Sub main()
             '総勘定元帳へ科目名、等出力
             '1行目は勘定科目
             Sheet3.Range(Cells(yOutput, 1), Cells(yOutput, 7)).Merge
+            If Account(i, 8) <> "" Then
+                Sheet3.Cells(yOutput, 1) = "科目：" & Account(i, 7) & " － " & Account(i, 8)
+            Else
+                Sheet3.Cells(yOutput, 1) = "科目：" & Account(i, 7)
+            End If
             
-            Sheet3.Cells(yOutput, 1) = Account(i, 7)
             Sheet3.Cells(yOutput, 1).Font.Underline = True
             Sheet3.Cells(yOutput, 1).Font.size = 16
             Sheet3.Cells(yOutput, 1).HorizontalAlignment = xlCenter
@@ -482,30 +502,27 @@ Sub main()
             For Each it In db.Items
                 Set entry = it
 
-                '年月日の記載が無かったら、検索終了
-                If IsNull(entry.entryDate) Or IsEmpty(entry.entryDate) Then Exit For
-    
                 '補助科目
                 entrySide.SubAccountCode = 0
                 
                 '借方に集計中の勘定科目が記載されていた場合
                 If Account(i, 0) = entry.Debit.AccountCode Then
-                    Account(i, 2) = Account(i, 2) + entry.Debit.Amount
-                    Account(i, 4) = Account(i, 4) + entry.Debit.Amount
+                    Account(i, 2) = Account(i, 2) + entry.Debit.amount
+                    Account(i, 4) = Account(i, 4) + entry.Debit.amount
                     If Account(i, 0) >= 40000 And Account(i, 0) < 80000 Then
                         If entry.Debit.Class = 1 Then
                             '指定正味財産
-                            iSpNetAssets_Diff = iSpNetAssets_Diff - entry.Debit.Amount
+                            iSpNetAssets_Diff = iSpNetAssets_Diff - entry.Debit.amount
                         Else
                             '一般正味財産
-                            iNetAssets_Diff = iNetAssets_Diff - entry.Debit.Amount
+                            iNetAssets_Diff = iNetAssets_Diff - entry.Debit.amount
                         End If
                     End If
                     
                     Sheet3.Cells(yOutput, 1) = entry.entryDate
                     Sheet3.Cells(yOutput, 2) = entry.Credit.MajorAccount
-                    Sheet3.Cells(yOutput, 3) = entry.Summary
-                    Sheet3.Cells(yOutput, 4) = entry.Debit.Amount
+                    Sheet3.Cells(yOutput, 3) = entry.summary
+                    Sheet3.Cells(yOutput, 4) = entry.Debit.amount
                     Sheet3.Cells(yOutput, 5) = ""
                     If Account(i, 4) < 0 Then
                         Sheet3.Cells(yOutput, 6) = "貸"
@@ -528,23 +545,23 @@ Sub main()
      
                 '貸方に集計中の勘定科目が記載されていた場合
                 If Account(i, 0) = entry.Credit.AccountCode Then
-                    Account(i, 3) = Account(i, 3) + entry.Credit.Amount
-                    Account(i, 4) = Account(i, 4) - entry.Credit.Amount
+                    Account(i, 3) = Account(i, 3) + entry.Credit.amount
+                    Account(i, 4) = Account(i, 4) - entry.Credit.amount
                     If Account(i, 0) >= 40000 And Account(i, 0) < 80000 Then
                         If entry.Credit.Class = 1 Then
                             '指定正味財産
-                            iSpNetAssets_Diff = iSpNetAssets_Diff + entry.Credit.Amount
+                            iSpNetAssets_Diff = iSpNetAssets_Diff + entry.Credit.amount
                         Else
                             '一般正味財産
-                            iNetAssets_Diff = iNetAssets_Diff + entry.Credit.Amount
+                            iNetAssets_Diff = iNetAssets_Diff + entry.Credit.amount
                         End If
                     End If
                     
                     Sheet3.Cells(yOutput, 1) = entry.entryDate
                     Sheet3.Cells(yOutput, 2) = entry.Debit.MajorAccount
-                    Sheet3.Cells(yOutput, 3) = entry.Summary
+                    Sheet3.Cells(yOutput, 3) = entry.summary
                     Sheet3.Cells(yOutput, 4) = ""
-                    Sheet3.Cells(yOutput, 5) = entry.Credit.Amount
+                    Sheet3.Cells(yOutput, 5) = entry.Credit.amount
                     If Account(i, 4) < 0 Then
                         Sheet3.Cells(yOutput, 6) = "貸"
                     Else
@@ -596,10 +613,11 @@ Sub main()
             '勘定科目は出力する。
             Sheet11.Cells(yOutPerformance, 1) = Account(i, 0)
             Sheet11.Cells(yOutPerformance, 2) = Account(i, 7)
-            Sheet11.Cells(yOutPerformance, 3) = ""
+            Sheet11.Cells(yOutPerformance, 3) = Account(i, 8)
             Sheet11.Cells(yOutPerformance, 4) = ""
-            Sheet11.Cells(yOutPerformance, 5) = ""              'ここは、一般も指定も無い。
-            Sheet11.Cells(yOutPerformance, 6) = Account(i, 4)
+            Sheet11.Cells(yOutPerformance, 5) = ""
+            Sheet11.Cells(yOutPerformance, 6) = ""              'ここは、一般も指定も無い。
+            Sheet11.Cells(yOutPerformance, 7) = Account(i, 4)
             yOutPerformance = yOutPerformance + 1
             
             '終わり
@@ -634,7 +652,11 @@ Sub main()
                 '総勘定元帳へ科目名、等出力
                 '1行目は勘定科目
                 Sheet4.Range(Cells(ySubOutput, 1), Cells(ySubOutput, 7)).Merge
-                Sheet4.Cells(ySubOutput, 1) = "科目：" & Account(i, 7)
+                If Account(i, 8) <> "" Then
+                    Sheet4.Cells(ySubOutput, 1) = "科目：" & Account(i, 7) & " － " & Account(i, 8)
+                Else
+                    Sheet4.Cells(ySubOutput, 1) = "科目：" & Account(i, 7)
+                End If
                 Sheet4.Cells(ySubOutput, 1).Font.Underline = True
                 Sheet4.Cells(ySubOutput, 1).Font.size = 16
                 Sheet4.Cells(ySubOutput, 1).HorizontalAlignment = xlCenter
@@ -727,13 +749,13 @@ Sub main()
                    
                     '借方に集計中の勘定科目が記載されていた場合
                     If (Account(i, 0) = entry.Debit.AccountCode) And (SubAccount(iSub, 0) = entry.Debit.SubAccountCode) And (SubAccount(iSub, 6) = entry.Debit.Class) Then
-                        SubAccount(iSub, 2) = SubAccount(iSub, 2) + entry.Debit.Amount
-                        SubAccount(iSub, 4) = SubAccount(iSub, 4) + entry.Debit.Amount
+                        SubAccount(iSub, 2) = SubAccount(iSub, 2) + entry.Debit.amount
+                        SubAccount(iSub, 4) = SubAccount(iSub, 4) + entry.Debit.amount
                         
                         Sheet4.Cells(ySubOutput, 1) = entry.entryDate
                         Sheet4.Cells(ySubOutput, 2) = entry.Credit.MajorAccount  '相手科目
-                        Sheet4.Cells(ySubOutput, 3) = entry.Summary
-                        Sheet4.Cells(ySubOutput, 4) = entry.Debit.Amount
+                        Sheet4.Cells(ySubOutput, 3) = entry.summary
+                        Sheet4.Cells(ySubOutput, 4) = entry.Debit.amount
                         Sheet4.Cells(ySubOutput, 5) = ""
                         If SubAccount(iSub, 4) < 0 Then
                             Sheet4.Cells(ySubOutput, 6) = "貸"
@@ -747,14 +769,14 @@ Sub main()
                     
                     '貸方に集計中の勘定科目が記載されていた場合
                     If (Account(i, 0) = entry.Credit.AccountCode) And (SubAccount(iSub, 0) = entry.Credit.SubAccountCode) And (SubAccount(iSub, 6) = entry.Credit.Class) Then
-                        SubAccount(iSub, 3) = SubAccount(iSub, 3) + entry.Credit.Amount
-                        SubAccount(iSub, 4) = SubAccount(iSub, 4) - entry.Credit.Amount
+                        SubAccount(iSub, 3) = SubAccount(iSub, 3) + entry.Credit.amount
+                        SubAccount(iSub, 4) = SubAccount(iSub, 4) - entry.Credit.amount
                         
                         Sheet4.Cells(ySubOutput, 1) = entry.entryDate
                         Sheet4.Cells(ySubOutput, 2) = entry.Debit.MajorAccount   '相手科目
-                        Sheet4.Cells(ySubOutput, 3) = entry.Summary
+                        Sheet4.Cells(ySubOutput, 3) = entry.summary
                         Sheet4.Cells(ySubOutput, 4) = ""
-                        Sheet4.Cells(ySubOutput, 5) = entry.Credit.Amount
+                        Sheet4.Cells(ySubOutput, 5) = entry.Credit.amount
                         If SubAccount(iSub, 4) < 0 Then
                             Sheet4.Cells(ySubOutput, 6) = "貸"
                         Else
@@ -773,10 +795,11 @@ Sub main()
                     '今期実績への出力
                     Sheet11.Cells(yOutPerformance, 1) = Account(i, 0)       '勘定科目コード
                     Sheet11.Cells(yOutPerformance, 2) = Account(i, 7)       '勘定科目名
-                    Sheet11.Cells(yOutPerformance, 3) = SubAccount(iSub, 0) '補助科目コード
-                    Sheet11.Cells(yOutPerformance, 4) = SubAccount(iSub, 5) '補助科目名
-                    Sheet11.Cells(yOutPerformance, 5) = SubAccount(iSub, 6)
-                    Sheet11.Cells(yOutPerformance, 6) = SubAccount(iSub, 4) '金額
+                    Sheet11.Cells(yOutPerformance, 3) = Account(i, 8)       '勘定科目名
+                    Sheet11.Cells(yOutPerformance, 4) = SubAccount(iSub, 0) '補助科目コード
+                    Sheet11.Cells(yOutPerformance, 5) = SubAccount(iSub, 5) '補助科目名
+                    Sheet11.Cells(yOutPerformance, 6) = SubAccount(iSub, 6)
+                    Sheet11.Cells(yOutPerformance, 7) = SubAccount(iSub, 4) '金額
                     yOutPerformance = yOutPerformance + 1
                 End If
                 
@@ -887,7 +910,8 @@ Sub main()
     Sheet11.Cells(yOutPerformance, 3) = ""
     Sheet11.Cells(yOutPerformance, 4) = ""
     Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = iNetAssets_Diff
+    Sheet11.Cells(yOutPerformance, 6) = ""
+    Sheet11.Cells(yOutPerformance, 7) = iNetAssets_Diff
     yOutPerformance = yOutPerformance + 1
     
     Sheet11.Cells(yOutPerformance, 1) = idNetAssets_Begin
@@ -895,7 +919,8 @@ Sub main()
     Sheet11.Cells(yOutPerformance, 3) = ""
     Sheet11.Cells(yOutPerformance, 4) = ""
     Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = iNetAssets_Begin
+    Sheet11.Cells(yOutPerformance, 6) = ""
+    Sheet11.Cells(yOutPerformance, 7) = iNetAssets_Begin
     yOutPerformance = yOutPerformance + 1
             
     Sheet11.Cells(yOutPerformance, 1) = idNetAssets_End
@@ -903,7 +928,8 @@ Sub main()
     Sheet11.Cells(yOutPerformance, 3) = ""
     Sheet11.Cells(yOutPerformance, 4) = ""
     Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = iNetAssets_End
+    Sheet11.Cells(yOutPerformance, 6) = ""
+    Sheet11.Cells(yOutPerformance, 7) = iNetAssets_End
     yOutPerformance = yOutPerformance + 1
 
     Sheet11.Cells(yOutPerformance, 1) = idSpNetAssets_Diff
@@ -911,7 +937,8 @@ Sub main()
     Sheet11.Cells(yOutPerformance, 3) = ""
     Sheet11.Cells(yOutPerformance, 4) = ""
     Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = iSpNetAssets_Diff
+    Sheet11.Cells(yOutPerformance, 6) = ""
+    Sheet11.Cells(yOutPerformance, 7) = iSpNetAssets_Diff
     yOutPerformance = yOutPerformance + 1
     
     Sheet11.Cells(yOutPerformance, 1) = idSpNetAssets_Begin
@@ -919,7 +946,8 @@ Sub main()
     Sheet11.Cells(yOutPerformance, 3) = ""
     Sheet11.Cells(yOutPerformance, 4) = ""
     Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = iSpNetAssets_Begin
+    Sheet11.Cells(yOutPerformance, 6) = ""
+    Sheet11.Cells(yOutPerformance, 7) = iSpNetAssets_Begin
     yOutPerformance = yOutPerformance + 1
             
     Sheet11.Cells(yOutPerformance, 1) = idSpNetAssets_End
@@ -927,7 +955,8 @@ Sub main()
     Sheet11.Cells(yOutPerformance, 3) = ""
     Sheet11.Cells(yOutPerformance, 4) = ""
     Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = iSpNetAssets_End
+    Sheet11.Cells(yOutPerformance, 6) = ""
+    Sheet11.Cells(yOutPerformance, 7) = iSpNetAssets_End
     yOutPerformance = yOutPerformance + 1
 
 End Sub

@@ -110,7 +110,7 @@ Public Sub readJournal()
     '   èâä˙âª
     '----------------------------------
     Set ws = ThisWorkbook.Worksheets("á@édñÛí†")
-    lastRow = ws.Cells(ws.Rows.count, COL_DATE).End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.Count, COL_DATE).End(xlUp).Row
     
     iTotalCrMoney = 0
     iTotalDrMoney = 0
@@ -165,8 +165,8 @@ Public Sub readJournal()
             Exit For
         End If
         
-        iTotalDrMoney = iTotalDrMoney + m_record(i).Debit.Amount
-        iTotalCrMoney = iTotalCrMoney + m_record(i).Credit.Amount
+        iTotalDrMoney = iTotalDrMoney + m_record(i).Debit.amount
+        iTotalCrMoney = iTotalCrMoney + m_record(i).Credit.amount
         
         i = i + 1
     Next y

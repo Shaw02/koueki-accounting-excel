@@ -7,6 +7,8 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
+' ”pŽ~—\’è
+
 '==============================================================================
 '   ‘Š¨’èŒ³’ E•â•Œ³’ 
 '==============================================================================
@@ -15,7 +17,6 @@ Option Explicit
 Private Const ROW_CR_START As Long = 7
 Private Const ROW_GL_START As Long = 5
 Private Const ROW_SL_START As Long = 5
-
 
 
 
@@ -82,7 +83,7 @@ Private Sub ClearSheet(ws As Worksheet, startRow As Long)
     '   ƒV[ƒgƒNƒŠƒA
     '----------------------------------
     With ws
-        lastRow = .Cells(.Rows.count, "A").End(xlUp).Row
+        lastRow = .Cells(.Rows.Count, "A").End(xlUp).Row
         If lastRow >= startRow Then
             .Rows(startRow & ":" & lastRow).Delete
         End If

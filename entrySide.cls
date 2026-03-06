@@ -24,7 +24,7 @@ Private m_NetAssetType      As NetAssetType
 Private m_Amount            As Currency    ' ã‡äz
 
 '==============================================================================
-' Property
+'   Property
 '==============================================================================
 Public Property Get AccountCode() As Variant
     AccountCode = m_AccountCode
@@ -128,11 +128,11 @@ Public Property Let Class(ByVal value As Variant)
 
 End Property
 
-Public Property Get Amount() As Currency
-    Amount = m_Amount
+Public Property Get amount() As Currency
+    amount = m_Amount
 End Property
 
-Public Property Let Amount(ByVal value As Currency)
+Public Property Let amount(ByVal value As Currency)
     m_Amount = value
 End Property
 
@@ -160,14 +160,7 @@ Public Sub Initialize( _
     ByVal SubAccountCode As Variant, _
     ByVal SubAccountName As String, _
     ByVal Class As Variant, _
-    ByVal Amount As Currency)
-
-    '------------------------------
-    ' Ç±ÇÍÇÕè¡Ç∑ó\íË
-    '------------------------------
-    If MiddleAccount <> "" Then
-        MajorAccount = MajorAccount & "Å|" & MiddleAccount
-    End If
+    ByVal amount As Currency)
 
     '------------------------------
     ' ë„ì¸
@@ -178,7 +171,7 @@ Public Sub Initialize( _
     Me.SubAccountCode = SubAccountCode
     Me.SubAccountName = SubAccountName
     Me.Class = Class
-    Me.Amount = Amount
+    Me.amount = amount
     
     '------------------------------
     ' ï‚èïâ»ñ⁄É`ÉFÉbÉN
@@ -224,15 +217,15 @@ Public Sub ReadResults(y As Variant)
         Me.SubAccountCode = 0
         Me.SubAccountName = ""
         Me.Class = ""
-        Me.Amount = 0
+        Me.amount = 0
     Else
         Me.AccountCode = str
         Me.MajorAccount = ws.Cells(y, 2)
-        Me.MiddleAccount = ""
-        Me.SubAccountCode = ws.Cells(y, 3)
-        Me.SubAccountName = ws.Cells(y, 4)
-        Me.Class = ws.Cells(y, 5)
-        Me.Amount = ws.Cells(y, 6)
+        Me.MiddleAccount = ws.Cells(y, 3)
+        Me.SubAccountCode = ws.Cells(y, 4)
+        Me.SubAccountName = ws.Cells(y, 5)
+        Me.Class = ws.Cells(y, 6)
+        Me.amount = ws.Cells(y, 7)
     End If
     
 End Sub

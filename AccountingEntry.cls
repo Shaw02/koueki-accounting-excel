@@ -21,6 +21,25 @@ Private m_Credit            As entrySide     ' 貸方
 Private m_Summary           As String        ' 摘要
 
 '==============================================================================
+'   Property
+'==============================================================================
+Public Property Get entryDate() As Variant
+    entryDate = m_EntryDate
+End Property
+
+Public Property Get Debit() As entrySide
+    Set Debit = m_Debit
+End Property
+
+Public Property Get Credit() As entrySide
+    Set Credit = m_Credit
+End Property
+
+Public Property Get summary() As String
+    summary = m_Summary
+End Property
+
+'==============================================================================
 '   クラスの初期化
 '==============================================================================
 Private Sub Class_Initialize()
@@ -100,23 +119,4 @@ Public Sub Initialize( _
     End If
 
 End Sub
-
-'==============================================================================
-'   メンバー変数取得
-'==============================================================================
-Public Property Get entryDate() As Variant
-    entryDate = m_EntryDate
-End Property
-
-Public Property Get Debit() As entrySide
-    Set Debit = m_Debit
-End Property
-
-Public Property Get Credit() As entrySide
-    Set Credit = m_Credit
-End Property
-
-Public Property Get Summary() As String
-    Summary = m_Summary
-End Property
 
