@@ -64,6 +64,7 @@ Public Sub Initialize( _
     ByVal D_MajorAccount As String, _
     ByVal D_MiddleAccount As String, _
     ByVal D_SubAccountCode As Variant, _
+    ByVal D_SubAccountCate As String, _
     ByVal D_SubAccountName As String, _
     ByVal D_Class As Variant, _
     ByVal D_Amount As Currency, _
@@ -71,6 +72,7 @@ Public Sub Initialize( _
     ByVal C_MajorAccount As String, _
     ByVal C_MiddleAccount As String, _
     ByVal C_SubAccountCode As Variant, _
+    ByVal C_SubAccountCate As String, _
     ByVal C_SubAccountName As String, _
     ByVal C_Class As Variant, _
     ByVal C_Amount As Currency, _
@@ -86,6 +88,7 @@ Public Sub Initialize( _
         D_MajorAccount, _
         D_MiddleAccount, _
         D_SubAccountCode, _
+        D_SubAccountCate, _
         D_SubAccountName, _
         D_Class, _
         D_Amount)
@@ -95,6 +98,7 @@ Public Sub Initialize( _
         C_MajorAccount, _
         C_MiddleAccount, _
         C_SubAccountCode, _
+        C_SubAccountCate, _
         C_SubAccountName, _
         C_Class, _
         C_Amount)

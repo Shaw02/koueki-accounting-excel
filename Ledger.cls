@@ -43,22 +43,17 @@ Sub SheetClear()
     '   変数宣言
     '----------------------------------
     Dim wsCR As Worksheet
-    Dim wsGL As Worksheet
-    Dim wsSL As Worksheet
     
     '----------------------------------
     '   初期化
     '----------------------------------
     Set wsCR = ThisWorkbook.Worksheets("今期実績")
-    Set wsGL = ThisWorkbook.Worksheets("②総勘定元帳")
-    Set wsSL = ThisWorkbook.Worksheets("③補助元帳")
+
     
     '----------------------------------
     '   シートクリア
     '----------------------------------
     Call ClearSheet(wsCR, ROW_CR_START)
-    Call ClearSheet(wsGL, ROW_GL_START)
-    Call ClearSheet(wsSL, ROW_SL_START)
 
 End Sub
 

@@ -19,6 +19,7 @@ Private m_AccountCode       As Long        ' 勘定科目コード
 Private m_MajorAccount      As String      ' 大科目（VLookup）
 Private m_MiddleAccount     As String      ' 中科目（VLookup）
 Private m_SubAccountCode    As Variant     ' 補助科目コード
+Private m_SubAccountCate    As String      ' 会計区分
 Private m_SubAccountName    As String      ' 補助科目名（VLookup）
 Private m_NetAssetType      As NetAssetType
 Private m_Amount            As Currency    ' 金額
@@ -96,6 +97,42 @@ Public Property Let SubAccountCode(ByVal value As Variant)
 End Property
 
 
+Public Property Get SubAccountCate() As Variant
+    SubAccountCate = m_SubAccountCate
+End Property
+
+Public Property Let SubAccountCate(ByVal value As Variant)
+
+    Dim strValue As String
+    strValue = Trim(CStr(value))
+    
+    Select Case strValue
+        Case "", " ", "　", "公共", "公益共通"
+            m_SubAccountCate = "公共"
+        Case "公1", "公益1"
+            m_SubAccountCate = "公1"
+        Case "公2", "公益2"
+            m_SubAccountCate = "公2"
+        Case "公3", "公益3"
+            m_SubAccountCate = "公3"
+        Case "収共", "収益共通"
+            m_SubAccountCate = "収1"
+        Case "収1", "収益1"
+            m_SubAccountCate = "収1"
+        Case "収2", "収益2"
+            m_SubAccountCate = "収2"
+        Case "収3", "収益3"
+            m_SubAccountCate = "収3"
+        Case "法", "法人"
+            m_SubAccountCate = "法"
+        Case Else
+            Err.Raise vbObjectError + 3003, _
+                      "entrySide.Class", _
+                      "会計区分が不正です: " & strValue
+    End Select
+
+End Property
+
 Public Property Get SubAccountName() As String
     SubAccountName = m_SubAccountName
 End Property
@@ -123,7 +160,7 @@ Public Property Let Class(ByVal value As Variant)
         Case Else
             Err.Raise vbObjectError + 3003, _
                       "entrySide.Class", _
-                      "区分が不正です: " & strValue
+                      "一般指定区分が不正です: " & strValue
     End Select
 
 End Property
@@ -158,6 +195,7 @@ Public Sub Initialize( _
     ByVal MajorAccount As String, _
     ByVal MiddleAccount As String, _
     ByVal SubAccountCode As Variant, _
+    ByVal SubAccountCate As Variant, _
     ByVal SubAccountName As String, _
     ByVal Class As Variant, _
     ByVal amount As Currency)
@@ -169,6 +207,7 @@ Public Sub Initialize( _
     Me.MajorAccount = MajorAccount
     Me.MiddleAccount = MiddleAccount
     Me.SubAccountCode = SubAccountCode
+    Me.SubAccountCate = SubAccountCate
     Me.SubAccountName = SubAccountName
     Me.Class = Class
     Me.amount = amount
@@ -215,6 +254,7 @@ Public Sub ReadResults(y As Variant)
         Me.MajorAccount = ""
         Me.MiddleAccount = ""
         Me.SubAccountCode = 0
+        Me.SubAccountCate = ""
         Me.SubAccountName = ""
         Me.Class = ""
         Me.amount = 0
@@ -223,9 +263,10 @@ Public Sub ReadResults(y As Variant)
         Me.MajorAccount = ws.Cells(y, 2)
         Me.MiddleAccount = ws.Cells(y, 3)
         Me.SubAccountCode = ws.Cells(y, 4)
-        Me.SubAccountName = ws.Cells(y, 5)
-        Me.Class = ws.Cells(y, 6)
-        Me.amount = ws.Cells(y, 7)
+        Me.SubAccountCate = ws.Cells(y, 5)
+        Me.SubAccountName = ws.Cells(y, 6)
+        Me.Class = ws.Cells(y, 7)
+        Me.amount = ws.Cells(y, 8)
     End If
     
 End Sub

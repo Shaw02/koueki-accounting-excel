@@ -24,13 +24,16 @@ Private m_AccountCode       As Long             ' 勘定科目コード
 Private m_MajorAccount      As String           ' 大科目（VLookup）
 Private m_MiddleAccount     As String           ' 中科目（VLookup）
 Private m_SubAccountCode    As Variant          ' 補助科目コード
+Private m_SubAccountCate    As String           ' 補助科目コード
 Private m_SubAccountName    As String           ' 補助科目名（VLookup）
 Private m_NetAssetType      As NetAssetType     ' 指定（総勘定元帳のみ）
 
 Private m_Lines As Collection                   ' 各行（LedgerLine）を保持する
 
-Private m_last  As Currency                     ' 前期期末残高  （資産・負債だったら、前期繰越にもなる）
-Private m_Balance As Currency                   ' 期末残高  （来期期初残高）
+Private m_BeginningBalance  As Currency         ' 期初残高  （資産・負債だったら、前期繰越にもなる）
+Private m_EndingBalance     As Currency         ' 期末残高  （来期期初残高）
+Private m_Debit             As Currency         ' 借方合計
+Private m_Credit            As Currency         ' 貸方合計
 
 '==============================================================================
 '   クラス初期化
@@ -38,8 +41,11 @@ Private m_Balance As Currency                   ' 期末残高  （来期期初残高）
 Private Sub Class_Initialize()
 
     Set m_Lines = New Collection
-    m_Balance = 0
-    m_last = 0
+    
+    m_BeginningBalance = 0
+    m_EndingBalance = 0
+    m_Debit = 0
+    m_Credit = 0
 
 End Sub
 
@@ -69,8 +75,15 @@ End Property
 '==============================================================================
 '   補助科目コード取得
 '==============================================================================
-Public Property Get SubAccountCode() As Long
+Public Property Get SubAccountCode() As Variant
     SubAccountCode = m_SubAccountCode
+End Property
+
+'==============================================================================
+'   区分
+'==============================================================================
+Public Property Get SubAccountCate() As String
+    SubAccountCate = m_SubAccountCate
 End Property
 
 '==============================================================================
@@ -99,6 +112,36 @@ Public Property Get Lines() As Collection
     Set Lines = m_Lines
 End Property
 
+'==============================================================================
+'   期初残高
+'==============================================================================
+Public Property Get BeginningBalance() As Currency
+    BeginningBalance = m_BeginningBalance
+End Property
+
+
+'==============================================================================
+'   期末残高
+'==============================================================================
+Public Property Get EndingBalance() As Currency
+    EndingBalance = m_EndingBalance
+End Property
+
+
+'==============================================================================
+'   借方合計
+'==============================================================================
+Public Property Get Debit() As Currency
+    Debit = m_Debit
+End Property
+
+
+'==============================================================================
+'   貸方合計
+'==============================================================================
+Public Property Get Credit() As Currency
+    Credit = m_Credit
+End Property
 
 '==============================================================================
 '       勘定科目初期化
@@ -119,6 +162,7 @@ Public Sub Initialize( _
         ByVal MajorAccount As String, _
         ByVal MiddleAccount As String, _
         ByVal subCode As Variant, _
+        ByVal subCate As String, _
         ByVal subName As String, _
         ByVal NetAssetType As NetAssetType)
 
@@ -126,6 +170,7 @@ Public Sub Initialize( _
     m_MajorAccount = MajorAccount
     m_MiddleAccount = MiddleAccount
     m_SubAccountCode = subCode
+    m_SubAccountCate = subCate
     m_SubAccountName = subName
     m_NetAssetType = NetAssetType
 
@@ -148,24 +193,25 @@ Public Sub AddOpeningBalance(ByVal balance As Currency)
     Set line = New LedgerLine
 
     '昨年度実績
-    m_last = balance
+    m_BeginningBalance = balance
     
     '資産＆負債の場合は、前期繰越を作る
     If m_AccountCode <> 0 And m_AccountCode < 30000 Then
-        Call line.Initialize( _
-            DateSerial(Year(Date), 4, 1), _
-            "", _
-            "", _
-            "前期繰越", _
-            IIf(balance > 0, balance, 0), _
-            IIf(balance < 0, -balance, 0), _
-            m_NetAssetType)
-    
-        m_Balance = balance
-    
-        line.SetBalance m_Balance
-    
-        m_Lines.Add line
+        If balance <> 0 Then
+            Call line.Initialize( _
+                DateSerial(Year(Date), 4, 1), _
+                "", _
+                "", _
+                "前期繰越", _
+                IIf(balance > 0, balance, 0), _
+                IIf(balance < 0, -balance, 0))
+        
+            m_EndingBalance = balance
+            
+            line.SetBalance (balance)
+        
+            m_Lines.Add line
+        End If
     
     End If
 
@@ -200,8 +246,11 @@ Public Sub AddLine( _
     '--------------------------------
     ' 残高更新
     '--------------------------------
-    m_Balance = m_Balance + debitAmount
-    m_Balance = m_Balance - creditAmount
+    m_EndingBalance = m_EndingBalance + debitAmount
+    m_EndingBalance = m_EndingBalance - creditAmount
+
+    m_Debit = m_Debit + debitAmount
+    m_Credit = m_Credit + creditAmount
 
     '--------------------------------
     ' LedgerLine 作成
@@ -212,10 +261,9 @@ Public Sub AddLine( _
         counterMiddleAccount, _
         summary, _
         debitAmount, _
-        creditAmount, _
-        m_NetAssetType)
+        creditAmount)
 
-    line.SetBalance m_Balance
+    line.SetBalance m_EndingBalance
 
     m_Lines.Add line
 

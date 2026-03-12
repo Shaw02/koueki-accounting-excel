@@ -24,19 +24,21 @@ Private Const COL_DR_ACC_NO_I   As Long = 2
 Private Const COL_DR_ACC_NO_S   As Long = 3
 Private Const COL_DR_ACC_NO_S2  As Long = 4
 Private Const COL_DR_SUB_NO_I   As Long = 5
-Private Const COL_DR_SUB_NO_S   As Long = 6
-Private Const COL_DR_CLASS      As Long = 7   ' 借方：一般/指定区分
-Private Const COL_DR_MONEY      As Long = 8
+Private Const COL_DR_SUB_NO_C   As Long = 6
+Private Const COL_DR_SUB_NO_S   As Long = 7
+Private Const COL_DR_CLASS      As Long = 8   ' 借方：一般/指定区分
+Private Const COL_DR_MONEY      As Long = 9
 ' --- 貸方 ---
-Private Const COL_CR_ACC_NO_I   As Long = 9
-Private Const COL_CR_ACC_NO_S   As Long = 10
-Private Const COL_CR_ACC_NO_S2  As Long = 11
-Private Const COL_CR_SUB_NO_I   As Long = 12
-Private Const COL_CR_SUB_NO_S   As Long = 13
-Private Const COL_CR_CLASS      As Long = 14  ' 貸方：一般/指定区分
-Private Const COL_CR_MONEY      As Long = 15
+Private Const COL_CR_ACC_NO_I   As Long = 10
+Private Const COL_CR_ACC_NO_S   As Long = 11
+Private Const COL_CR_ACC_NO_S2  As Long = 12
+Private Const COL_CR_SUB_NO_I   As Long = 13
+Private Const COL_CR_SUB_NO_C   As Long = 14
+Private Const COL_CR_SUB_NO_S   As Long = 15
+Private Const COL_CR_CLASS      As Long = 16  ' 貸方：一般/指定区分
+Private Const COL_CR_MONEY      As Long = 17
 ' --- 摘要 ---
-Private Const COL_SUMMARY       As Long = 16
+Private Const COL_SUMMARY       As Long = 18
 
 '仕訳帳の読み込みＹ座標
 Private Const styJournal = 8            '仕訳帳の開始位置
@@ -146,6 +148,7 @@ Public Sub readJournal()
             ws.Cells(y, COL_DR_ACC_NO_S), _
             ws.Cells(y, COL_DR_ACC_NO_S2), _
             ws.Cells(y, COL_DR_SUB_NO_I), _
+            ws.Cells(y, COL_DR_SUB_NO_C), _
             ws.Cells(y, COL_DR_SUB_NO_S), _
             ws.Cells(y, COL_DR_CLASS), _
             ws.Cells(y, COL_DR_MONEY), _
@@ -153,6 +156,7 @@ Public Sub readJournal()
             ws.Cells(y, COL_CR_ACC_NO_S), _
             ws.Cells(y, COL_CR_ACC_NO_S2), _
             ws.Cells(y, COL_CR_SUB_NO_I), _
+            ws.Cells(y, COL_CR_SUB_NO_C), _
             ws.Cells(y, COL_CR_SUB_NO_S), _
             ws.Cells(y, COL_CR_CLASS), _
             ws.Cells(y, COL_CR_MONEY), _
