@@ -20,6 +20,52 @@ Public Const iLastX = 7             '前年度
 Public Const styPerformance = 7     '実績の開始位置
 
 '=======================================================
+'       勘定科目マスターの読み込み
+'-------------------------------------------------------
+'   Contents:
+'       勘定科目マスター
+'
+'   Input:
+'       Sheet "(DB)勘定科目マスタ"
+'
+'=======================================================
+Public Function LoadAccountMaster(ws As Worksheet) As AccountMaster
+
+    Dim master As AccountMaster
+    Set master = New AccountMaster
+
+    Dim y As Long
+    y = 2
+
+    Do
+        If ws.Cells(y, 1).value <> "" Then
+        
+            Dim acc As Account
+            Set acc = New Account
+    
+            acc.Initialize _
+                ws.Cells(y, 1), _
+                ws.Cells(y, 2), _
+                ws.Cells(y, 3), _
+                ws.Cells(y, 4), _
+                ws.Cells(y, 5), _
+                ws.Cells(y, 6), _
+                ws.Cells(y, 7), _
+                ws.Cells(y, 8), _
+                ws.Cells(y, 9)
+    
+            master.AddAccount acc
+        End If
+        If ws.Cells(y, 1).value = -1 Then Exit Do
+        y = y + 1
+
+    Loop
+
+    Set LoadAccountMaster = master
+
+End Function
+
+'=======================================================
 '       集計
 '-------------------------------------------------------
 '   Contents:
@@ -41,7 +87,11 @@ Sub main()
     '==================================================
     'Phase [0]  初期化
     '--------------------------------------------------
-    
+
+    '勘定科目マスター読み込み
+    Dim master As AccountMaster
+    Set master = LoadAccountMaster(Sheets("(DB)勘定科目マスタ"))
+
     '仕訳帳読み込み用
     Dim entry As AccountingEntry
     Set entry = New AccountingEntry
@@ -52,8 +102,9 @@ Sub main()
 
     '仕訳帳
     Dim db As journal
-    Set db = New journal        'クラス生成時に仕訳帳も読んでいる
-
+    Set db = New journal                    'クラス生成時に仕訳帳も読んでいる
+    Call db.readJournal(master)             '仕訳帳チェック
+    
     '総勘定元帳＆補助元帳
     Dim gl As Ledger
     Set gl = New Ledger
@@ -62,8 +113,8 @@ Sub main()
     Set le = New LedgerEngine
 
     '財務諸表
-    Dim fs As FinancialStatements
-    Set fs = New FinancialStatements
+    Dim FS As FinancialStatements
+    Set FS = New FinancialStatements
 
     Dim it As Variant           'for each 用
     Dim key As Variant          'for each 用
@@ -80,10 +131,10 @@ Sub main()
     yInput = styPerformance
     Do
         '前期実績を1行読み込み
-        Call entrySide.ReadResults(yInput)
+        Call entrySide.ReadResults(yInput, master)
         
         '勘定科目コードの記載が無かったら、検索終了
-        If entrySide.AccountCode = 99999 Then Exit Do
+        If entrySide.AccountCode = -1 Then Exit Do
         
         Call le.AddOpening(entrySide)
         
@@ -93,7 +144,7 @@ Sub main()
             If IsNull(entrySide.SubAccountCode) Or IsEmpty(entrySide.SubAccountCode) Then
                                                               
                 '財務諸表（前年度）への出力
-                Call fs.OutFinancialStatements(entrySide.AccountCode, iLastX, entrySide.amount)
+                Call FS.OutFinancialStatements(entrySide.AccountCode, iLastX, entrySide.amount)
 
             End If
         End If
@@ -147,7 +198,7 @@ Sub main()
     For Each key In le.GeneralLedger
         Set acc = le.GeneralLedger.Item(key)
         
-        Call fs.OutFinancialStatements(acc.AccountCode, iThisX, CStr(acc.EndingBalance))
+        Call FS.OutFinancialStatements(acc.AccountCode, iThisX, acc.EndingBalance)
         '勘定科目は出力する。
         Sheet11.Cells(yOutPerformance, 1) = acc.AccountCode
         Sheet11.Cells(yOutPerformance, 2) = acc.MajorAccount
@@ -193,12 +244,12 @@ Sub main()
     '[3]-(2) 正味財産の部
     '---------------------------------------
     
-    Call fs.OutFinancialStatements(idNetAssets_End, iThisX, le.NetAssets_End)
-    Call fs.OutFinancialStatements(idNetAssets_Begin, iThisX, le.NetAssets_Begin)
-    Call fs.OutFinancialStatements(idNetAssets_Diff, iThisX, le.NetAssets_Diff)
-    Call fs.OutFinancialStatements(idSpNetAssets_End, iThisX, le.SpNetAssets_End)
-    Call fs.OutFinancialStatements(idSpNetAssets_Begin, iThisX, le.SpNetAssets_Begin)
-    Call fs.OutFinancialStatements(idSpNetAssets_Diff, iThisX, le.SpNetAssets_Diff)
+    Call FS.OutFinancialStatements(idNetAssets_End, iThisX, le.NetAssets_End)
+    Call FS.OutFinancialStatements(idNetAssets_Begin, iThisX, le.NetAssets_Begin)
+    Call FS.OutFinancialStatements(idNetAssets_Diff, iThisX, le.NetAssets_Diff)
+    Call FS.OutFinancialStatements(idSpNetAssets_End, iThisX, le.SpNetAssets_End)
+    Call FS.OutFinancialStatements(idSpNetAssets_Begin, iThisX, le.SpNetAssets_Begin)
+    Call FS.OutFinancialStatements(idSpNetAssets_Diff, iThisX, le.SpNetAssets_Diff)
 
     '勘定科目　集計用
     '   1次 科目

@@ -60,7 +60,6 @@ Private Sub Class_Initialize()
     m_size = 0
     m_Err = False
     m_strErr = ""
-    Call readJournal
 End Sub
 
 '==============================================================================
@@ -94,7 +93,7 @@ End Property
 '==============================================================================
 '   仕訳帳の読み込み
 '==============================================================================
-Public Sub readJournal()
+Public Sub readJournal(master As AccountMaster)
 
     On Error GoTo ErrHandler
     
@@ -104,6 +103,9 @@ Public Sub readJournal()
     Dim ws As Worksheet
     Dim i As Long
     Dim lastRow As Long
+    
+    Dim d_account As Long
+    Dim c_account As Long
     
     Dim iTotalCrMoney As Currency
     Dim iTotalDrMoney As Currency
@@ -138,23 +140,35 @@ Public Sub readJournal()
     i = 0
     For y = styJournal To lastRow
         
+        d_account = ws.Cells(y, COL_DR_ACC_NO_I)
+        c_account = ws.Cells(y, COL_CR_ACC_NO_I)
+        
+        If Not master.Exists(d_account) Then
+            Err.Raise vbObjectError + 3001, _
+            "Journal.class", _
+            "借方:勘定科目コード" & d_account & "は入力できません。"
+            GoTo Err_Skip
+        End If
+        If Not master.Exists(c_account) Then
+            Err.Raise vbObjectError + 3001, _
+            "Journal.class", _
+            "貸方:勘定科目コード" & c_account & "は入力できません。"
+            GoTo Err_Skip
+        End If
+        
         ' AccountingEntry 生成
         Set m_record(i) = New AccountingEntry
         
         ' 1レコード読み込み（行番号を渡す）
         Call m_record(i).Initialize( _
             ws.Cells(y, COL_DATE), _
-            ws.Cells(y, COL_DR_ACC_NO_I), _
-            ws.Cells(y, COL_DR_ACC_NO_S), _
-            ws.Cells(y, COL_DR_ACC_NO_S2), _
+            master.GetAccount(d_account), _
             ws.Cells(y, COL_DR_SUB_NO_I), _
             ws.Cells(y, COL_DR_SUB_NO_C), _
             ws.Cells(y, COL_DR_SUB_NO_S), _
             ws.Cells(y, COL_DR_CLASS), _
             ws.Cells(y, COL_DR_MONEY), _
-            ws.Cells(y, COL_CR_ACC_NO_I), _
-            ws.Cells(y, COL_CR_ACC_NO_S), _
-            ws.Cells(y, COL_CR_ACC_NO_S2), _
+            master.GetAccount(c_account), _
             ws.Cells(y, COL_CR_SUB_NO_I), _
             ws.Cells(y, COL_CR_SUB_NO_C), _
             ws.Cells(y, COL_CR_SUB_NO_S), _
@@ -162,6 +176,8 @@ Public Sub readJournal()
             ws.Cells(y, COL_CR_MONEY), _
             ws.Cells(y, COL_SUMMARY))
         
+
+Err_Skip:
         ' 日付が空なら終了（途中空白対策）
         If IsNull(m_record(i).entryDate) Or IsEmpty(m_record(i).entryDate) Then
             m_size = i   ' 実際の件数に調整
@@ -179,7 +195,7 @@ Public Sub readJournal()
     ' 貸借一致 最終チェック
     '------------------------------
     If (iTotalCrMoney <> iTotalDrMoney) Then
-        Err.Raise vbObjectError + 5000, "Journal:readJournal", "仕訳帳：借方と借方の合計金額が一致しません"
+        Err.Raise vbObjectError + 5000, "Journal:readJournal", "仕訳帳：借方と貸方の合計金額が一致しません"
     End If
     
     If m_Err = True Then
@@ -205,7 +221,19 @@ ErrHandler:
 
 End Sub
 
+'==============================================================================
+'   仕訳帳チェック
+'==============================================================================
+Public Sub ValidateEntries(ByVal master As AccountMaster)
 
+    Dim it As Variant
 
+    For Each it In m_record
 
+        '借方
+        Call it.Debit.CheckEntry(master)
+        Call it.Credit.CheckEntry(master)
 
+    Next
+
+End Sub

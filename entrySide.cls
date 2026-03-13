@@ -15,78 +15,24 @@ Option Explicit
 '==============================================================================
 '   メンバー変数
 '==============================================================================
-Private m_AccountCode       As Long        ' 勘定科目コード
-Private m_MajorAccount      As String      ' 大科目（VLookup）
-Private m_MiddleAccount     As String      ' 中科目（VLookup）
+Private m_Account           As Account
 Private m_SubAccountCode    As Variant     ' 補助科目コード
 Private m_SubAccountCate    As String      ' 会計区分
 Private m_SubAccountName    As String      ' 補助科目名（VLookup）
 Private m_NetAssetType      As NetAssetType
 Private m_Amount            As Currency    ' 金額
+Private m_side              As String
 
 '==============================================================================
 '   Property
 '==============================================================================
 Public Property Get AccountCode() As Variant
-    AccountCode = m_AccountCode
+    AccountCode = m_Account.code
 End Property
 
-Public Property Let AccountCode(ByVal value As Variant)
-
-    '----------------------------------
-    ' Null / Empty チェック
-    '----------------------------------
-    If IsNull(value) Or IsEmpty(value) Then
-        Err.Raise vbObjectError + 1001, _
-                  "entrySide.AccountCode", _
-                  "勘定科目コードが未入力です。"
-    End If
-    
-    '----------------------------------
-    ' 文字列化して前後空白除去
-    '----------------------------------
-    Dim strCode As String
-    strCode = Trim(CStr(value))
-    
-    If strCode = "" Then
-        Err.Raise vbObjectError + 1002, _
-                  "entrySide.AccountCode", _
-                  "勘定科目コードが空白です。"
-    End If
-    
-    '----------------------------------
-    ' 数値のみチェック
-    '----------------------------------
-    If Not strCode Like "#####" Then
-        Err.Raise vbObjectError + 1003, _
-                  "entrySide.AccountCode", _
-                  "勘定科目コードは5桁の数字で入力してください。"
-    End If
-    
-    '----------------------------------
-    ' 数値変換
-    '----------------------------------
-    m_AccountCode = CLng(strCode)
-
+Public Property Get Account() As Account
+    Set Account = m_Account
 End Property
-
-Public Property Get MajorAccount() As String
-    MajorAccount = m_MajorAccount
-End Property
-
-Public Property Let MajorAccount(ByVal value As String)
-    m_MajorAccount = value
-End Property
-
-
-Public Property Get MiddleAccount() As String
-    MiddleAccount = m_MiddleAccount
-End Property
-
-Public Property Let MiddleAccount(ByVal value As String)
-    m_MiddleAccount = value
-End Property
-
 
 Public Property Get SubAccountCode() As Variant
     SubAccountCode = m_SubAccountCode
@@ -116,7 +62,7 @@ Public Property Let SubAccountCate(ByVal value As Variant)
         Case "公3", "公益3"
             m_SubAccountCate = "公3"
         Case "収共", "収益共通"
-            m_SubAccountCate = "収1"
+            m_SubAccountCate = "収共"
         Case "収1", "収益1"
             m_SubAccountCate = "収1"
         Case "収2", "収益2"
@@ -125,6 +71,8 @@ Public Property Let SubAccountCate(ByVal value As Variant)
             m_SubAccountCate = "収3"
         Case "法", "法人"
             m_SubAccountCate = "法"
+        Case "共", "共通"
+            m_SubAccountCate = "共通"
         Case Else
             Err.Raise vbObjectError + 3003, _
                       "entrySide.Class", _
@@ -191,36 +139,34 @@ End Sub
 '   メンバー変数への代入
 '==============================================================================
 Public Sub Initialize( _
-    ByVal AccountCode As Variant, _
-    ByVal MajorAccount As String, _
-    ByVal MiddleAccount As String, _
+    ByVal acc As Account, _
     ByVal SubAccountCode As Variant, _
     ByVal SubAccountCate As Variant, _
     ByVal SubAccountName As String, _
     ByVal Class As Variant, _
-    ByVal amount As Currency)
+    ByVal amount As Currency, _
+    ByVal side As String)
 
     '------------------------------
     ' 代入
     '------------------------------
-    Me.AccountCode = AccountCode
-    Me.MajorAccount = MajorAccount
-    Me.MiddleAccount = MiddleAccount
+    Set m_Account = acc
     Me.SubAccountCode = SubAccountCode
     Me.SubAccountCate = SubAccountCate
     Me.SubAccountName = SubAccountName
     Me.Class = Class
     Me.amount = amount
+    m_side = side
     
     '------------------------------
     ' 補助科目チェック
     '------------------------------
     '資産じゃない場合、且つ、補助科目が未入力でないか、チェック
-    If (AccountCode >= 20000) And (IsNull(SubAccountCode) Or IsEmpty(SubAccountCode)) Then
-        Err.Raise vbObjectError + 3001, "entrySide:Initialize", "補助科目が必要です"
+    If (acc.code >= 20000) And (IsNull(SubAccountCode) Or IsEmpty(SubAccountCode)) Then
+        Err.Raise vbObjectError + 3001, "entrySide:Initialize", m_side & ":補助科目が必要です"
     End If
     If (m_NetAssetType = natDesignated) And (IsNull(SubAccountCode) Or IsEmpty(SubAccountCode)) Then
-        Err.Raise vbObjectError + 3002, "entrySide:Initialize", "指定の場合、補助科目が必要です"
+        Err.Raise vbObjectError + 3002, "entrySide:Initialize", m_side & ":指定の場合、補助科目が必要です"
     End If
 
 End Sub
@@ -238,7 +184,7 @@ End Sub
 '       entrySide   仕訳帳 １行分
 '
 '==============================================================================
-Public Sub ReadResults(y As Variant)
+Public Sub ReadResults(y As Variant, master As AccountMaster)
 
     '----------------------------------
     '   変数宣言
@@ -250,24 +196,45 @@ Public Sub ReadResults(y As Variant)
 
     str = ws.Cells(y, 1)
     If IsNull(str) Or IsEmpty(str) Then
-        Me.AccountCode = 99999
-        Me.MajorAccount = ""
-        Me.MiddleAccount = ""
+        Set m_Account = master.GetAccount(-1)
         Me.SubAccountCode = 0
         Me.SubAccountCate = ""
         Me.SubAccountName = ""
         Me.Class = ""
         Me.amount = 0
     Else
-        Me.AccountCode = str
-        Me.MajorAccount = ws.Cells(y, 2)
-        Me.MiddleAccount = ws.Cells(y, 3)
-        Me.SubAccountCode = ws.Cells(y, 4)
-        Me.SubAccountCate = ws.Cells(y, 5)
-        Me.SubAccountName = ws.Cells(y, 6)
-        Me.Class = ws.Cells(y, 7)
-        Me.amount = ws.Cells(y, 8)
+       If Not master.Exists(str) Then
+            Err.Raise vbObjectError + 3001, _
+            "entrySide.class", _
+            m_side & ":勘定科目コード" & str & "は入力できません。"
+        Else
+           Set m_Account = master.GetAccount(str)
+            Me.SubAccountCode = ws.Cells(y, 4)
+            Me.SubAccountCate = ws.Cells(y, 5)
+            Me.SubAccountName = ws.Cells(y, 6)
+            Me.Class = ws.Cells(y, 7)
+            Me.amount = ws.Cells(y, 11)
+        End If
     End If
     
 End Sub
+
+'==============================================================================
+'   仕訳帳の読み込み
+'==============================================================================
+Public Sub CheckEntry()
+
+    '入力可能チェック
+    If Not m_Account.postable Then
+
+        Err.Raise vbObjectError + 3002, _
+        "Journal.CheckEntrySide", _
+        m_side & ":勘定科目コード" & m_Account.code & "は入力できません。"
+
+    End If
+
+End Sub
+
+
+
 

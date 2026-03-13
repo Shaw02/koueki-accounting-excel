@@ -60,17 +60,13 @@ End Sub
 '==============================================================================
 Public Sub Initialize( _
     ByVal entryDate As Date, _
-    ByVal D_AccountCode As Variant, _
-    ByVal D_MajorAccount As String, _
-    ByVal D_MiddleAccount As String, _
+    ByVal D_acc As Account, _
     ByVal D_SubAccountCode As Variant, _
     ByVal D_SubAccountCate As String, _
     ByVal D_SubAccountName As String, _
     ByVal D_Class As Variant, _
     ByVal D_Amount As Currency, _
-    ByVal C_AccountCode As Variant, _
-    ByVal C_MajorAccount As String, _
-    ByVal C_MiddleAccount As String, _
+    ByVal C_acc As Account, _
     ByVal C_SubAccountCode As Variant, _
     ByVal C_SubAccountCate As String, _
     ByVal C_SubAccountName As String, _
@@ -84,24 +80,22 @@ Public Sub Initialize( _
     m_EntryDate = entryDate
     
     Call m_Debit.Initialize( _
-        D_AccountCode, _
-        D_MajorAccount, _
-        D_MiddleAccount, _
+        D_acc, _
         D_SubAccountCode, _
         D_SubAccountCate, _
         D_SubAccountName, _
         D_Class, _
-        D_Amount)
+        D_Amount, _
+        "ŽØ•û")
     
     Call m_Credit.Initialize( _
-        C_AccountCode, _
-        C_MajorAccount, _
-        C_MiddleAccount, _
+        C_acc, _
         C_SubAccountCode, _
         C_SubAccountCate, _
         C_SubAccountName, _
         C_Class, _
-        C_Amount)
+        C_Amount, _
+        "‘Ý•û")
 
     m_Summary = summaryText
     

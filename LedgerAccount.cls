@@ -20,9 +20,8 @@ Attribute VB_Exposed = False
 
 Option Explicit
 
-Private m_AccountCode       As Long             ' 勘定科目コード
-Private m_MajorAccount      As String           ' 大科目（VLookup）
-Private m_MiddleAccount     As String           ' 中科目（VLookup）
+Private m_Account           As Account          ' 勘定科目マスターより
+
 Private m_SubAccountCode    As Variant          ' 補助科目コード
 Private m_SubAccountCate    As String           ' 補助科目コード
 Private m_SubAccountName    As String           ' 補助科目名（VLookup）
@@ -36,25 +35,10 @@ Private m_Debit             As Currency         ' 借方合計
 Private m_Credit            As Currency         ' 貸方合計
 
 '==============================================================================
-'   クラス初期化
-'==============================================================================
-Private Sub Class_Initialize()
-
-    Set m_Lines = New Collection
-    
-    m_BeginningBalance = 0
-    m_EndingBalance = 0
-    m_Debit = 0
-    m_Credit = 0
-
-End Sub
-
-
-'==============================================================================
 '   勘定科目コード取得
 '==============================================================================
 Public Property Get AccountCode() As Long
-    AccountCode = m_AccountCode
+    AccountCode = m_Account.code
 End Property
 
 
@@ -62,14 +46,14 @@ End Property
 '   勘定科目名取得
 '==============================================================================
 Public Property Get MajorAccount() As String
-    MajorAccount = m_MajorAccount
+    MajorAccount = m_Account.MajorAccount
 End Property
 
 '==============================================================================
 '   勘定科目名取得
 '==============================================================================
 Public Property Get MiddleAccount() As String
-    MiddleAccount = m_MiddleAccount
+    MiddleAccount = m_Account.MiddleAccount
 End Property
 
 '==============================================================================
@@ -144,6 +128,56 @@ Public Property Get Credit() As Currency
 End Property
 
 '==============================================================================
+'   試算表用
+'==============================================================================
+Public Property Get TrialBalanceAmount() As Currency
+
+    Select Case m_Account.FS
+
+        Case "資産", "費用"
+            TrialBalanceAmount = m_EndingBalance
+
+        Case "負債", "純資産", "収益"
+            TrialBalanceAmount = -m_EndingBalance
+
+    End Select
+
+End Property
+
+
+'==============================================================================
+'   カテゴリーの取得
+'==============================================================================
+Public Property Get FS() As String
+    FS = m_Account.FS
+End Property
+
+Public Property Get Category() As String
+    Category = m_Account.Category
+End Property
+
+Public Property Get SubCategory() As String
+    SubCategory = m_Account.SubCategory
+End Property
+
+
+
+'==============================================================================
+'   クラス初期化
+'==============================================================================
+Private Sub Class_Initialize()
+
+    Set m_Lines = New Collection
+    
+    m_BeginningBalance = 0
+    m_EndingBalance = 0
+    m_Debit = 0
+    m_Credit = 0
+
+End Sub
+
+
+'==============================================================================
 '       勘定科目初期化
 '------------------------------------------------------------------------------
 '   Contents:
@@ -158,17 +192,13 @@ End Property
 '
 '==============================================================================
 Public Sub Initialize( _
-        ByVal AccountCode As Long, _
-        ByVal MajorAccount As String, _
-        ByVal MiddleAccount As String, _
+        ByVal acc As Account, _
         ByVal subCode As Variant, _
         ByVal subCate As String, _
         ByVal subName As String, _
         ByVal NetAssetType As NetAssetType)
 
-    m_AccountCode = AccountCode
-    m_MajorAccount = MajorAccount
-    m_MiddleAccount = MiddleAccount
+    Set m_Account = acc
     m_SubAccountCode = subCode
     m_SubAccountCate = subCate
     m_SubAccountName = subName
@@ -196,12 +226,10 @@ Public Sub AddOpeningBalance(ByVal balance As Currency)
     m_BeginningBalance = balance
     
     '資産＆負債の場合は、前期繰越を作る
-    If m_AccountCode <> 0 And m_AccountCode < 30000 Then
+    If m_Account.code <> 0 And m_Account.code < 30000 Then
         If balance <> 0 Then
-            Call line.Initialize( _
+            Call line.InitializeBegin( _
                 DateSerial(Year(Date), 4, 1), _
-                "", _
-                "", _
                 "前期繰越", _
                 IIf(balance > 0, balance, 0), _
                 IIf(balance < 0, -balance, 0))
@@ -234,8 +262,7 @@ End Sub
 '==============================================================================
 Public Sub AddLine( _
         ByVal entryDate As Variant, _
-        ByVal counterMajorAccount As String, _
-        ByVal counterMiddleAccount As String, _
+        ByVal counterAccount As Account, _
         ByVal summary As String, _
         ByVal debitAmount As Currency, _
         ByVal creditAmount As Currency)
@@ -257,8 +284,7 @@ Public Sub AddLine( _
     '--------------------------------
     Call line.Initialize( _
         entryDate, _
-        counterMajorAccount, _
-        counterMiddleAccount, _
+        counterAccount, _
         summary, _
         debitAmount, _
         creditAmount)

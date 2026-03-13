@@ -19,8 +19,7 @@ Attribute VB_Exposed = False
 Option Explicit
 
 Private m_Date As Variant                   '日付
-Private m_CounterMajorAccount As String     '相手 大科目
-Private m_CounterMiddleAccount As String    '相手 中科目
+Private m_CounterAccount As Account         '相手科目
 Private m_Summary As String                 '摘要
 
 Private m_Debit As Currency                 '借方            '
@@ -39,7 +38,11 @@ End Property
 '   相手科目取得
 '==============================================================================
 Public Property Get counterMajorAccount() As String
-    counterMajorAccount = m_CounterMajorAccount
+    If m_CounterAccount Is Nothing Then
+        counterMajorAccount = ""
+    Else
+        counterMajorAccount = m_CounterAccount.MajorAccount
+    End If
 End Property
 
 
@@ -47,7 +50,11 @@ End Property
 '   相手科目取得
 '==============================================================================
 Public Property Get counterMiddleAccount() As String
-    counterMiddleAccount = m_CounterMiddleAccount
+    If m_CounterAccount Is Nothing Then
+        counterMiddleAccount = ""
+    Else
+        counterMiddleAccount = m_CounterAccount.MiddleAccount
+    End If
 End Property
 
 
@@ -82,25 +89,21 @@ Public Property Get balance() As Currency
     balance = m_Balance
 End Property
 
-
 '==============================================================================
-'       元帳行初期化
+'       元帳行初期化    （前期繰越）
 '------------------------------------------------------------------------------
 '   Contents:
 '       元帳１行を初期化します
 '
 '   Input:
 '       entryDate
-'       counterAccount
 '       summary
 '       debitAmount
 '       creditAmount
 '
 '==============================================================================
-Public Sub Initialize( _
+Public Sub InitializeBegin( _
         ByVal entryDate As Variant, _
-        ByVal counterMajorAccount As String, _
-        ByVal counterMiddleAccount As String, _
         ByVal summary As String, _
         ByVal debitAmount As Currency, _
         ByVal creditAmount As Currency)
@@ -128,8 +131,59 @@ Public Sub Initialize( _
     End If
 
     m_Date = entryDate
-    m_CounterMajorAccount = counterMajorAccount
-    m_CounterMiddleAccount = counterMiddleAccount
+    m_Summary = summary
+    
+    m_Debit = debitAmount
+    m_Credit = creditAmount
+    
+End Sub
+
+
+'==============================================================================
+'       元帳行初期化
+'------------------------------------------------------------------------------
+'   Contents:
+'       元帳１行を初期化します
+'
+'   Input:
+'       entryDate
+'       counterAccount
+'       summary
+'       debitAmount
+'       creditAmount
+'
+'==============================================================================
+Public Sub Initialize( _
+        ByVal entryDate As Variant, _
+        ByVal counterAccount As Account, _
+        ByVal summary As String, _
+        ByVal debitAmount As Currency, _
+        ByVal creditAmount As Currency)
+
+    '--------------------------------
+    ' 借方貸方チェック
+    '--------------------------------
+    
+    If debitAmount <> 0 And creditAmount <> 0 Then
+        Err.Raise vbObjectError + 4001, _
+                  "LedgerLine.Initialize", _
+                  "借方と貸方の両方に金額が入力されています"
+    End If
+    
+    If debitAmount < 0 Then
+        Err.Raise vbObjectError + 4002, _
+                  "LedgerLine.Initialize", _
+                  "借方の金額が負数です"
+    End If
+
+    If creditAmount < 0 Then
+        Err.Raise vbObjectError + 4002, _
+                  "LedgerLine.Initialize", _
+                  "貸方の金額が負数です"
+    End If
+
+    m_Date = entryDate
+    Set m_CounterAccount = counterAccount
     m_Summary = summary
     
     m_Debit = debitAmount

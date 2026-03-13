@@ -149,6 +149,22 @@ Private Sub Class_Initialize()
     
 End Sub
 
+'==============================================================================
+'   ëçä®íËå≥í†ÇÃâ»ñ⁄àÍóóéÊìæ
+'==============================================================================
+Public Function GetAccounts() As Collection
+
+    Dim col As New Collection
+    Dim key As Variant
+
+    For Each key In m_GeneralLedger
+        col.Add m_GeneralLedger(key)
+    Next key
+
+    Set GetAccounts = col
+
+End Function
+
 
 '==============================================================================
 '   å≥í†éÊìæ
@@ -172,9 +188,7 @@ Private Function GetOrCreateLedger( _
         Set acc = New LedgerAccount
         
         Call acc.Initialize( _
-            entry.AccountCode, _
-            entry.MajorAccount, _
-            entry.MiddleAccount, _
+            entry.Account, _
             entry.SubAccountCode, _
             entry.SubAccountCate, _
             entry.SubAccountName, _
@@ -270,8 +284,7 @@ Public Sub AddJournal(entry As AccountingEntry)
         
         Call accD.AddLine( _
             entry.entryDate, _
-            entry.Credit.MajorAccount, _
-            entry.Credit.MiddleAccount, _
+            entry.Credit.Account, _
             entry.summary, _
             entry.Debit.amount, _
             0)
@@ -296,8 +309,7 @@ Public Sub AddJournal(entry As AccountingEntry)
     
         Call accC.AddLine( _
             entry.entryDate, _
-            entry.Debit.MajorAccount, _
-            entry.Debit.MiddleAccount, _
+            entry.Debit.Account, _
             entry.summary, _
             0, _
             entry.Credit.amount)
@@ -313,8 +325,7 @@ Public Sub AddJournal(entry As AccountingEntry)
     
     Call accD.AddLine( _
         entry.entryDate, _
-        entry.Credit.MajorAccount, _
-        entry.Credit.MiddleAccount, _
+        entry.Credit.Account, _
         entry.summary, _
         entry.Debit.amount, _
         0)
@@ -339,8 +350,7 @@ Public Sub AddJournal(entry As AccountingEntry)
     
     Call accC.AddLine( _
         entry.entryDate, _
-        entry.Debit.MajorAccount, _
-        entry.Debit.MiddleAccount, _
+        entry.Debit.Account, _
         entry.summary, _
         0, _
         entry.Credit.amount)
