@@ -264,107 +264,148 @@ End Sub
 '
 '==============================================================================
 Public Sub AddJournal(entry As AccountingEntry)
+    
+    Dim d As entrySide
+    Dim c As entrySide
 
-    '------------------------------
-    '補助元帳（借方）
-    '------------------------------
-    
-    Dim keyD As ledgerKey
-    Set keyD = New ledgerKey
-    
-    If IsNull(entry.Debit.SubAccountCode) Or IsEmpty(entry.Debit.SubAccountCode) Then
+    Dim counterAcc As Account
+    Dim isMulti As Boolean
+
+    '--------------------------------------
+    ' 諸口チェック
+    '--------------------------------------
+    isMulti = False
+    If entry.Credits.Count = 1 Then
+        Set counterAcc = entry.Credits(1).Account
     Else
-        Call keyD.Initialize( _
-            entry.Debit.AccountCode, _
-            entry.Debit.SubAccountCode, _
-            entry.Debit.Class)
-        
+        Set counterAcc = Nothing
+        If entry.Credits.Count > 1 Then
+            isMulti = True
+        End If
+    End If
+    
+    '--------------------------------------
+    ' 借方ループ
+    '--------------------------------------
+    For Each d In entry.Debits
+    
         Dim accD As LedgerAccount
-        Set accD = GetOrCreateLedger(m_SubLedger, keyD.key, entry.Debit)
+        Dim keyD As ledgerKey
         
+        '==============================
+        ' 総勘定元帳（借方）
+        '==============================
+        Set keyD = New ledgerKey
+        Call keyD.Initialize(d.AccountCode, 0, 0)
+        
+        Set accD = GetOrCreateLedger(m_GeneralLedger, keyD.key, d)
         Call accD.AddLine( _
             entry.entryDate, _
-            entry.Credit.Account, _
+            counterAcc, _
             entry.summary, _
-            entry.Debit.amount, _
-            0)
-    End If
+            d.amount, _
+            0, _
+            isMulti)
+        
+        If (d.AccountCode >= 40000) And (d.AccountCode < 80000) Then
+            If d.Class = natDesignated Then
+                '指定正味財産
+                m_iSpNetAssets_Diff = m_iSpNetAssets_Diff - d.amount
+            Else
+                '一般正味財産
+                m_iNetAssets_Diff = m_iNetAssets_Diff - d.amount
+            End If
+        End If
     
-    '------------------------------
-    '補助元帳（貸方）
-    '------------------------------
-    
-    Dim keyC As ledgerKey
-    Set keyC = New ledgerKey
-    
-    If IsNull(entry.Credit.SubAccountCode) Or IsEmpty(entry.Credit.SubAccountCode) Then
+        '==============================
+        ' 補助元帳（借方）
+        '==============================
+        If Not (IsNull(d.SubAccountCode) Or IsEmpty(d.SubAccountCode)) Then
+            
+            Call keyD.Initialize( _
+                d.AccountCode, _
+                d.SubAccountCode, _
+                d.Class)
+            
+            Set accD = GetOrCreateLedger(m_SubLedger, keyD.key, d)
+            
+            Call accD.AddLine( _
+                entry.entryDate, _
+                counterAcc, _
+                entry.summary, _
+                d.amount, _
+                0, _
+                isMulti)
+        End If
+    Next
+        
+    '--------------------------------------
+    ' 諸口チェック
+    '--------------------------------------
+    isMulti = False
+    If entry.Debits.Count = 1 Then
+        Set counterAcc = entry.Debits(1).Account
     Else
-        Call keyC.Initialize( _
-            entry.Credit.AccountCode, _
-            entry.Credit.SubAccountCode, _
-            entry.Credit.Class)
+        Set counterAcc = Nothing
+        If entry.Debits.Count > 1 Then
+            isMulti = True
+        End If
+    End If
+    '--------------------------------------
+    ' 貸方ループ
+    '--------------------------------------
+    For Each c In entry.Credits
         
         Dim accC As LedgerAccount
-        Set accC = GetOrCreateLedger(m_SubLedger, keyC.key, entry.Credit)
-    
+        Dim keyC As ledgerKey
+        
+        '==============================
+        ' 総勘定元帳（貸方）
+        '==============================
+        Set keyC = New ledgerKey
+        Call keyC.Initialize(c.AccountCode, 0, 0)
+        
+        Set accC = GetOrCreateLedger(m_GeneralLedger, keyC.key, c)
         Call accC.AddLine( _
             entry.entryDate, _
-            entry.Debit.Account, _
+            counterAcc, _
             entry.summary, _
             0, _
-            entry.Credit.amount)
-    End If
+            c.amount, _
+            isMulti)
     
-    '------------------------------
-    '総勘定元帳（借方）
-    '------------------------------
-    
-    Call keyD.Initialize(entry.Debit.AccountCode, 0, 0)
-    
-    Set accD = GetOrCreateLedger(m_GeneralLedger, keyD.key, entry.Debit)
-    
-    Call accD.AddLine( _
-        entry.entryDate, _
-        entry.Credit.Account, _
-        entry.summary, _
-        entry.Debit.amount, _
-        0)
-    
-    If (entry.Debit.AccountCode >= 40000) And (entry.Debit.AccountCode < 80000) Then
-        If entry.Debit.Class = 1 Then
-            '指定正味財産
-            m_iSpNetAssets_Diff = m_iSpNetAssets_Diff - entry.Debit.amount
-        Else
-            '一般正味財産
-            m_iNetAssets_Diff = m_iNetAssets_Diff - entry.Debit.amount
+        If (c.AccountCode >= 40000) And (c.AccountCode < 80000) Then
+            If c.Class = 1 Then
+                '指定正味財産
+                m_iSpNetAssets_Diff = m_iSpNetAssets_Diff + c.amount
+            Else
+                '一般正味財産
+                m_iNetAssets_Diff = m_iNetAssets_Diff + c.amount
+            End If
         End If
-    End If
-
-    '------------------------------
-    '総勘定元帳（貸方）
-    '------------------------------
-    
-    Call keyC.Initialize(entry.Credit.AccountCode, 0, 0)
-    
-    Set accC = GetOrCreateLedger(m_GeneralLedger, keyC.key, entry.Credit)
-    
-    Call accC.AddLine( _
-        entry.entryDate, _
-        entry.Debit.Account, _
-        entry.summary, _
-        0, _
-        entry.Credit.amount)
-
-    If (entry.Credit.AccountCode >= 40000) And (entry.Credit.AccountCode < 80000) Then
-        If entry.Credit.Class = 1 Then
-            '指定正味財産
-            m_iSpNetAssets_Diff = m_iSpNetAssets_Diff + entry.Credit.amount
-        Else
-            '一般正味財産
-            m_iNetAssets_Diff = m_iNetAssets_Diff + entry.Credit.amount
+        
+        '==============================
+        ' 補助元帳（借方）
+        '==============================
+        If Not (IsNull(c.SubAccountCode) Or IsEmpty(c.SubAccountCode)) Then
+            
+            Call keyC.Initialize( _
+                c.AccountCode, _
+                c.SubAccountCode, _
+                c.Class)
+            
+            Set accC = GetOrCreateLedger(m_SubLedger, keyC.key, c)
+        
+            Call accC.AddLine( _
+                entry.entryDate, _
+                counterAcc, _
+                entry.summary, _
+                0, _
+                c.amount, _
+                isMulti)
         End If
-    End If
 
+    Next
 End Sub
 
 '==============================================================================

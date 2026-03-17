@@ -265,7 +265,8 @@ Public Sub AddLine( _
         ByVal counterAccount As Account, _
         ByVal summary As String, _
         ByVal debitAmount As Currency, _
-        ByVal creditAmount As Currency)
+        ByVal creditAmount As Currency, _
+        Optional ByVal isMulti As Boolean = False)
 
     Dim line As LedgerLine
     Set line = New LedgerLine
@@ -287,7 +288,8 @@ Public Sub AddLine( _
         counterAccount, _
         summary, _
         debitAmount, _
-        creditAmount)
+        creditAmount, _
+        isMulti)
 
     line.SetBalance m_EndingBalance
 

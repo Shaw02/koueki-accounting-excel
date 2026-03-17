@@ -21,7 +21,7 @@ Private m_SubAccountCate    As String      ' 会計区分
 Private m_SubAccountName    As String      ' 補助科目名（VLookup）
 Private m_NetAssetType      As NetAssetType
 Private m_Amount            As Currency    ' 金額
-Private m_side              As String
+Private m_Side              As Boolean     ' True=Debit False=Credit
 
 '==============================================================================
 '   Property
@@ -40,6 +40,32 @@ End Property
 
 Public Property Let SubAccountCode(ByVal value As Variant)
     m_SubAccountCode = value
+End Property
+
+Public Property Get side() As String
+    Select Case m_Side
+        Case True
+            side = "借方"
+        Case False
+            side = "貸方"
+        Case Else
+            Err.Raise vbObjectError + 3003, _
+              "entrySide.Class", _
+              "値が不正です。" & m_Side
+    End Select
+End Property
+
+Public Property Let side(ByVal value As String)
+    Select Case value
+        Case True, "借方"
+            m_Side = True
+        Case False, "貸方"
+            m_Side = False
+        Case Else
+            Err.Raise vbObjectError + 3003, _
+              "entrySide.Class", _
+              "値が不正です。" & value
+    End Select
 End Property
 
 
@@ -156,17 +182,17 @@ Public Sub Initialize( _
     Me.SubAccountName = SubAccountName
     Me.Class = Class
     Me.amount = amount
-    m_side = side
+    Me.side = side
     
     '------------------------------
     ' 補助科目チェック
     '------------------------------
     '資産じゃない場合、且つ、補助科目が未入力でないか、チェック
     If (acc.code >= 20000) And (IsNull(SubAccountCode) Or IsEmpty(SubAccountCode)) Then
-        Err.Raise vbObjectError + 3001, "entrySide:Initialize", m_side & ":補助科目が必要です"
+        Err.Raise vbObjectError + 3001, "entrySide:Initialize", Me.side & ":補助科目が必要です"
     End If
     If (m_NetAssetType = natDesignated) And (IsNull(SubAccountCode) Or IsEmpty(SubAccountCode)) Then
-        Err.Raise vbObjectError + 3002, "entrySide:Initialize", m_side & ":指定の場合、補助科目が必要です"
+        Err.Raise vbObjectError + 3002, "entrySide:Initialize", Me.side & ":指定の場合、補助科目が必要です"
     End If
 
 End Sub
@@ -206,7 +232,7 @@ Public Sub ReadResults(y As Variant, master As AccountMaster)
        If Not master.Exists(str) Then
             Err.Raise vbObjectError + 3001, _
             "entrySide.class", _
-            m_side & ":勘定科目コード" & str & "は入力できません。"
+            Me.side & ":勘定科目コード" & str & "は入力できません。"
         Else
            Set m_Account = master.GetAccount(str)
             Me.SubAccountCode = ws.Cells(y, 4)
@@ -229,7 +255,7 @@ Public Sub CheckEntry()
 
         Err.Raise vbObjectError + 3002, _
         "Journal.CheckEntrySide", _
-        m_side & ":勘定科目コード" & m_Account.code & "は入力できません。"
+        Me.side & ":勘定科目コード" & m_Account.code & "は入力できません。"
 
     End If
 

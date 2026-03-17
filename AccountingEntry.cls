@@ -16,8 +16,10 @@ Option Explicit
 '   メンバー変数
 '==============================================================================
 Private m_EntryDate         As Variant       ' 日付
-Private m_Debit             As entrySide     ' 借方
-Private m_Credit            As entrySide     ' 貸方
+
+Private m_Debits            As Collection   ' 借方
+Private m_Credits           As Collection   ' 貸方
+
 Private m_Summary           As String        ' 摘要
 
 '==============================================================================
@@ -27,12 +29,12 @@ Public Property Get entryDate() As Variant
     entryDate = m_EntryDate
 End Property
 
-Public Property Get Debit() As entrySide
-    Set Debit = m_Debit
+Public Property Get Debits() As Collection
+    Set Debits = m_Debits
 End Property
 
-Public Property Get Credit() As entrySide
-    Set Credit = m_Credit
+Public Property Get Credits() As Collection
+    Set Credits = m_Credits
 End Property
 
 Public Property Get summary() As String
@@ -43,78 +45,67 @@ End Property
 '   クラスの初期化
 '==============================================================================
 Private Sub Class_Initialize()
-    Set m_Debit = New entrySide
-    Set m_Credit = New entrySide
+    Set m_Debits = New Collection
+    Set m_Credits = New Collection
 End Sub
 
 '==============================================================================
 '   クラスの解放
 '==============================================================================
 Private Sub Class_Terminate()
-    Set m_Debit = Nothing
-    Set m_Credit = Nothing
-End Sub
-
-'==============================================================================
-'   メンバー変数への代入
-'==============================================================================
-Public Sub Initialize( _
-    ByVal entryDate As Date, _
-    ByVal D_acc As Account, _
-    ByVal D_SubAccountCode As Variant, _
-    ByVal D_SubAccountCate As String, _
-    ByVal D_SubAccountName As String, _
-    ByVal D_Class As Variant, _
-    ByVal D_Amount As Currency, _
-    ByVal C_acc As Account, _
-    ByVal C_SubAccountCode As Variant, _
-    ByVal C_SubAccountCate As String, _
-    ByVal C_SubAccountName As String, _
-    ByVal C_Class As Variant, _
-    ByVal C_Amount As Currency, _
-    ByVal summaryText As String)
-    
-    '------------------------------
-    ' 代入
-    '------------------------------
-    m_EntryDate = entryDate
-    
-    Call m_Debit.Initialize( _
-        D_acc, _
-        D_SubAccountCode, _
-        D_SubAccountCate, _
-        D_SubAccountName, _
-        D_Class, _
-        D_Amount, _
-        "借方")
-    
-    Call m_Credit.Initialize( _
-        C_acc, _
-        C_SubAccountCode, _
-        C_SubAccountCate, _
-        C_SubAccountName, _
-        C_Class, _
-        C_Amount, _
-        "貸方")
-
-    m_Summary = summaryText
-    
-    '------------------------------
-    ' 金額チェック
-    '------------------------------
-    '負数を使っていないか？
-    If D_Amount < 0 Then
-        Err.Raise vbObjectError + 2002, "AccountingEntry:Initialize", "借方の金額が負数です"
-    End If
-    
-    If C_Amount < 0 Then
-        Err.Raise vbObjectError + 2003, "AccountingEntry:Initialize", "貸方の金額が負数です"
-    End If
-    
-    '貸借一致チェック
-    If (D_Amount <> C_Amount) Then
-        Err.Raise vbObjectError + 2004, "AccountingEntry:Initialize", "貸方と借方の金額が不一致です"
-    End If
 
 End Sub
 
+'==============================================================================
+'   ヘッダー設定
+'==============================================================================
+Public Sub SetHeader(ByVal d As Variant, ByVal s As String)
+
+    m_EntryDate = d
+    m_Summary = s
+
+End Sub
+
+'==============================================================================
+'   借方追加
+'==============================================================================
+Public Sub AddDebit(ByVal side As entrySide)
+
+    m_Debits.Add side
+
+End Sub
+
+'==============================================================================
+'   貸方追加
+'==============================================================================
+Public Sub AddCredit(ByVal side As entrySide)
+
+    m_Credits.Add side
+
+End Sub
+
+'==============================================================================
+'   借方合計
+'==============================================================================
+Public Function TotalDebit() As Currency
+
+    Dim i As Long
+
+    For i = 1 To m_Debits.Count
+        TotalDebit = TotalDebit + m_Debits(i).amount
+    Next
+
+End Function
+
+'==============================================================================
+'   貸方合計
+'==============================================================================
+Public Function TotalCredit() As Currency
+
+    Dim i As Long
+
+    For i = 1 To m_Credits.Count
+        TotalCredit = TotalCredit + m_Credits(i).amount
+    Next
+
+End Function

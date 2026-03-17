@@ -110,11 +110,16 @@ Public Sub readJournal(master As AccountMaster)
     Dim iTotalCrMoney As Currency
     Dim iTotalDrMoney As Currency
     
+    Dim currentEntry As AccountingEntry     '現在の仕訳
+    
     '----------------------------------
     '   初期化
     '----------------------------------
     Set ws = ThisWorkbook.Worksheets("①仕訳帳")
-    lastRow = ws.Cells(ws.Rows.Count, COL_DATE).End(xlUp).Row
+    lastRow = Application.WorksheetFunction.Max( _
+        ws.Cells(ws.Rows.Count, COL_DATE).End(xlUp).Row, _
+        ws.Cells(ws.Rows.Count, COL_DR_MONEY).End(xlUp).Row, _
+        ws.Cells(ws.Rows.Count, COL_CR_MONEY).End(xlUp).Row)
     
     iTotalCrMoney = 0
     iTotalDrMoney = 0
@@ -138,64 +143,143 @@ Public Sub readJournal(master As AccountMaster)
     ' 仕訳帳読み込み
     '--------------------------------------
     i = 0
+    Set currentEntry = Nothing
+    
     For y = styJournal To lastRow
+        
+        Dim vDate As Variant
+        vDate = ws.Cells(y, COL_DATE)
         
         d_account = ws.Cells(y, COL_DR_ACC_NO_I)
         c_account = ws.Cells(y, COL_CR_ACC_NO_I)
         
-        If Not master.Exists(d_account) Then
-            Err.Raise vbObjectError + 3001, _
-            "Journal.class", _
-            "借方:勘定科目コード" & d_account & "は入力できません。"
-            GoTo Err_Skip
-        End If
-        If Not master.Exists(c_account) Then
-            Err.Raise vbObjectError + 3001, _
-            "Journal.class", _
-            "貸方:勘定科目コード" & c_account & "は入力できません。"
-            GoTo Err_Skip
+        '--------------------------------------
+        ' 空行スキップ
+        '--------------------------------------
+        If IsEmpty(vDate) And d_account = 0 And c_account = 0 Then
+            GoTo ContinueLoop
         End If
         
-        ' AccountingEntry 生成
-        Set m_record(i) = New AccountingEntry
-        
-        ' 1レコード読み込み（行番号を渡す）
-        Call m_record(i).Initialize( _
-            ws.Cells(y, COL_DATE), _
-            master.GetAccount(d_account), _
-            ws.Cells(y, COL_DR_SUB_NO_I), _
-            ws.Cells(y, COL_DR_SUB_NO_C), _
-            ws.Cells(y, COL_DR_SUB_NO_S), _
-            ws.Cells(y, COL_DR_CLASS), _
-            ws.Cells(y, COL_DR_MONEY), _
-            master.GetAccount(c_account), _
-            ws.Cells(y, COL_CR_SUB_NO_I), _
-            ws.Cells(y, COL_CR_SUB_NO_C), _
-            ws.Cells(y, COL_CR_SUB_NO_S), _
-            ws.Cells(y, COL_CR_CLASS), _
-            ws.Cells(y, COL_CR_MONEY), _
-            ws.Cells(y, COL_SUMMARY))
-        
-
-Err_Skip:
-        ' 日付が空なら終了（途中空白対策）
-        If IsNull(m_record(i).entryDate) Or IsEmpty(m_record(i).entryDate) Then
-            m_size = i   ' 実際の件数に調整
-            ReDim Preserve m_record(0 To m_size - 1)
-            Exit For
+        '--------------------------------------
+        ' 新しい仕訳
+        '--------------------------------------
+        If Not IsEmpty(vDate) Then
+            
+            ' 前の仕訳を確定
+            If Not currentEntry Is Nothing Then
+                
+                If currentEntry.TotalDebit <> currentEntry.TotalCredit Then
+                    Err.Raise vbObjectError + 5000, , _
+                        "貸借不一致"
+                End If
+                
+                Set m_record(i) = currentEntry
+                
+                iTotalDrMoney = iTotalDrMoney + currentEntry.TotalDebit
+                iTotalCrMoney = iTotalCrMoney + currentEntry.TotalCredit
+                
+                i = i + 1
+            End If
+            
+            ' 新規作成
+            Set currentEntry = New AccountingEntry
+            
+            Call currentEntry.SetHeader( _
+                vDate, _
+                ws.Cells(y, COL_SUMMARY) _
+            )
+            
+        Else
+            If currentEntry Is Nothing Then
+                Err.Raise vbObjectError + 4001, , "日付なし開始エラー"
+            End If
         End If
         
-        iTotalDrMoney = iTotalDrMoney + m_record(i).Debit.amount
-        iTotalCrMoney = iTotalCrMoney + m_record(i).Credit.amount
+        '--------------------------------------
+        ' 借方チェック
+        '--------------------------------------
+        If d_account <> 0 Then
+            If Not master.Exists(d_account) Then
+                Err.Raise vbObjectError + 3001, _
+                    "Journal.class", _
+                    "借方:勘定科目コード" & d_account & "は入力できません。"
+            End If
+            
+            Dim d As entrySide
+            Set d = New entrySide
+            
+            Call d.Initialize( _
+                master.GetAccount(d_account), _
+                ws.Cells(y, COL_DR_SUB_NO_I), _
+                ws.Cells(y, COL_DR_SUB_NO_C), _
+                ws.Cells(y, COL_DR_SUB_NO_S), _
+                ws.Cells(y, COL_DR_CLASS), _
+                ws.Cells(y, COL_DR_MONEY), _
+                "借方" _
+            )
+            
+            currentEntry.AddDebit d
+        End If
+        
+        '--------------------------------------
+        ' 貸方チェック
+        '--------------------------------------
+        If c_account <> 0 Then
+            If Not master.Exists(c_account) Then
+                Err.Raise vbObjectError + 3001, _
+                    "Journal.class", _
+                    "貸方:勘定科目コード" & c_account & "は入力できません。"
+            End If
+            
+            Dim c As entrySide
+            Set c = New entrySide
+            
+            Call c.Initialize( _
+                master.GetAccount(c_account), _
+                ws.Cells(y, COL_CR_SUB_NO_I), _
+                ws.Cells(y, COL_CR_SUB_NO_C), _
+                ws.Cells(y, COL_CR_SUB_NO_S), _
+                ws.Cells(y, COL_CR_CLASS), _
+                ws.Cells(y, COL_CR_MONEY), _
+                "貸方" _
+            )
+            
+            currentEntry.AddCredit c
+        End If
+        
+ContinueLoop:
+    Next y
+    
+    '--------------------------------------
+    ' 最終仕訳
+    '--------------------------------------
+    If Not currentEntry Is Nothing Then
+        
+        If currentEntry.TotalDebit <> currentEntry.TotalCredit Then
+            Err.Raise vbObjectError + 5000, , "貸借不一致"
+        End If
+        
+        Set m_record(i) = currentEntry
+        
+        iTotalDrMoney = iTotalDrMoney + currentEntry.TotalDebit
+        iTotalCrMoney = iTotalCrMoney + currentEntry.TotalCredit
         
         i = i + 1
-    Next y
-
-    '------------------------------
-    ' 貸借一致 最終チェック
-    '------------------------------
-    If (iTotalCrMoney <> iTotalDrMoney) Then
-        Err.Raise vbObjectError + 5000, "Journal:readJournal", "仕訳帳：借方と貸方の合計金額が一致しません"
+    End If
+    
+    '--------------------------------------
+    ' サイズ調整
+    '--------------------------------------
+    m_size = i
+    ReDim Preserve m_record(0 To m_size - 1)
+    
+    '--------------------------------------
+    ' 最終貸借チェック
+    '--------------------------------------
+    If iTotalCrMoney <> iTotalDrMoney Then
+        Err.Raise vbObjectError + 5000, _
+            "Journal:readJournal", _
+            "仕訳帳：借方と貸方の合計金額が一致しません"
     End If
     
     If m_Err = True Then
@@ -215,7 +299,7 @@ ErrHandler:
         m_Err = True
     End If
 
-    m_strErr = m_strErr & str(y) & "行目：" & Err.Description
+    m_strErr = m_strErr & CStr(y) & "行目：" & Err.Description
 
     Resume Next
 

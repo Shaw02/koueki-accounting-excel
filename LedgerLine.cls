@@ -26,6 +26,8 @@ Private m_Debit As Currency                 '借方            '
 Private m_Credit As Currency                '貸方
 Private m_Balance As Currency               '残高
 
+Private m_IsMultiCounter As Boolean         '諸口
+
 '==============================================================================
 '   日付取得
 '==============================================================================
@@ -38,11 +40,16 @@ End Property
 '   相手科目取得
 '==============================================================================
 Public Property Get counterMajorAccount() As String
-    If m_CounterAccount Is Nothing Then
-        counterMajorAccount = ""
+    If m_IsMultiCounter = False Then
+        If m_CounterAccount Is Nothing Then
+            counterMajorAccount = ""
+        Else
+            counterMajorAccount = m_CounterAccount.MajorAccount
+        End If
     Else
-        counterMajorAccount = m_CounterAccount.MajorAccount
+        counterMajorAccount = "諸口"
     End If
+    
 End Property
 
 
@@ -136,6 +143,7 @@ Public Sub InitializeBegin( _
     m_Debit = debitAmount
     m_Credit = creditAmount
     
+    m_IsMultiCounter = False
 End Sub
 
 
@@ -158,7 +166,8 @@ Public Sub Initialize( _
         ByVal counterAccount As Account, _
         ByVal summary As String, _
         ByVal debitAmount As Currency, _
-        ByVal creditAmount As Currency)
+        ByVal creditAmount As Currency, _
+        Optional ByVal isMulti As Boolean = False)
 
     '--------------------------------
     ' 借方貸方チェック
@@ -188,7 +197,8 @@ Public Sub Initialize( _
     
     m_Debit = debitAmount
     m_Credit = creditAmount
-    
+
+    m_IsMultiCounter = isMulti
 End Sub
 
 
