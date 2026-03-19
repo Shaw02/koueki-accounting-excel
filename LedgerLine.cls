@@ -28,8 +28,8 @@ Private m_Balance           As Currency     '残高
 
 Private m_IsMultiCounter    As Boolean      '諸口
 
-Private m_Row               As Long         'この明細の行
-Private m_StartRow          As Long         '仕訳先頭行（任意）
+Private m_Row               As Long         '明細行（この行）
+Private m_StartRow          As Long         '仕訳先頭行（EntryID）
 
 '==============================================================================
 '   日付取得
@@ -58,7 +58,9 @@ End Property
 '   相手科目取得
 '==============================================================================
 Public Property Get counterMiddleAccount() As String
-    If m_CounterAccount Is Nothing Then
+    If m_IsMultiCounter Then
+        counterMiddleAccount = ""
+    ElseIf m_CounterAccount Is Nothing Then
         counterMiddleAccount = ""
     Else
         counterMiddleAccount = m_CounterAccount.MiddleAccount
@@ -96,11 +98,11 @@ End Property
 '==============================================================================
 '   行取得
 '==============================================================================
-Public Property Get Row() As Currency
+Public Property Get Row() As Long
     Row = m_Row
 End Property
 
-Public Property Get StartRow() As Currency
+Public Property Get StartRow() As Long
     StartRow = m_StartRow
 End Property
 
@@ -145,6 +147,8 @@ Public Sub InitializeBegin( _
                   "貸方の金額が負数です"
     End If
 
+    Set m_CounterAccount = Nothing
+    
     m_Date = entryDate
     m_Summary = summary
     

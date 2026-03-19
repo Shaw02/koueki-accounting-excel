@@ -76,6 +76,13 @@ Public Property Get SubAccountName() As String
 End Property
 
 '==============================================================================
+'   ˆê”Ê^Žw’è‚ðŽæ“¾
+'==============================================================================
+Public Property Get NetAssetType() As NetAssetType
+    NetAssetType = m_NetAssetType
+End Property
+
+'==============================================================================
 '   Žw’è‚©H‚ðŽæ“¾
 '==============================================================================
 Public Property Get Class() As String
@@ -133,9 +140,36 @@ Public Property Get TrialBalanceAmount() As Currency
 
         Case "•‰Â", "ƒŽ‘ŽY", "Žû‰v"
             TrialBalanceAmount = -m_EndingBalance
-
+        
+        Case Else
+            Err.Raise vbObjectError + 5001, _
+                "LedgerAccount.TrialBalanceAmount", _
+                "FS‚ª•s³‚Å‚·: " & m_Account.FS
     End Select
 
+End Property
+
+'‡@ ŽØ•û•\Ž¦
+Public Property Get TrialBalanceDebit() As Currency
+    If TrialBalanceAmount > 0 Then
+        TrialBalanceDebit = Me.TrialBalanceAmount
+    Else
+        TrialBalanceDebit = 0
+    End If
+End Property
+
+'‡A ‘Ý•û•\Ž¦
+Public Property Get TrialBalanceCredit() As Currency
+    If TrialBalanceAmount < 0 Then
+        TrialBalanceCredit = -Me.TrialBalanceAmount
+    Else
+        TrialBalanceCredit = 0
+    End If
+End Property
+
+'‡B o—Í‘ÎÛ”»’è
+Public Property Get HasBalance() As Boolean
+    HasBalance = (m_EndingBalance <> 0)
 End Property
 
 '==============================================================================

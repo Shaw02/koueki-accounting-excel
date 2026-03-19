@@ -160,7 +160,6 @@ Public Function GetAccounts() As Collection
 
 End Function
 
-
 '==============================================================================
 '   指定キーの元帳を取得    無ければ新規作成
 '------------------------------------------------------------------------------
@@ -410,6 +409,7 @@ End Sub
 '   期末の計算
 '------------------------------------------------------------------------------
 Public Sub Final()
+    
     m_iNetAssets_End = m_iNetAssets_Begin + m_iNetAssets_Diff
     m_iSpNetAssets_End = m_iSpNetAssets_Begin + m_iSpNetAssets_Diff
 
@@ -524,7 +524,6 @@ Public Sub OutputSheet()
     '----------------------------------
     Set wsGL = ThisWorkbook.Worksheets("②総勘定元帳")
     Set wsSL = ThisWorkbook.Worksheets("③補助元帳")
-    
     
     '----------------------------------
     '   シートクリア
