@@ -86,12 +86,18 @@ Public Function getRecord(y As Long) As AccountingEntry
     Set getRecord = m_record(y)
 End Function
 
+'==============================================================================
+'   仕訳帳全体を取得
+'==============================================================================
 Public Property Get Items() As Variant
     Items = m_record
 End Property
 
 '==============================================================================
 '   仕訳帳の読み込み
+'------------------------------------------------------------------------------
+'   Input:
+'       master      勘定科目マスター
 '==============================================================================
 Public Sub readJournal(master As AccountMaster)
 
@@ -111,6 +117,8 @@ Public Sub readJournal(master As AccountMaster)
     Dim iTotalDrMoney As Currency
     
     Dim currentEntry As AccountingEntry     '現在の仕訳
+    
+    Dim StartRow As Long
     
     '----------------------------------
     '   初期化
@@ -182,11 +190,14 @@ Public Sub readJournal(master As AccountMaster)
             End If
             
             ' 新規作成
+            StartRow = y
+            
             Set currentEntry = New AccountingEntry
             
             Call currentEntry.SetHeader( _
                 vDate, _
-                ws.Cells(y, COL_SUMMARY) _
+                ws.Cells(y, COL_SUMMARY), _
+                StartRow _
             )
             
         Else
@@ -215,7 +226,9 @@ Public Sub readJournal(master As AccountMaster)
                 ws.Cells(y, COL_DR_SUB_NO_S), _
                 ws.Cells(y, COL_DR_CLASS), _
                 ws.Cells(y, COL_DR_MONEY), _
-                "借方" _
+                "借方", _
+                y, _
+                StartRow _
             )
             
             currentEntry.AddDebit d
@@ -241,7 +254,9 @@ Public Sub readJournal(master As AccountMaster)
                 ws.Cells(y, COL_CR_SUB_NO_S), _
                 ws.Cells(y, COL_CR_CLASS), _
                 ws.Cells(y, COL_CR_MONEY), _
-                "貸方" _
+                "貸方", _
+                y, _
+                StartRow _
             )
             
             currentEntry.AddCredit c
@@ -307,6 +322,9 @@ End Sub
 
 '==============================================================================
 '   仕訳帳チェック
+'------------------------------------------------------------------------------
+'   Input:
+'       master      勘定科目マスター
 '==============================================================================
 Public Sub ValidateEntries(ByVal master As AccountMaster)
 

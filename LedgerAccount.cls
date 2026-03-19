@@ -17,12 +17,11 @@ Attribute VB_Exposed = False
 '       ・残高式元帳に対応
 '
 '==============================================================================
-
 Option Explicit
 
 Private m_Account           As Account          ' 勘定科目マスターより
 
-Private m_SubAccountCode    As Variant          ' 補助科目コード
+Private m_SubAccountCode    As Long             ' 補助科目コード
 Private m_SubAccountCate    As String           ' 補助科目コード
 Private m_SubAccountName    As String           ' 補助科目名（VLookup）
 Private m_NetAssetType      As NetAssetType     ' 指定（総勘定元帳のみ）
@@ -35,50 +34,49 @@ Private m_Debit             As Currency         ' 借方合計
 Private m_Credit            As Currency         ' 貸方合計
 
 '==============================================================================
-'   勘定科目コード取得
+'   勘定科目コードを取得
 '==============================================================================
 Public Property Get AccountCode() As Long
     AccountCode = m_Account.code
 End Property
 
-
 '==============================================================================
-'   勘定科目名取得
+'   勘定科目名を取得
 '==============================================================================
 Public Property Get MajorAccount() As String
     MajorAccount = m_Account.MajorAccount
 End Property
 
 '==============================================================================
-'   勘定科目名取得
+'   勘定科目名を取得
 '==============================================================================
 Public Property Get MiddleAccount() As String
     MiddleAccount = m_Account.MiddleAccount
 End Property
 
 '==============================================================================
-'   補助科目コード取得
+'   補助科目コードを取得
 '==============================================================================
-Public Property Get SubAccountCode() As Variant
+Public Property Get SubAccountCode() As Long
     SubAccountCode = m_SubAccountCode
 End Property
 
 '==============================================================================
-'   区分
+'   区分を取得
 '==============================================================================
 Public Property Get SubAccountCate() As String
     SubAccountCate = m_SubAccountCate
 End Property
 
 '==============================================================================
-'   補助科目名取得
+'   補助科目名を取得
 '==============================================================================
 Public Property Get SubAccountName() As String
     SubAccountName = m_SubAccountName
 End Property
 
 '==============================================================================
-'   指定
+'   指定か？を取得
 '==============================================================================
 Public Property Get Class() As String
     If m_NetAssetType = natDesignated Then
@@ -88,47 +86,43 @@ Public Property Get Class() As String
     End If
 End Property
 
-
 '==============================================================================
-'   元帳行取得
+'   元帳行を取得
 '==============================================================================
 Public Property Get Lines() As Collection
     Set Lines = m_Lines
 End Property
 
 '==============================================================================
-'   期初残高
+'   期初残高を取得
 '==============================================================================
 Public Property Get BeginningBalance() As Currency
     BeginningBalance = m_BeginningBalance
 End Property
 
-
 '==============================================================================
-'   期末残高
+'   期末残高を取得
 '==============================================================================
 Public Property Get EndingBalance() As Currency
     EndingBalance = m_EndingBalance
 End Property
 
-
 '==============================================================================
-'   借方合計
+'   借方合計を取得
 '==============================================================================
 Public Property Get Debit() As Currency
     Debit = m_Debit
 End Property
 
-
 '==============================================================================
-'   貸方合計
+'   貸方合計を取得
 '==============================================================================
 Public Property Get Credit() As Currency
     Credit = m_Credit
 End Property
 
 '==============================================================================
-'   試算表用
+'   試算表用　残高の取得
 '==============================================================================
 Public Property Get TrialBalanceAmount() As Currency
 
@@ -144,9 +138,8 @@ Public Property Get TrialBalanceAmount() As Currency
 
 End Property
 
-
 '==============================================================================
-'   カテゴリーの取得
+'   試算表用　カテゴリーの取得
 '==============================================================================
 Public Property Get FS() As String
     FS = m_Account.FS
@@ -159,8 +152,6 @@ End Property
 Public Property Get SubCategory() As String
     SubCategory = m_Account.SubCategory
 End Property
-
-
 
 '==============================================================================
 '   クラス初期化
@@ -176,7 +167,6 @@ Private Sub Class_Initialize()
 
 End Sub
 
-
 '==============================================================================
 '       勘定科目初期化
 '------------------------------------------------------------------------------
@@ -184,28 +174,27 @@ End Sub
 '       勘定科目情報を初期化します
 '
 '   Input:
-'       accountCode
-'       accountName
-'       subCode
-'       subName
-'       classType
+'       acc             勘定科目
+'       subCode         補助科目コード
+'       subCate         会計区分
+'       subName         補助科目名
+'       NetAssetType    一般／指定
 '
 '==============================================================================
 Public Sub Initialize( _
         ByVal acc As Account, _
-        ByVal subCode As Variant, _
+        ByVal SubCode As Long, _
         ByVal subCate As String, _
         ByVal subName As String, _
         ByVal NetAssetType As NetAssetType)
 
     Set m_Account = acc
-    m_SubAccountCode = subCode
+    m_SubAccountCode = SubCode
     m_SubAccountCate = subCate
     m_SubAccountName = subName
     m_NetAssetType = NetAssetType
 
 End Sub
-
 
 '==============================================================================
 '       前期繰越登録
@@ -214,7 +203,7 @@ End Sub
 '       元帳の最初に前期繰越を追加します
 '
 '   Input:
-'       balance     前期残高
+'       balance     期初残高
 '
 '==============================================================================
 Public Sub AddOpeningBalance(ByVal balance As Currency)
@@ -245,7 +234,6 @@ Public Sub AddOpeningBalance(ByVal balance As Currency)
 
 End Sub
 
-
 '==============================================================================
 '       仕訳追加
 '------------------------------------------------------------------------------
@@ -253,14 +241,19 @@ End Sub
 '       元帳に仕訳を追加します
 '
 '   Input:
-'       entryDate
-'       counterAccount
-'       summary
-'       debitAmount
-'       creditAmount
+'       row                 仕訳帳の行
+'       StartRow            仕訳帳の開始行
+'       entryDate           日付
+'       counterAccount      相手科目
+'       summary             摘要
+'       debitAmount         借方
+'       creditAmount        貸方
+'       isMulti             諸口
 '
 '==============================================================================
 Public Sub AddLine( _
+        ByVal Row As Long, _
+        ByVal StartRow As Long, _
         ByVal entryDate As Variant, _
         ByVal counterAccount As Account, _
         ByVal summary As String, _
@@ -284,6 +277,8 @@ Public Sub AddLine( _
     ' LedgerLine 作成
     '--------------------------------
     Call line.Initialize( _
+        Row, _
+        StartRow, _
         entryDate, _
         counterAccount, _
         summary, _
@@ -297,7 +292,6 @@ Public Sub AddLine( _
 
 End Sub
 
-
 '==============================================================================
 '       行数取得
 '------------------------------------------------------------------------------
@@ -309,7 +303,6 @@ Public Property Get Count() As Long
     Count = m_Lines.Count
 End Property
 
-
 '==============================================================================
 '       元帳行取得
 '------------------------------------------------------------------------------
@@ -317,7 +310,7 @@ End Property
 '       index
 '
 '   Output:
-'       LedgerLine
+'       LedgerLine      元帳1行
 '
 '==============================================================================
 Public Property Get line(ByVal index As Long) As LedgerLine

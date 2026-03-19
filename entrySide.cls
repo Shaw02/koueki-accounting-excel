@@ -15,13 +15,15 @@ Option Explicit
 '==============================================================================
 '   メンバー変数
 '==============================================================================
-Private m_Account           As Account
-Private m_SubAccountCode    As Variant     ' 補助科目コード
-Private m_SubAccountCate    As String      ' 会計区分
-Private m_SubAccountName    As String      ' 補助科目名（VLookup）
+Private m_Account           As Account      ' 勘定科目
+Private m_SubAccountCode    As Long         ' 補助科目コード
+Private m_SubAccountCate    As String       ' 会計区分
+Private m_SubAccountName    As String       ' 補助科目名（VLookup）
 Private m_NetAssetType      As NetAssetType
-Private m_Amount            As Currency    ' 金額
-Private m_Side              As Boolean     ' True=Debit False=Credit
+Private m_Amount            As Currency     ' 金額
+Private m_Side              As Boolean      ' True=Debit False=Credit
+Private m_Row               As Long         'この明細の行
+Private m_ParentRow         As Long         '仕訳先頭行（任意）
 
 '==============================================================================
 '   Property
@@ -38,8 +40,16 @@ Public Property Get SubAccountCode() As Variant
     SubAccountCode = m_SubAccountCode
 End Property
 
+Public Property Get SubCode() As Long
+    SubCode = m_SubAccountCode
+End Property
+
 Public Property Let SubAccountCode(ByVal value As Variant)
-    m_SubAccountCode = value
+    If IsNull(value) Or IsEmpty(value) Then
+        m_SubAccountCode = 0
+    Else
+        m_SubAccountCode = value
+    End If
 End Property
 
 Public Property Get side() As String
@@ -68,7 +78,6 @@ Public Property Let side(ByVal value As String)
     End Select
 End Property
 
-
 Public Property Get SubAccountCate() As Variant
     SubAccountCate = m_SubAccountCate
 End Property
@@ -79,7 +88,9 @@ Public Property Let SubAccountCate(ByVal value As Variant)
     strValue = Trim(CStr(value))
     
     Select Case strValue
-        Case "", " ", "　", "公共", "公益共通"
+        Case "", " ", "　", "共", "共通"
+            m_SubAccountCate = "共通"
+        Case "公共", "公益共通"
             m_SubAccountCate = "公共"
         Case "公1", "公益1"
             m_SubAccountCate = "公1"
@@ -97,8 +108,6 @@ Public Property Let SubAccountCate(ByVal value As Variant)
             m_SubAccountCate = "収3"
         Case "法", "法人"
             m_SubAccountCate = "法"
-        Case "共", "共通"
-            m_SubAccountCate = "共通"
         Case Else
             Err.Raise vbObjectError + 3003, _
                       "entrySide.Class", _
@@ -108,7 +117,11 @@ Public Property Let SubAccountCate(ByVal value As Variant)
 End Property
 
 Public Property Get SubAccountName() As String
-    SubAccountName = m_SubAccountName
+    If m_SubAccountCode = 0 Then
+        SubAccountName = "共通"
+    Else
+        SubAccountName = m_SubAccountName
+    End If
 End Property
 
 Public Property Let SubAccountName(ByVal value As String)
@@ -147,6 +160,14 @@ Public Property Let amount(ByVal value As Currency)
     m_Amount = value
 End Property
 
+Public Property Get Row() As Long
+    Row = m_Row
+End Property
+
+Public Property Get ParentRow() As Long
+    ParentRow = m_Row
+End Property
+
 '==============================================================================
 '   クラスの初期化
 '==============================================================================
@@ -162,7 +183,18 @@ Private Sub Class_Terminate()
 End Sub
 
 '==============================================================================
-'   メンバー変数への代入
+'   初期化
+'------------------------------------------------------------------------------
+'   Input:
+'       acc                 勘定科目
+'       SubAccountCode      補助科目コード
+'       SubAccountCate      会計区分
+'       SubAccountName      補助科目名
+'       Class               一般／指定
+'       amount              金額
+'       side                借方／貸方
+'       Row                 仕訳帳の行
+'       ParentRow           仕訳帳開始行
 '==============================================================================
 Public Sub Initialize( _
     ByVal acc As Account, _
@@ -171,7 +203,9 @@ Public Sub Initialize( _
     ByVal SubAccountName As String, _
     ByVal Class As Variant, _
     ByVal amount As Currency, _
-    ByVal side As String)
+    ByVal side As String, _
+    ByVal Row As Long, _
+    ByVal ParentRow As Long)
 
     '------------------------------
     ' 代入
@@ -183,6 +217,8 @@ Public Sub Initialize( _
     Me.Class = Class
     Me.amount = amount
     Me.side = side
+    m_Row = Row
+    m_ParentRow = ParentRow
     
     '------------------------------
     ' 補助科目チェック
@@ -205,6 +241,7 @@ End Sub
 '
 '   Input:
 '       y       入力Ｙ座標
+'       master  勘定科目マスター
 '
 '   Output:
 '       entrySide   仕訳帳 １行分

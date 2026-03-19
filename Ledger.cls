@@ -67,7 +67,7 @@ End Sub
 '   Output:
 '       startRow    ŠJŽns
 '==============================================================================
-Private Sub ClearSheet(ws As Worksheet, startRow As Long)
+Private Sub ClearSheet(ws As Worksheet, StartRow As Long)
 
     '----------------------------------
     '   •Ï”éŒ¾
@@ -79,8 +79,8 @@ Private Sub ClearSheet(ws As Worksheet, startRow As Long)
     '----------------------------------
     With ws
         lastRow = .Cells(.Rows.Count, "A").End(xlUp).Row
-        If lastRow >= startRow Then
-            .Rows(startRow & ":" & lastRow).Delete
+        If lastRow >= StartRow Then
+            .Rows(StartRow & ":" & lastRow).Delete
         End If
     End With
 

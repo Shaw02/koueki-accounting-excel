@@ -15,12 +15,11 @@ Option Explicit
 '==============================================================================
 '   メンバー変数
 '==============================================================================
-Private m_EntryDate         As Variant       ' 日付
-
+Private m_EntryDate         As Variant      ' 日付
 Private m_Debits            As Collection   ' 借方
 Private m_Credits           As Collection   ' 貸方
-
-Private m_Summary           As String        ' 摘要
+Private m_Summary           As String       ' 摘要
+Private m_StartRow          As Long         ' 仕訳帳の行
 
 '==============================================================================
 '   Property
@@ -57,12 +56,18 @@ Private Sub Class_Terminate()
 End Sub
 
 '==============================================================================
-'   ヘッダー設定
+'   仕訳ヘッダー設定
+'------------------------------------------------------------------------------
+'   Input:
+'       d   日付
+'       s   摘要
+'       r   仕訳行
 '==============================================================================
-Public Sub SetHeader(ByVal d As Variant, ByVal s As String)
+Public Sub SetHeader(ByVal d As Variant, ByVal s As String, ByVal r As Long)
 
-    m_EntryDate = d
-    m_Summary = s
+    m_EntryDate = d     '日付
+    m_Summary = s       '摘要
+    m_StartRow = r      '仕訳帳の行
 
 End Sub
 
@@ -85,7 +90,7 @@ Public Sub AddCredit(ByVal side As entrySide)
 End Sub
 
 '==============================================================================
-'   借方合計
+'   借方合計を取得
 '==============================================================================
 Public Function TotalDebit() As Currency
 
@@ -98,7 +103,7 @@ Public Function TotalDebit() As Currency
 End Function
 
 '==============================================================================
-'   貸方合計
+'   貸方合計を取得
 '==============================================================================
 Public Function TotalCredit() As Currency
 

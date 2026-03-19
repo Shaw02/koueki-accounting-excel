@@ -22,12 +22,15 @@ Attribute VB_Exposed = False
 Option Explicit
 
 '勘定科目コード定義
-Private Const idNetAssets_End = 31000      '一般正味財産期末残高
-Private Const idNetAssets_Begin = 31100    '一般正味財産期首残高
-Private Const idNetAssets_Diff = 31200     '当期一般正味財産増減額
-Private Const idSpNetAssets_End = 32000    '指定正味財産期末残高
-Private Const idSpNetAssets_Begin = 32100  '指定正味財産期首残高
-Private Const idSpNetAssets_Diff = 32200   '当期指定正味財産増減額
+Private Const idNetAssets_End = 31000       '一般正味財産期末残高
+Private Const idNetAssets_Begin = 31100     '一般正味財産期首残高
+Private Const idNetAssets_Diff = 31200      '当期一般正味財産増減額
+Private Const idSpNetAssets_End = 32000     '指定正味財産期末残高
+Private Const idSpNetAssets_Begin = 32100   '指定正味財産期首残高
+Private Const idSpNetAssets_Diff = 32200    '当期指定正味財産増減額
+
+'総勘定元帳の出力Ｙ座標
+Private Const styGeneralLedger = 5          '総勘定元帳の開始位置
 
 '-------------------------------
 ' 正味財産（前期）
@@ -51,11 +54,8 @@ Private m_iSpNetAssets_End   As Currency   '指定正味財産期末残高
 Private m_iSpNetAssets_Begin As Currency   '指定正味財産期首残高
 Private m_iSpNetAssets_Diff  As Currency   '当期指定正味財産増減額
 
-Private m_GeneralLedger As Object
-Private m_SubLedger As Object
-
-'総勘定元帳の出力Ｙ座標
-Private Const styGeneralLedger = 5          '総勘定元帳の開始位置
+Private m_GeneralLedger As Object           '総勘定元帳
+Private m_SubLedger As Object               '補助元帳
 
 '==============================================================================
 '   総勘定元帳取得
@@ -74,7 +74,6 @@ End Property
 '===============================
 ' 正味財産（前期）
 '===============================
-
 Public Property Get NetAssets_End_p() As Currency
     NetAssets_End_p = m_iNetAssets_End_p
 End Property
@@ -86,7 +85,6 @@ End Property
 Public Property Get NetAssets_Diff_p() As Currency
     NetAssets_Diff_p = m_iNetAssets_Diff_p
 End Property
-
 
 Public Property Get SpNetAssets_End_p() As Currency
     SpNetAssets_End_p = m_iSpNetAssets_End_p
@@ -100,11 +98,9 @@ Public Property Get SpNetAssets_Diff_p() As Currency
     SpNetAssets_Diff_p = m_iSpNetAssets_Diff_p
 End Property
 
-
 '===============================
 ' 正味財産（当期）
 '===============================
-
 Public Property Get NetAssets_End() As Currency
     NetAssets_End = m_iNetAssets_End
 End Property
@@ -116,7 +112,6 @@ End Property
 Public Property Get NetAssets_Diff() As Currency
     NetAssets_Diff = m_iNetAssets_Diff
 End Property
-
 
 Public Property Get SpNetAssets_End() As Currency
     SpNetAssets_End = m_iSpNetAssets_End
@@ -167,10 +162,15 @@ End Function
 
 
 '==============================================================================
-'   元帳取得
+'   指定キーの元帳を取得    無ければ新規作成
 '------------------------------------------------------------------------------
-'   指定キーの元帳を取得
-'   無ければ新規作成
+'   Input
+'       dict            総勘定元帳 or 補助元帳の dict
+'       keyStr          キー
+'       entry           行
+'
+'   Output
+'       LedgerAccount   元帳のオブジェクト
 '
 '==============================================================================
 Private Function GetOrCreateLedger( _
@@ -203,11 +203,8 @@ Private Function GetOrCreateLedger( _
 End Function
 
 '==============================================================================
-'   前期繰越追加
+'   前期実績1行を元帳へ転記
 '------------------------------------------------------------------------------
-'   Contents:
-'       前期実績1行を元帳へ転記
-'
 '   Input:
 '       entry   entrySide
 '
@@ -254,11 +251,8 @@ Public Sub AddOpening(entry As entrySide)
 End Sub
 
 '==============================================================================
-'   仕訳追加
+'   仕訳帳1行を元帳へ転記
 '------------------------------------------------------------------------------
-'   Contents:
-'       仕訳帳1行を元帳へ転記
-'
 '   Input:
 '       entry   AccountingEntry
 '
@@ -291,15 +285,18 @@ Public Sub AddJournal(entry As AccountingEntry)
     
         Dim accD As LedgerAccount
         Dim keyD As ledgerKey
+        Set keyD = New ledgerKey
         
         '==============================
         ' 総勘定元帳（借方）
         '==============================
-        Set keyD = New ledgerKey
         Call keyD.Initialize(d.AccountCode, 0, 0)
         
         Set accD = GetOrCreateLedger(m_GeneralLedger, keyD.key, d)
+        
         Call accD.AddLine( _
+            d.Row, _
+            d.ParentRow, _
             entry.entryDate, _
             counterAcc, _
             entry.summary, _
@@ -320,23 +317,22 @@ Public Sub AddJournal(entry As AccountingEntry)
         '==============================
         ' 補助元帳（借方）
         '==============================
-        If Not (IsNull(d.SubAccountCode) Or IsEmpty(d.SubAccountCode)) Then
-            
-            Call keyD.Initialize( _
-                d.AccountCode, _
-                d.SubAccountCode, _
-                d.Class)
-            
-            Set accD = GetOrCreateLedger(m_SubLedger, keyD.key, d)
-            
-            Call accD.AddLine( _
-                entry.entryDate, _
-                counterAcc, _
-                entry.summary, _
-                d.amount, _
-                0, _
-                isMulti)
-        End If
+        Call keyD.Initialize( _
+            d.AccountCode, _
+            d.SubAccountCode, _
+            d.Class)
+        
+        Set accD = GetOrCreateLedger(m_SubLedger, keyD.key, d)
+        
+        Call accD.AddLine( _
+            d.Row, _
+            d.ParentRow, _
+            entry.entryDate, _
+            counterAcc, _
+            entry.summary, _
+            d.amount, _
+            0, _
+            isMulti)
     Next
         
     '--------------------------------------
@@ -358,15 +354,18 @@ Public Sub AddJournal(entry As AccountingEntry)
         
         Dim accC As LedgerAccount
         Dim keyC As ledgerKey
+        Set keyC = New ledgerKey
         
         '==============================
         ' 総勘定元帳（貸方）
         '==============================
-        Set keyC = New ledgerKey
         Call keyC.Initialize(c.AccountCode, 0, 0)
         
         Set accC = GetOrCreateLedger(m_GeneralLedger, keyC.key, c)
+        
         Call accC.AddLine( _
+            c.Row, _
+            c.ParentRow, _
             entry.entryDate, _
             counterAcc, _
             entry.summary, _
@@ -387,23 +386,22 @@ Public Sub AddJournal(entry As AccountingEntry)
         '==============================
         ' 補助元帳（借方）
         '==============================
-        If Not (IsNull(c.SubAccountCode) Or IsEmpty(c.SubAccountCode)) Then
-            
-            Call keyC.Initialize( _
-                c.AccountCode, _
-                c.SubAccountCode, _
-                c.Class)
-            
-            Set accC = GetOrCreateLedger(m_SubLedger, keyC.key, c)
+        Call keyC.Initialize( _
+            c.AccountCode, _
+            c.SubAccountCode, _
+            c.Class)
         
-            Call accC.AddLine( _
-                entry.entryDate, _
-                counterAcc, _
-                entry.summary, _
-                0, _
-                c.amount, _
-                isMulti)
-        End If
+        Set accC = GetOrCreateLedger(m_SubLedger, keyC.key, c)
+        
+        Call accC.AddLine( _
+            c.Row, _
+            c.ParentRow, _
+            entry.entryDate, _
+            counterAcc, _
+            entry.summary, _
+            0, _
+            c.amount, _
+            isMulti)
 
     Next
 End Sub
@@ -504,9 +502,12 @@ Private Sub QuickSortKeys(arr As Variant, ByVal first As Long, ByVal last As Lon
 End Sub
 
 '==============================================================================
-'   テスト　総勘定元帳
+'   総勘定元帳 ＆ 補助元帳出力
 '==============================================================================
 Public Sub OutputSheet()
+
+    Dim MaxColumn As Long
+    MaxColumn = 9
 
     '----------------------------------
     '   変数宣言
@@ -543,6 +544,7 @@ Public Sub OutputSheet()
         .Range("E:F, H:H").NumberFormat = "#,##0;△#,##0;;@"
         .Range("E:F, H:H").HorizontalAlignment = xlRight
         .Range("G:G").HorizontalAlignment = xlCenter
+        .Range("I:I").HorizontalAlignment = xlCenter
     
         For Each key In m_GeneralLedger
             Set acc = m_GeneralLedger.Item(key)
@@ -577,19 +579,20 @@ Public Sub OutputSheet()
                 .Cells(y, 6) = "貸方"
                 .Cells(y, 7) = "貸／借"
                 .Cells(y, 8) = "残高"
+                .Cells(y, 9) = "仕訳帳行"
                 
-                .Range(.Cells(y, 1), .Cells(y, 8)).Font.Bold = True
-                .Range(.Cells(y, 1), .Cells(y, 8)).HorizontalAlignment = xlCenter
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Font.Bold = True
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).HorizontalAlignment = xlCenter
                 
-                .Range(.Cells(y, 1), .Cells(y, 8)).Borders.LineStyle = xlContinuous
-                .Range(.Cells(y, 1), .Cells(y, 8)).Borders(xlEdgeTop).LineStyle = xlDouble
-                .Range(.Cells(y, 1), .Cells(y, 8)).Borders(xlEdgeBottom).Weight = xlMedium
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders(xlEdgeTop).LineStyle = xlDouble
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders(xlEdgeBottom).Weight = xlMedium
                 y = y + 1
                 
                 '--------------------------
                 '行
                 For Each line In acc.Lines
-                    .Cells(y, 1).Resize(1, 8).value = Array( _
+                    .Cells(y, 1).Resize(1, MaxColumn).value = Array( _
                         line.entryDate, _
                         line.counterMajorAccount, _
                         line.counterMiddleAccount, _
@@ -597,8 +600,9 @@ Public Sub OutputSheet()
                         IIf(line.Debit = 0, "", line.Debit), _
                         IIf(line.Credit = 0, "", line.Credit), _
                         line.DebitCreditLabel, _
-                        line.BalanceAbs)
-                    .Range(.Cells(y, 1), .Cells(y, 8)).Borders.LineStyle = xlContinuous
+                        line.BalanceAbs, _
+                        IIf(line.Row = 0, "", "=HYPERLINK(""#'①仕訳帳'!A" & line.Row & """,""" & line.Row & """)"))
+                    .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
                     y = y + 1
                 Next line
                 y = y + 1
@@ -617,6 +621,7 @@ Public Sub OutputSheet()
         .Range("E:F, H:H").NumberFormat = "#,##0;△#,##0;;@"
         .Range("E:F, H:H").HorizontalAlignment = xlRight
         .Range("G:G").HorizontalAlignment = xlCenter
+        .Range("I:I").HorizontalAlignment = xlCenter
         
         For Each key In m_SubLedger
             Set acc = m_SubLedger.Item(key)
@@ -639,7 +644,7 @@ Public Sub OutputSheet()
                 '--------------------------
                 '補助勘定科目の出力
                 .Range(.Cells(y, 1), .Cells(y, 8)).Merge
-                .Cells(y, 1) = "補助科目：" & acc.SubAccountName & acc.Class
+                .Cells(y, 1) = "補助科目：［" & acc.SubAccountCate & "］" & acc.SubAccountName & acc.Class
                 .Cells(y, 1).Font.Underline = True
                 .Cells(y, 1).Font.size = 14
                 .Cells(y, 1).HorizontalAlignment = xlCenter
@@ -661,19 +666,20 @@ Public Sub OutputSheet()
                 .Cells(y, 6) = "貸方"
                 .Cells(y, 7) = "貸／借"
                 .Cells(y, 8) = "残高"
+                .Cells(y, 9) = "仕訳帳行"
                 
-                .Range(.Cells(y, 1), .Cells(y, 8)).Font.Bold = True
-                .Range(.Cells(y, 1), .Cells(y, 8)).HorizontalAlignment = xlCenter
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Font.Bold = True
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).HorizontalAlignment = xlCenter
                 
-                .Range(.Cells(y, 1), .Cells(y, 8)).Borders.LineStyle = xlContinuous
-                .Range(.Cells(y, 1), .Cells(y, 8)).Borders(xlEdgeTop).LineStyle = xlDouble
-                .Range(.Cells(y, 1), .Cells(y, 8)).Borders(xlEdgeBottom).Weight = xlMedium
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders(xlEdgeTop).LineStyle = xlDouble
+                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders(xlEdgeBottom).Weight = xlMedium
                 y = y + 1
                 
                 '--------------------------
                 '行
                 For Each line In acc.Lines
-                    .Cells(y, 1).Resize(1, 8).value = Array( _
+                    .Cells(y, 1).Resize(1, MaxColumn).value = Array( _
                         line.entryDate, _
                         line.counterMajorAccount, _
                         line.counterMiddleAccount, _
@@ -681,8 +687,9 @@ Public Sub OutputSheet()
                         IIf(line.Debit = 0, "", line.Debit), _
                         IIf(line.Credit = 0, "", line.Credit), _
                         line.DebitCreditLabel, _
-                        line.BalanceAbs)
-                    .Range(.Cells(y, 1), .Cells(y, 8)).Borders.LineStyle = xlContinuous
+                        line.BalanceAbs, _
+                        IIf(line.Row = 0, "", "=HYPERLINK(""#'①仕訳帳'!A" & line.Row & """,""" & line.Row & """)"))
+                    .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
                     y = y + 1
                 Next line
                 y = y + 1
@@ -693,16 +700,14 @@ Public Sub OutputSheet()
 End Sub
 
 '==============================================================================
-'      シートのクリア
+'      指定のシートをクリアします。
 '------------------------------------------------------------------------------
-'   Contents:
-'       指定のシートをクリアします。
 '   Input:
 '       ws  クリアするシート
 '   Output:
 '       startRow    開始行
 '==============================================================================
-Private Sub ClearSheet(ws As Worksheet, startRow As Long)
+Private Sub ClearSheet(ws As Worksheet, StartRow As Long)
 
     '----------------------------------
     '   変数宣言
@@ -714,8 +719,8 @@ Private Sub ClearSheet(ws As Worksheet, startRow As Long)
     '----------------------------------
     With ws
         lastRow = .Cells(.Rows.Count, "A").End(xlUp).Row
-        If lastRow >= startRow Then
-            .Rows(startRow & ":" & lastRow).Delete
+        If lastRow >= StartRow Then
+            .Rows(StartRow & ":" & lastRow).Delete
         End If
     End With
 

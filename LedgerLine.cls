@@ -18,15 +18,18 @@ Attribute VB_Exposed = False
 
 Option Explicit
 
-Private m_Date As Variant                   '日付
-Private m_CounterAccount As Account         '相手科目
-Private m_Summary As String                 '摘要
+Private m_Date              As Variant      '日付
+Private m_CounterAccount    As Account      '相手科目
+Private m_Summary           As String       '摘要
 
-Private m_Debit As Currency                 '借方            '
-Private m_Credit As Currency                '貸方
-Private m_Balance As Currency               '残高
+Private m_Debit             As Currency     '借方
+Private m_Credit            As Currency     '貸方
+Private m_Balance           As Currency     '残高
 
-Private m_IsMultiCounter As Boolean         '諸口
+Private m_IsMultiCounter    As Boolean      '諸口
+
+Private m_Row               As Long         'この明細の行
+Private m_StartRow          As Long         '仕訳先頭行（任意）
 
 '==============================================================================
 '   日付取得
@@ -34,7 +37,6 @@ Private m_IsMultiCounter As Boolean         '諸口
 Public Property Get entryDate() As Variant
     entryDate = m_Date
 End Property
-
 
 '==============================================================================
 '   相手科目取得
@@ -52,7 +54,6 @@ Public Property Get counterMajorAccount() As String
     
 End Property
 
-
 '==============================================================================
 '   相手科目取得
 '==============================================================================
@@ -64,14 +65,12 @@ Public Property Get counterMiddleAccount() As String
     End If
 End Property
 
-
 '==============================================================================
 '   摘要取得
 '==============================================================================
 Public Property Get summary() As String
     summary = m_Summary
 End Property
-
 
 '==============================================================================
 '   借方取得
@@ -80,14 +79,12 @@ Public Property Get Debit() As Currency
     Debit = m_Debit
 End Property
 
-
 '==============================================================================
 '   貸方取得
 '==============================================================================
 Public Property Get Credit() As Currency
     Credit = m_Credit
 End Property
-
 
 '==============================================================================
 '   残高取得
@@ -97,10 +94,21 @@ Public Property Get balance() As Currency
 End Property
 
 '==============================================================================
+'   行取得
+'==============================================================================
+Public Property Get Row() As Currency
+    Row = m_Row
+End Property
+
+Public Property Get StartRow() As Currency
+    StartRow = m_StartRow
+End Property
+
+'==============================================================================
 '       元帳行初期化    （前期繰越）
 '------------------------------------------------------------------------------
 '   Contents:
-'       元帳１行を初期化します
+'       元帳１行を前期繰越として初期化
 '
 '   Input:
 '       entryDate
@@ -144,8 +152,11 @@ Public Sub InitializeBegin( _
     m_Credit = creditAmount
     
     m_IsMultiCounter = False
-End Sub
 
+    m_StartRow = 0
+    m_Row = 0
+
+End Sub
 
 '==============================================================================
 '       元帳行初期化
@@ -154,14 +165,19 @@ End Sub
 '       元帳１行を初期化します
 '
 '   Input:
+'       Row
+'       StartRow
 '       entryDate
 '       counterAccount
 '       summary
 '       debitAmount
 '       creditAmount
+'       isMulti
 '
 '==============================================================================
 Public Sub Initialize( _
+        ByVal Row As Long, _
+        ByVal StartRow As Long, _
         ByVal entryDate As Variant, _
         ByVal counterAccount As Account, _
         ByVal summary As String, _
@@ -199,8 +215,11 @@ Public Sub Initialize( _
     m_Credit = creditAmount
 
     m_IsMultiCounter = isMulti
-End Sub
+    
+    m_StartRow = StartRow
+    m_Row = Row
 
+End Sub
 
 '==============================================================================
 '       残高設定
@@ -214,7 +233,6 @@ Public Sub SetBalance(ByVal balance As Currency)
     m_Balance = balance
 
 End Sub
-
 
 '==============================================================================
 '       貸借判定
@@ -235,7 +253,6 @@ Public Function DebitCreditLabel() As String
     End If
 
 End Function
-
 
 '==============================================================================
 '       残高絶対値
