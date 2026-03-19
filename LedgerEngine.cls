@@ -219,7 +219,7 @@ Public Sub AddOpening(entry As entrySide)
         entry.Class
     
     Dim acc As LedgerAccount
-    If (IsNull(entry.SubAccountCode) Or IsEmpty(entry.SubAccountCode) Or entry.SubAccountCode = 0) And (entry.Class = 0) Then
+    If (Not entry.IsSubAcc) And (entry.Class = 0) Then
         
         '前年度の増減額・期首残高・期末残高か？
         Select Case entry.AccountCode

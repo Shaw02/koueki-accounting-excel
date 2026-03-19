@@ -16,6 +16,7 @@ Option Explicit
 '   メンバー変数
 '==============================================================================
 Private m_Account           As Account      ' 勘定科目
+Private m_IsSubAcc          As Boolean      ' 補助科目有り？
 Private m_SubAccountCode    As Long         ' 補助科目コード
 Private m_SubAccountCate    As String       ' 会計区分
 Private m_SubAccountName    As String       ' 補助科目名（VLookup）
@@ -46,8 +47,10 @@ End Property
 
 Public Property Let SubAccountCode(ByVal value As Variant)
     If IsNull(value) Or IsEmpty(value) Then
+        m_IsSubAcc = False
         m_SubAccountCode = 0
     Else
+        m_IsSubAcc = True
         m_SubAccountCode = value
     End If
 End Property
@@ -168,6 +171,10 @@ Public Property Get ParentRow() As Long
     ParentRow = m_Row
 End Property
 
+Public Property Get IsSubAcc() As Boolean
+    IsSubAcc = m_IsSubAcc
+End Property
+
 '==============================================================================
 '   クラスの初期化
 '==============================================================================
@@ -224,10 +231,10 @@ Public Sub Initialize( _
     ' 補助科目チェック
     '------------------------------
     '資産じゃない場合、且つ、補助科目が未入力でないか、チェック
-    If (acc.code >= 20000) And (IsNull(SubAccountCode) Or IsEmpty(SubAccountCode)) Then
+    If acc.subAccount And (Not m_IsSubAcc) Then
         Err.Raise vbObjectError + 3001, "entrySide:Initialize", Me.side & ":補助科目が必要です"
     End If
-    If (m_NetAssetType = natDesignated) And (IsNull(SubAccountCode) Or IsEmpty(SubAccountCode)) Then
+    If (m_NetAssetType = natDesignated) And (Not m_IsSubAcc) Then
         Err.Raise vbObjectError + 3002, "entrySide:Initialize", Me.side & ":指定の場合、補助科目が必要です"
     End If
 
@@ -271,7 +278,7 @@ Public Sub ReadResults(y As Variant, master As AccountMaster)
             "entrySide.class", _
             Me.side & ":勘定科目コード" & str & "は入力できません。"
         Else
-           Set m_Account = master.GetAccount(str)
+            Set m_Account = master.GetAccount(str)
             Me.SubAccountCode = ws.Cells(y, 4)
             Me.SubAccountCate = ws.Cells(y, 5)
             Me.SubAccountName = ws.Cells(y, 6)

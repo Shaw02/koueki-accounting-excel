@@ -52,7 +52,8 @@ Public Function LoadAccountMaster(ws As Worksheet) As AccountMaster
                 ws.Cells(y, 6), _
                 ws.Cells(y, 7), _
                 ws.Cells(y, 8), _
-                ws.Cells(y, 9)
+                ws.Cells(y, 9), _
+                ws.Cells(y, 10)
     
             master.AddAccount acc
         End If
@@ -141,7 +142,7 @@ Sub main()
         '金額が0でない場合
         If entrySide.amount <> 0 Then
             '副科目コードに何も書いていなければ
-            If IsNull(entrySide.SubAccountCode) Or IsEmpty(entrySide.SubAccountCode) Then
+            If Not entrySide.IsSubAcc Then
                                                               
                 '財務諸表（前年度）への出力
                 Call FS.OutFinancialStatements(entrySide.AccountCode, iLastX, entrySide.amount)

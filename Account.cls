@@ -24,6 +24,7 @@ Private m_FS            As String
 Private m_Category      As String
 Private m_SubCategory   As String
 Private m_Postable      As Boolean
+Private m_SubAccount    As Boolean
 
 '------------------------------------------------------------------------------
 '   Property
@@ -64,6 +65,10 @@ Public Property Get postable() As Boolean
     postable = m_Postable
 End Property
 
+Public Property Get subAccount() As Boolean
+    subAccount = m_SubAccount
+End Property
+
 '------------------------------------------------------------------------------
 '   初期化
 '------------------------------------------------------------------------------
@@ -76,7 +81,8 @@ Public Sub Initialize( _
     ByVal FS As String, _
     ByVal Category As String, _
     ByVal SubCategory As String, _
-    ByVal postable As String)
+    ByVal postable As String, _
+    ByVal subAccount As String)
 
     m_Code = code
     m_LargeClass = largeClass
@@ -92,6 +98,17 @@ Public Sub Initialize( _
             m_Postable = False
         Case "入力"
             m_Postable = True
+        Case Else
+            Err.Raise vbObjectError + 1001, _
+                "Account.Class", _
+                "勘定科目マスターの入力区分が不正です: " & postable
+    End Select
+
+    Select Case Trim(subAccount)
+        Case "不要", ""
+            m_SubAccount = False
+        Case "必要", "要"
+            m_SubAccount = True
         Case Else
             Err.Raise vbObjectError + 1001, _
                 "Account.Class", _
