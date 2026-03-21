@@ -22,7 +22,7 @@ Option Explicit
 Private m_Account           As Account          ' 勘定科目マスターより
 
 Private m_SubAccountCode    As Long             ' 補助科目コード
-Private m_SubAccountCate    As String           ' 補助科目コード
+Private m_SubAccountCate    As String           ' 会計区分（公1/公2/公共/収/法/etc..）
 Private m_SubAccountName    As String           ' 補助科目名（VLookup）
 Private m_NetAssetType      As NetAssetType     ' 指定（総勘定元帳のみ）
 

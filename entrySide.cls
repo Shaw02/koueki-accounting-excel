@@ -18,7 +18,7 @@ Option Explicit
 Private m_Account           As Account      ' 勘定科目
 Private m_IsSubAcc          As Boolean      ' 補助科目有り？
 Private m_SubAccountCode    As Long         ' 補助科目コード
-Private m_SubAccountCate    As String       ' 会計区分
+Private m_SubAccountCate    As String       ' 会計区分（公1/公2/公共/収/法/etc..）
 Private m_SubAccountName    As String       ' 補助科目名（VLookup）
 Private m_NetAssetType      As NetAssetType
 Private m_Amount            As Currency     ' 金額

@@ -429,85 +429,12 @@ Public Sub SortLedgers()
 
 End Sub
 
-
-'==============================================================================
-'   Dictionary Key ソート
-'==============================================================================
-Private Function SortDictionaryByKey(ByVal dict As Object) As Object
-
-    Dim keys As Variant
-    Dim i As Long
-    Dim newDict As Object
-    
-    keys = dict.keys
-    
-    If UBound(keys) <= 0 Then
-        Set SortDictionaryByKey = dict
-        Exit Function
-    End If
-    
-    QuickSortKeys keys, LBound(keys), UBound(keys)
-    
-    Set newDict = CreateObject("Scripting.Dictionary")
-    
-    For i = LBound(keys) To UBound(keys)
-        newDict.Add keys(i), dict(keys(i))
-    Next
-    
-    Set SortDictionaryByKey = newDict
-
-End Function
-
-'==============================================================================
-'   クイックソート
-'==============================================================================
-Private Sub QuickSortKeys(arr As Variant, ByVal first As Long, ByVal last As Long)
-
-    Dim i As Long
-    Dim j As Long
-    Dim pivot As String
-    Dim tmp As String
-    
-    i = first
-    j = last
-    
-    pivot = arr((first + last) \ 2)
-    
-    Do While i <= j
-    
-        Do While arr(i) < pivot
-            i = i + 1
-        Loop
-        
-        Do While arr(j) > pivot
-            j = j - 1
-        Loop
-        
-        If i <= j Then
-        
-            tmp = arr(i)
-            arr(i) = arr(j)
-            arr(j) = tmp
-            
-            i = i + 1
-            j = j - 1
-            
-        End If
-        
-    Loop
-    
-    If first < j Then QuickSortKeys arr, first, j
-    If i < last Then QuickSortKeys arr, i, last
-
-End Sub
-
 '==============================================================================
 '   総勘定元帳 ＆ 補助元帳出力
 '==============================================================================
 Public Sub OutputSheet()
 
-    Dim MaxColumn As Long
-    MaxColumn = 9
+    Const MaxColumn As Long = 9
 
     '----------------------------------
     '   変数宣言
@@ -694,33 +621,6 @@ Public Sub OutputSheet()
                 y = y + 1
             End If
         Next key
-    End With
-
-End Sub
-
-'==============================================================================
-'      指定のシートをクリアします。
-'------------------------------------------------------------------------------
-'   Input:
-'       ws  クリアするシート
-'   Output:
-'       startRow    開始行
-'==============================================================================
-Private Sub ClearSheet(ws As Worksheet, StartRow As Long)
-
-    '----------------------------------
-    '   変数宣言
-    '----------------------------------
-    Dim lastRow As Long
-    
-    '----------------------------------
-    '   シートクリア
-    '----------------------------------
-    With ws
-        lastRow = .Cells(.Rows.Count, "A").End(xlUp).Row
-        If lastRow >= StartRow Then
-            .Rows(StartRow & ":" & lastRow).Delete
-        End If
     End With
 
 End Sub

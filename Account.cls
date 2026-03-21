@@ -15,16 +15,16 @@ Option Explicit
 '------------------------------------------------------------------------------
 '   メンバー変数
 '------------------------------------------------------------------------------
-Private m_Code          As Long
-Private m_LargeClass    As String
-Private m_SmallClass    As String
-Private m_MajorAccount  As String
-Private m_MiddleAccount As String
-Private m_FS            As String
-Private m_Category      As String
-Private m_SubCategory   As String
-Private m_Postable      As Boolean
-Private m_SubAccount    As Boolean
+Private m_Code          As Long     '勘定科目コード
+Private m_LargeClass    As String   '勘定科目　大区分
+Private m_SmallClass    As String   '勘定科目　小区分
+Private m_MajorAccount  As String   '勘定科目　大科目
+Private m_MiddleAccount As String   '勘定科目　中科目
+Private m_FS            As String   'FS区分 （BS/PL）
+Private m_Category      As String   '区分   （資産／負債／純資産／収益／費用）
+Private m_SubCategory   As String   '小区分
+Private m_Postable      As Boolean  '仕訳帳 （入力用／集計用）
+Private m_SubAccount    As Boolean  '補助科目は必須？
 
 '------------------------------------------------------------------------------
 '   Property
