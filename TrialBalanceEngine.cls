@@ -108,9 +108,7 @@ Public Sub OutputSheet()
                 .Cells(y, 4) = "ˆê”Ê"
             End If
 
-            If line.FS = "BS" Then
-                .Cells(y, 5) = IIf(line.BeginningBalance = 0, "", line.BeginningBalance)
-            End If
+            .Cells(y, 5) = IIf(line.BeginningBalanceForDisplay = 0, "", line.BeginningBalanceForDisplay)
             .Cells(y, 6) = IIf(line.Debit = 0, "", line.Debit)
             .Cells(y, 7) = IIf(line.Credit = 0, "", line.Credit)
             .Cells(y, 8) = IIf(line.EndingBalance = 0, "", line.EndingBalance)

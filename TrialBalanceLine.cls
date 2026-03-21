@@ -85,6 +85,16 @@ Public Property Get Credit() As Currency: Credit = m_Credit: End Property
 Public Property Let EndingBalance(ByVal v As Currency): m_EndingBalance = v: End Property
 Public Property Get EndingBalance() As Currency: EndingBalance = m_EndingBalance: End Property
 
+Public Property Get BeginningBalanceForDisplay() As Currency
+
+    If Me.FS = "BS" Then
+        BeginningBalanceForDisplay = Me.BeginningBalance
+    Else
+        BeginningBalanceForDisplay = 0
+    End If
+
+End Property
+
 '===============================
 ' â¡éZÅièWñÒÅj
 '===============================
