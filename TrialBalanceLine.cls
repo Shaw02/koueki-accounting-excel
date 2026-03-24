@@ -15,16 +15,12 @@ Option Explicit
 
 Private m_Key As ledgerKey
 
-Private m_AccountCode    As Long
-Private m_AccountName    As String
+Private m_Account           As account
 
-Private m_FS             As String
-Private m_Category       As String
-Private m_SubCategory    As String
-
-Private m_Sector         As String
-Private m_Project        As String
-Private m_FundType       As NetAssetType
+Private m_SubAccountCode    As Long             ' 補助科目コード
+Private m_SubAccountCate    As String           ' 会計区分（公1/公2/公共/収/法/etc..）
+Private m_SubAccountName    As String           ' 補助科目名（VLookup）
+Private m_NetAssetType      As NetAssetType     ' 指定（総勘定元帳のみ）
 
 Private m_BeginningBalance As Currency
 Private m_Debit            As Currency
@@ -46,33 +42,77 @@ Public Property Get KeyString() As String
     KeyString = m_Key.key
 End Property
 
-'===============================
-' Property
-'===============================
-Public Property Let AccountCode(ByVal v As Long): m_AccountCode = v: End Property
-Public Property Get AccountCode() As Long: AccountCode = m_AccountCode: End Property
 
-Public Property Let AccountName(ByVal v As String): m_AccountName = v: End Property
-Public Property Get AccountName() As String: AccountName = m_AccountName: End Property
+'==============================================================================
+'   勘定科目クラスを取得
+'==============================================================================
+Public Property Get account() As account
+    Set account = m_Account
+End Property
 
-Public Property Let FS(ByVal v As String): m_FS = v: End Property
-Public Property Get FS() As String: FS = m_FS: End Property
+'==============================================================================
+'   勘定科目コードを取得
+'==============================================================================
+Public Property Get AccountCode() As Long
+    AccountCode = m_Account.code
+End Property
 
-Public Property Let Category(ByVal v As String): m_Category = v: End Property
-Public Property Get Category() As String: Category = m_Category: End Property
+'==============================================================================
+'   勘定科目名を取得
+'==============================================================================
+Public Property Get MajorAccount() As String
+    MajorAccount = m_Account.MajorAccount
+End Property
 
-Public Property Let SubCategory(ByVal v As String): m_SubCategory = v: End Property
-Public Property Get SubCategory() As String: SubCategory = m_SubCategory: End Property
+'==============================================================================
+'   勘定科目名を取得
+'==============================================================================
+Public Property Get MiddleAccount() As String
+    MiddleAccount = m_Account.MiddleAccount
+End Property
 
-Public Property Let Sector(ByVal v As String): m_Sector = v: End Property
-Public Property Get Sector() As String: Sector = m_Sector: End Property
+'==============================================================================
+'   補助科目コードを取得
+'==============================================================================
+Public Property Get SubAccountCode() As Long
+    SubAccountCode = m_SubAccountCode
+End Property
 
-Public Property Let Project(ByVal v As String): m_Project = v: End Property
-Public Property Get Project() As String: Project = m_Project: End Property
+'==============================================================================
+'   区分を取得
+'==============================================================================
+Public Property Get SubAccountCate() As String
+    SubAccountCate = m_SubAccountCate
+End Property
 
-Public Property Let FundType(ByVal v As NetAssetType): m_FundType = v: End Property
-Public Property Get FundType() As NetAssetType: FundType = m_FundType: End Property
+'==============================================================================
+'   補助科目名を取得
+'==============================================================================
+Public Property Get SubAccountName() As String
+    SubAccountName = m_SubAccountName
+End Property
 
+'==============================================================================
+'   一般／指定を取得
+'==============================================================================
+Public Property Get NetAssetType() As NetAssetType
+    NetAssetType = m_NetAssetType
+End Property
+
+'==============================================================================
+'   指定か？を取得
+'==============================================================================
+Public Property Get Class() As String
+    If m_NetAssetType = natDesignated Then
+        Class = "（指定）"
+    Else
+        Class = ""
+    End If
+End Property
+
+'==============================================================================
+'   決算取得
+'==============================================================================
 Public Property Let BeginningBalance(ByVal v As Currency): m_BeginningBalance = v: End Property
 Public Property Get BeginningBalance() As Currency: BeginningBalance = m_BeginningBalance: End Property
 
@@ -87,13 +127,42 @@ Public Property Get EndingBalance() As Currency: EndingBalance = m_EndingBalance
 
 Public Property Get BeginningBalanceForDisplay() As Currency
 
-    If Me.FS = "BS" Then
+    If Me.account.FS = "BS" Then
         BeginningBalanceForDisplay = Me.BeginningBalance
     Else
         BeginningBalanceForDisplay = 0
     End If
 
 End Property
+
+'==============================================================================
+'       初期化
+'------------------------------------------------------------------------------
+'   Contents:
+'       勘定科目情報を初期化します
+'
+'   Input:
+'       acc             勘定科目
+'       subCode         補助科目コード
+'       subCate         会計区分
+'       subName         補助科目名
+'       NetAssetType    一般／指定
+'
+'==============================================================================
+Public Sub Initialize( _
+        ByVal acc As account, _
+        ByVal SubCode As Long, _
+        ByVal subCate As String, _
+        ByVal subName As String, _
+        ByVal NetAssetType As NetAssetType)
+
+    Set m_Account = acc
+    m_SubAccountCode = SubCode
+    m_SubAccountCate = subCate
+    m_SubAccountName = subName
+    m_NetAssetType = NetAssetType
+
+End Sub
 
 '===============================
 ' 加算（集約）

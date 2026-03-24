@@ -187,7 +187,7 @@ Private Function GetOrCreateLedger( _
         Set acc = New LedgerAccount
         
         Call acc.Initialize( _
-            entry.Account, _
+            entry.account, _
             entry.SubAccountCode, _
             entry.SubAccountCate, _
             entry.SubAccountName, _
@@ -261,7 +261,7 @@ Public Sub AddJournal(entry As AccountingEntry)
     Dim d As entrySide
     Dim c As entrySide
 
-    Dim counterAcc As Account
+    Dim counterAcc As account
     Dim isMulti As Boolean
 
     '--------------------------------------
@@ -269,7 +269,7 @@ Public Sub AddJournal(entry As AccountingEntry)
     '--------------------------------------
     isMulti = False
     If entry.Credits.Count = 1 Then
-        Set counterAcc = entry.Credits(1).Account
+        Set counterAcc = entry.Credits(1).account
     Else
         Set counterAcc = Nothing
         If entry.Credits.Count > 1 Then
@@ -339,7 +339,7 @@ Public Sub AddJournal(entry As AccountingEntry)
     '--------------------------------------
     isMulti = False
     If entry.Debits.Count = 1 Then
-        Set counterAcc = entry.Debits(1).Account
+        Set counterAcc = entry.Debits(1).account
     Else
         Set counterAcc = Nothing
         If entry.Debits.Count > 1 Then

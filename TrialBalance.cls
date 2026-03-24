@@ -23,9 +23,145 @@ Public Property Get Lines() As Collection
     Set Lines = m_Lines
 End Property
 
-'===============================
-' 残高試算表 作成
-'===============================
+'==============================================================================
+'   貸借対照表用    一般正味財産　取得  （※補助科目を集計したクラスのみ、呼出し可）
+'==============================================================================
+Public Function GeneralNetChange() As Currency
+    GeneralNetChange = SumAmount(natGeneral, "PL", "FLOW")
+End Function
+
+Public Function GeneralNetBegin() As Currency
+    GeneralNetBegin = SumAmount(natGeneral, "BS", "BEGIN")
+End Function
+
+Public Function GeneralNetEnd() As Currency
+    GeneralNetEnd = SumAmount(natGeneral, "BS", "END")
+End Function
+
+'==============================================================================
+'   貸借対照表用    指定正味財産　取得  （※補助科目を集計したクラスのみ、呼出し可）
+'==============================================================================
+Public Function DesignatedNetChange() As Currency
+    DesignatedNetChange = SumAmount(natDesignated, "PL", "FLOW")
+End Function
+
+Public Function DesignatedNetBegin() As Currency
+    DesignatedNetBegin = SumAmount(natDesignated, "BS", "BEGIN")
+End Function
+
+Public Function DesignatedNetEnd() As Currency
+    DesignatedNetEnd = SumAmount(natDesignated, "BS", "END")
+End Function
+
+'==============================================================================
+'   汎用集計     （※補助科目を集計したクラスのみ、呼出し可）
+'==============================================================================
+Public Function SumAmount( _
+    ByVal fundType As NetAssetType, _
+    ByVal targetGroup As String, _
+    ByVal targetColumn As String _
+) As Currency
+
+    Dim line As TrialBalanceLine
+    Dim total As Currency
+    
+    For Each line In m_Lines
+        
+        '--------------------------------
+        ' 一般／指定
+        '--------------------------------
+        If line.NetAssetType <> fundType Then GoTo ContinueLoop
+        
+        '--------------------------------
+        ' 集計行（PL / BS）
+        '--------------------------------
+        If line.account.FS <> targetGroup Then GoTo ContinueLoop
+        
+        '--------------------------------
+        ' 列
+        '--------------------------------
+        Select Case targetColumn
+        
+            Case "BEGIN"    '期初残高
+                total = total + line.BeginningBalance
+                
+            Case "END"      '期末残高
+                total = total + line.EndingBalance
+                
+            Case "FLOW"     '増減額
+                total = total + (line.Credit - line.Debit)
+                
+        End Select
+        
+ContinueLoop:
+    Next
+    
+    SumAmount = total
+
+End Function
+
+'==============================================================================
+'   昨年度の残高試算表　読み込み
+'==============================================================================
+Public Sub SetLastResult( _
+    ByVal account As account, _
+    ByVal SubAccountCode As Long, _
+    ByVal SubAccountCate As String, _
+    ByVal SubAccountName As String, _
+    ByVal Class As NetAssetType, _
+    ByVal BeginningBalance As Currency, _
+    ByVal Debit As Currency, _
+    ByVal Credit As Currency, _
+    ByVal EndingBalance)
+
+    Dim line As TrialBalanceLine
+    
+    '--------------------------------
+    ' Key（Ledgerと完全一致）
+    '--------------------------------
+    Dim keyObj As ledgerKey
+    Dim key As String
+    
+    Set keyObj = New ledgerKey
+    Call keyObj.Initialize(account.code, SubAccountCode, Class)
+    key = keyObj.key
+
+    '--------------------------------
+    ' ライン作成
+    '--------------------------------
+    If m_Map.Exists(key) Then
+        Err.Raise vbObjectError + 3001, "TrialBalance:SetLastResult", key & ":が重複しています。"
+    Else
+
+        Set line = New TrialBalanceLine
+
+        '--- Key
+        Set line.key = keyObj
+
+        '--- 科目
+        Call line.Initialize( _
+            account, _
+            SubAccountCode, _
+            SubAccountCate, _
+            SubAccountName, _
+            Class)
+
+        '--- 金額（残高試算表）
+        line.BeginningBalance = BeginningBalance
+        line.Debit = Debit
+        line.Credit = Credit
+        line.EndingBalance = EndingBalance
+
+        m_Map.Add key, line
+        m_Lines.Add line
+
+    End If
+
+End Sub
+
+'==============================================================================
+'   元帳から今期の残高試算表の作成
+'==============================================================================
 Public Sub Build(ByVal ledgers As Object)
 
     Dim acc As LedgerAccount
@@ -46,37 +182,17 @@ Public Sub Build(ByVal ledgers As Object)
         key = keyObj.key
 
         '--------------------------------
-        ' Sector（空は共通）
-        '--------------------------------
-        Dim Sector As String
-        If Trim(acc.SubAccountCate) = "" Then
-            Sector = "共通"
-        Else
-            Sector = acc.SubAccountCate
-        End If
-
-        '--------------------------------
-        ' Project（PLのみ）
-        '--------------------------------
-        Dim Project As String
-        If acc.FS = "収益" Or acc.FS = "費用" Then
-            Project = acc.SubAccountName
-        Else
-            Project = ""
-        End If
-
-        '--------------------------------
         ' 現時点：1対1なので基本は新規作成
         ' （将来：配賦で複数→AddAmount使用）
         '--------------------------------
         If m_Map.Exists(key) Then
 
             Set line = m_Map(key)
-            line.AddAmount _
+            Call line.AddAmount( _
                 acc.BeginningBalance, _
                 acc.Debit, _
                 acc.Credit, _
-                acc.EndingBalance
+                acc.EndingBalance)
 
         Else
 
@@ -86,16 +202,12 @@ Public Sub Build(ByVal ledgers As Object)
             Set line.key = keyObj
 
             '--- 科目
-            line.AccountCode = acc.AccountCode
-            line.AccountName = acc.MajorAccount
-            line.FS = acc.FS
-            line.Category = acc.Category
-            line.SubCategory = acc.SubCategory
-
-            '--- 補助
-            line.Sector = Sector
-            line.Project = Project
-            line.FundType = acc.NetAssetType
+            Call line.Initialize( _
+                acc.account, _
+                acc.SubAccountCode, _
+                acc.SubAccountCate, _
+                acc.SubAccountName, _
+                acc.NetAssetType)
 
             '--- 金額（残高試算表）
             line.BeginningBalance = acc.BeginningBalance

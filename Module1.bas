@@ -100,19 +100,24 @@ End Sub
 '==============================================================================
 Public Sub ClearSheet(ws As Worksheet, StartRow As Long)
 
-    '----------------------------------
-    '   変数宣言
-    '----------------------------------
+    Dim lastRowA As Long
+    Dim lastRowB As Long
+    Dim lastRowC As Long
     Dim lastRow As Long
     
-    '----------------------------------
-    '   シートクリア
-    '----------------------------------
     With ws
-        lastRow = .Cells(.Rows.Count, "A").End(xlUp).Row
+    
+        lastRowA = .Cells(.Rows.Count, "A").End(xlUp).Row
+        lastRowB = .Cells(.Rows.Count, "B").End(xlUp).Row
+        lastRowC = .Cells(.Rows.Count, "C").End(xlUp).Row
+        
+        '最大値を採用
+        lastRow = Application.WorksheetFunction.Max(lastRowA, lastRowB, lastRowC)
+        
         If lastRow >= StartRow Then
             .Rows(StartRow & ":" & lastRow).Delete
         End If
+        
     End With
 
 End Sub
@@ -138,8 +143,8 @@ Public Function LoadAccountMaster(ws As Worksheet) As AccountMaster
     Do
         If ws.Cells(y, 1).value <> "" Then
         
-            Dim acc As Account
-            Set acc = New Account
+            Dim acc As account
+            Set acc = New account
     
             acc.Initialize _
                 ws.Cells(y, 1), _
@@ -228,30 +233,49 @@ Sub main()
     '---------------------------------------
     '[1]-(1) 「前年度実績」⇒「総勘定元帳」＆「補助元帳」に転記
     '---------------------------------------
-    yInput = styPerformance
-    Do
+    '■To Do: 前年度の実績は、試算表クラスに読み込む形にする。
+    '①前期実績を、試算表クラスに読み込み
+    Call tb.Read_LastResult(master)
+    
+    '②資産・負債は、元帳に期初残高として転記
+    
+    '■To Do:   転記
+
+
+
+    '- - - - - - - - - - - - - - - - - - - - - - - - - -
+    '■To Do:   削除予定
+
+    Dim lastRowA As Long
+    Dim lastRowB As Long
+    Dim lastRowC As Long
+    Dim lastRow As Long
+    
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets("前期実績")
+    
+    lastRowA = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    lastRowB = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    lastRowC = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
+    
+    '最大値を採用
+    lastRow = Application.WorksheetFunction.Max(lastRowA, lastRowB, lastRowC)
+    
+    For yInput = styPerformance To lastRow
+        
         '前期実績を1行読み込み
         Call entrySide.ReadResults(yInput, master)
         
-        '勘定科目コードの記載が無かったら、検索終了
-        If entrySide.AccountCode = -1 Then Exit Do
+        '勘定科目コードの記載が無かったら飛ばし
+        If Not entrySide.AccountCode = -1 Then
         
-        Call le.AddOpening(entrySide)
-        
-        '金額が0でない場合
-        If entrySide.amount <> 0 Then
-            '副科目コードに何も書いていなければ
-            If Not entrySide.IsSubAcc Then
-                                                              
-                '財務諸表（前年度）への出力
-                Call FS.OutFinancialStatements(entrySide.AccountCode, iLastX, entrySide.amount)
-
-            End If
+            Call le.AddOpening(entrySide)
+            
         End If
         
-        '次の行へ
-        yInput = yInput + 1
-    Loop
+    Next
+    '- - - - - - - - - - - - - - - - - - - - - - - - - -
+    
     
     '---------------------------------------
     '[1]-(2) 「仕訳帳」⇒「総勘定元帳」＆「補助元帳」に転記
@@ -272,73 +296,29 @@ Sub main()
     'Phase [2]  試算表を作成
     '--------------------------------------------------
 
-    ' ■ To Do  試算表
     Call tb.Build(le)
     Call tb.OutputSheet
+
+
 
     '==================================================
     'Phase [3]  財務諸表 ＆ 今期実績を作成
     '--------------------------------------------------
-
-    '数値表示形式（小数点なし）
-    Sheet11.Range("H:K").NumberFormat = "#,##0;△#,##0;;@"
-    Sheet11.Range("H:K").HorizontalAlignment = xlRight
 
     '---------------------------------------
     '[3]-(1) 資産・負債・収益・費用
     '---------------------------------------
 
     '今期実績への出力ｙ座標
-    Dim yOutPerformance
-    Dim acc As LedgerAccount
+    Dim tbLine As TrialBalanceLine
+
+    For Each tbLine In tb.LastGeneralTrialBalance.Lines
+        Call FS.OutFinancialStatements(tbLine.account.code, iLastX, tbLine.EndingBalance)
+    Next
     
-    '今期実績への出力ｙ座標
-    yOutPerformance = styPerformance
-
-    For Each key In le.GeneralLedger
-        Set acc = le.GeneralLedger.Item(key)
-        
-        Call FS.OutFinancialStatements(acc.AccountCode, iThisX, acc.EndingBalance)
-        '勘定科目は出力する。
-        Sheet11.Cells(yOutPerformance, 1) = acc.AccountCode
-        Sheet11.Cells(yOutPerformance, 2) = acc.MajorAccount
-        Sheet11.Cells(yOutPerformance, 3) = acc.MiddleAccount
-        Sheet11.Cells(yOutPerformance, 4) = ""
-        Sheet11.Cells(yOutPerformance, 5) = ""
-        Sheet11.Cells(yOutPerformance, 6) = ""
-        Sheet11.Cells(yOutPerformance, 7) = ""              'ここは、一般も指定も無い。
-        If acc.AccountCode < 40000 Then
-            Sheet11.Cells(yOutPerformance, 8) = acc.BeginningBalance
-        End If
-        Sheet11.Cells(yOutPerformance, 9) = acc.Debit
-        Sheet11.Cells(yOutPerformance, 10) = acc.Credit
-        Sheet11.Cells(yOutPerformance, 11) = acc.EndingBalance
-       
-        yOutPerformance = yOutPerformance + 1
-
-    Next key
-
-    For Each key In le.SubLedger
-        Set acc = le.SubLedger.Item(key)
-        
-        '勘定科目は出力する。
-        Sheet11.Cells(yOutPerformance, 1) = acc.AccountCode
-        Sheet11.Cells(yOutPerformance, 2) = acc.MajorAccount
-        Sheet11.Cells(yOutPerformance, 3) = acc.MiddleAccount
-        Sheet11.Cells(yOutPerformance, 4) = acc.SubAccountCode
-        Sheet11.Cells(yOutPerformance, 5) = acc.SubAccountCate
-        Sheet11.Cells(yOutPerformance, 6) = acc.SubAccountName
-        Sheet11.Cells(yOutPerformance, 7) = acc.Class              'ここは、一般も指定も無い。
-        If acc.AccountCode < 40000 Then
-            Sheet11.Cells(yOutPerformance, 8) = acc.BeginningBalance
-        End If
-        Sheet11.Cells(yOutPerformance, 9) = acc.Debit
-        Sheet11.Cells(yOutPerformance, 10) = acc.Credit
-        Sheet11.Cells(yOutPerformance, 11) = acc.EndingBalance
-        
-        yOutPerformance = yOutPerformance + 1
-
-    Next key
+    For Each tbLine In tb.GeneralTrialBalance.Lines
+        Call FS.OutFinancialStatements(tbLine.account.code, iThisX, tbLine.EndingBalance)
+    Next
 
     '---------------------------------------
     '[3]-(2) 正味財産の部
@@ -351,74 +331,6 @@ Sub main()
     Call FS.OutFinancialStatements(idSpNetAssets_Begin, iThisX, le.SpNetAssets_Begin)
     Call FS.OutFinancialStatements(idSpNetAssets_Diff, iThisX, le.SpNetAssets_Diff)
 
-    '勘定科目　集計用
-    '   1次 科目
-    '   2次
-    '       0   勘定科目コード
-    '       1   前年度 繰越金
-    '       2   借方
-    '       3   貸方
-    '       4   残高
-    '       5   補助簿の配列先頭
-    '       6   補助簿の配列終了
-    '       11  勘定科目名（文字列データ）
-    
-    '今期実績への出力
-
-    
-    Sheet11.Cells(yOutPerformance, 1) = idNetAssets_Diff
-    Sheet11.Cells(yOutPerformance, 2) = "当期一般正味財産増減額"
-    Sheet11.Cells(yOutPerformance, 3) = ""
-    Sheet11.Cells(yOutPerformance, 4) = ""
-    Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = ""
-    Sheet11.Cells(yOutPerformance, 11) = le.NetAssets_Diff
-    yOutPerformance = yOutPerformance + 1
-    
-    Sheet11.Cells(yOutPerformance, 1) = idNetAssets_Begin
-    Sheet11.Cells(yOutPerformance, 2) = "一般正味財産期首残高"
-    Sheet11.Cells(yOutPerformance, 3) = ""
-    Sheet11.Cells(yOutPerformance, 4) = ""
-    Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = ""
-    Sheet11.Cells(yOutPerformance, 11) = le.NetAssets_Begin
-    yOutPerformance = yOutPerformance + 1
-            
-    Sheet11.Cells(yOutPerformance, 1) = idNetAssets_End
-    Sheet11.Cells(yOutPerformance, 2) = "一般正味財産期末残高"
-    Sheet11.Cells(yOutPerformance, 3) = ""
-    Sheet11.Cells(yOutPerformance, 4) = ""
-    Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = ""
-    Sheet11.Cells(yOutPerformance, 11) = le.NetAssets_End
-    yOutPerformance = yOutPerformance + 1
-
-    Sheet11.Cells(yOutPerformance, 1) = idSpNetAssets_Diff
-    Sheet11.Cells(yOutPerformance, 2) = "当期指定正味財産増減額"
-    Sheet11.Cells(yOutPerformance, 3) = ""
-    Sheet11.Cells(yOutPerformance, 4) = ""
-    Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = ""
-    Sheet11.Cells(yOutPerformance, 11) = le.SpNetAssets_Diff
-    yOutPerformance = yOutPerformance + 1
-    
-    Sheet11.Cells(yOutPerformance, 1) = idSpNetAssets_Begin
-    Sheet11.Cells(yOutPerformance, 2) = "指定正味財産期首残高"
-    Sheet11.Cells(yOutPerformance, 3) = ""
-    Sheet11.Cells(yOutPerformance, 4) = ""
-    Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = ""
-    Sheet11.Cells(yOutPerformance, 11) = le.SpNetAssets_Begin
-    yOutPerformance = yOutPerformance + 1
-            
-    Sheet11.Cells(yOutPerformance, 1) = idSpNetAssets_End
-    Sheet11.Cells(yOutPerformance, 2) = "指定正味財産期末残高"
-    Sheet11.Cells(yOutPerformance, 3) = ""
-    Sheet11.Cells(yOutPerformance, 4) = ""
-    Sheet11.Cells(yOutPerformance, 5) = ""
-    Sheet11.Cells(yOutPerformance, 6) = ""
-    Sheet11.Cells(yOutPerformance, 11) = le.SpNetAssets_End
-    yOutPerformance = yOutPerformance + 1
 
     MsgBox ("正常終了しました")
 

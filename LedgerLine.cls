@@ -19,7 +19,7 @@ Attribute VB_Exposed = False
 Option Explicit
 
 Private m_Date              As Variant      '“ú•t
-Private m_CounterAccount    As Account      '‘ŠŽè‰È–Ú
+Private m_CounterAccount    As account      '‘ŠŽè‰È–Ú
 Private m_Summary           As String       '“E—v
 
 Private m_Debit             As Currency     'ŽØ•û
@@ -183,7 +183,7 @@ Public Sub Initialize( _
         ByVal Row As Long, _
         ByVal StartRow As Long, _
         ByVal entryDate As Variant, _
-        ByVal counterAccount As Account, _
+        ByVal counterAccount As account, _
         ByVal summary As String, _
         ByVal debitAmount As Currency, _
         ByVal creditAmount As Currency, _

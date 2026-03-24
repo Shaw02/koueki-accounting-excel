@@ -38,7 +38,7 @@ End Sub
 '------------------------------------------------------------------------------
 '   ’Ç‰Á
 '------------------------------------------------------------------------------
-Public Sub AddAccount(ByVal acc As Account)
+Public Sub AddAccount(ByVal acc As account)
 
     m_Accounts.Add acc, CStr(acc.code)
 
@@ -47,7 +47,7 @@ End Sub
 '------------------------------------------------------------------------------
 '   Žæ“¾
 '------------------------------------------------------------------------------
-Public Function GetAccount(ByVal code As Variant) As Account
+Public Function GetAccount(ByVal code As Variant) As account
 
     Set GetAccount = m_Accounts.Item(CStr(code))
 
@@ -60,7 +60,7 @@ Public Function Exists(ByVal code As Variant) As Boolean
 
     On Error GoTo ErrHandle
 
-    Dim tmp As Account
+    Dim tmp As account
     Set tmp = m_Accounts.Item(CStr(code))
 
     Exists = True

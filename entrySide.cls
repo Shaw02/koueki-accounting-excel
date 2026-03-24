@@ -15,7 +15,7 @@ Option Explicit
 '==============================================================================
 '   メンバー変数
 '==============================================================================
-Private m_Account           As Account      ' 勘定科目
+Private m_Account           As account      ' 勘定科目
 Private m_IsSubAcc          As Boolean      ' 補助科目有り？
 Private m_SubAccountCode    As Long         ' 補助科目コード
 Private m_SubAccountCate    As String       ' 会計区分（公1/公2/公共/収/法/etc..）
@@ -33,8 +33,8 @@ Public Property Get AccountCode() As Variant
     AccountCode = m_Account.code
 End Property
 
-Public Property Get Account() As Account
-    Set Account = m_Account
+Public Property Get account() As account
+    Set account = m_Account
 End Property
 
 Public Property Get SubAccountCode() As Variant
@@ -204,7 +204,7 @@ End Sub
 '       ParentRow           仕訳帳開始行
 '==============================================================================
 Public Sub Initialize( _
-    ByVal acc As Account, _
+    ByVal acc As account, _
     ByVal SubAccountCode As Variant, _
     ByVal SubAccountCate As Variant, _
     ByVal SubAccountName As String, _

@@ -19,7 +19,7 @@ Attribute VB_Exposed = False
 '==============================================================================
 Option Explicit
 
-Private m_Account           As Account          ' 勘定科目マスターより
+Private m_Account           As account          ' 勘定科目マスターより
 
 Private m_SubAccountCode    As Long             ' 補助科目コード
 Private m_SubAccountCate    As String           ' 会計区分（公1/公2/公共/収/法/etc..）
@@ -32,6 +32,13 @@ Private m_BeginningBalance  As Currency         ' 期初残高  （資産・負債だったら
 Private m_EndingBalance     As Currency         ' 期末残高  （来期期初残高）
 Private m_Debit             As Currency         ' 借方合計
 Private m_Credit            As Currency         ' 貸方合計
+
+'==============================================================================
+'   勘定科目クラスを取得
+'==============================================================================
+Public Property Get account() As account
+    Set account = m_Account
+End Property
 
 '==============================================================================
 '   勘定科目コードを取得
@@ -216,7 +223,7 @@ End Sub
 '
 '==============================================================================
 Public Sub Initialize( _
-        ByVal acc As Account, _
+        ByVal acc As account, _
         ByVal SubCode As Long, _
         ByVal subCate As String, _
         ByVal subName As String, _
@@ -289,7 +296,7 @@ Public Sub AddLine( _
         ByVal Row As Long, _
         ByVal StartRow As Long, _
         ByVal entryDate As Variant, _
-        ByVal counterAccount As Account, _
+        ByVal counterAccount As account, _
         ByVal summary As String, _
         ByVal debitAmount As Currency, _
         ByVal creditAmount As Currency, _
