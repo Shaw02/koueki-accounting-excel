@@ -444,7 +444,9 @@ Public Sub OutputSheet()
     Dim key As Variant
     Dim acc As LedgerAccount
     Dim line As LedgerLine
+    
     Dim y As Long
+    Dim sty As Long
     
     '----------------------------------
     '   初期化
@@ -507,14 +509,17 @@ Public Sub OutputSheet()
                 .Cells(y, 8) = "残高"
                 .Cells(y, 9) = "仕訳帳行"
                 
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Font.Bold = True
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).HorizontalAlignment = xlCenter
-                
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders(xlEdgeTop).LineStyle = xlDouble
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders(xlEdgeBottom).Weight = xlMedium
+                With .Range(.Cells(y, 1), .Cells(y, MaxColumn))
+                    .HorizontalAlignment = xlCenter
+                    .VerticalAlignment = xlCenter
+                    .Interior.Color = rgbLavender
+                    .Font.Bold = True
+                    .Borders.LineStyle = xlContinuous
+                    .Borders(xlEdgeTop).LineStyle = xlDouble
+                    .Borders(xlEdgeBottom).Weight = xlMedium
+                End With
                 y = y + 1
-                
+                sty = y
                 '--------------------------
                 '行
                 For Each line In acc.Lines
@@ -529,9 +534,27 @@ Public Sub OutputSheet()
                         line.BalanceAbs, _
                         IIf(line.Row = 0, "", "=HYPERLINK(""#'①仕訳帳'!A" & line.Row & """,""" & line.Row & """)"))
                     .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
+                    
+                    'ゼブラ
+                    If y Mod 2 = 0 Then
+                        .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Interior.Color = rgbAliceBlue
+                    End If
+                    
                     y = y + 1
                 Next line
-                y = y + 1
+                '--------------------------
+                '合計行
+                .Cells(y, 1) = "合計"
+                .Cells(y, 5).Formula = "=SUM(E" & sty & ":E" & y - 1 & ")"
+                .Cells(y, 6).Formula = "=SUM(F" & sty & ":F" & y - 1 & ")"
+        
+                With .Range(.Cells(y, 1), .Cells(y, MaxColumn))
+                    .Font.Bold = True
+                    .Interior.Color = rgbLightGoldenrodYellow
+                    .Borders(xlEdgeTop).LineStyle = xlDouble
+                End With
+                
+                y = y + 2
             End If
         Next key
     End With
@@ -594,13 +617,17 @@ Public Sub OutputSheet()
                 .Cells(y, 8) = "残高"
                 .Cells(y, 9) = "仕訳帳行"
                 
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Font.Bold = True
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).HorizontalAlignment = xlCenter
-                
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders(xlEdgeTop).LineStyle = xlDouble
-                .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders(xlEdgeBottom).Weight = xlMedium
+                With .Range(.Cells(y, 1), .Cells(y, MaxColumn))
+                    .HorizontalAlignment = xlCenter
+                    .VerticalAlignment = xlCenter
+                    .Interior.Color = rgbLavender
+                    .Font.Bold = True
+                    .Borders.LineStyle = xlContinuous
+                    .Borders(xlEdgeTop).LineStyle = xlDouble
+                    .Borders(xlEdgeBottom).Weight = xlMedium
+                End With
                 y = y + 1
+                sty = y
                 
                 '--------------------------
                 '行
@@ -616,9 +643,27 @@ Public Sub OutputSheet()
                         line.BalanceAbs, _
                         IIf(line.Row = 0, "", "=HYPERLINK(""#'①仕訳帳'!A" & line.Row & """,""" & line.Row & """)"))
                     .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
+                                        
+                    'ゼブラ
+                    If y Mod 2 = 0 Then
+                        .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Interior.Color = rgbAliceBlue
+                    End If
+
                     y = y + 1
                 Next line
-                y = y + 1
+                '--------------------------
+                '合計行
+                .Cells(y, 1) = "合計"
+                .Cells(y, 5).Formula = "=SUM(E" & sty & ":E" & y - 1 & ")"
+                .Cells(y, 6).Formula = "=SUM(F" & sty & ":F" & y - 1 & ")"
+        
+                With .Range(.Cells(y, 1), .Cells(y, MaxColumn))
+                    .Font.Bold = True
+                    .Interior.Color = rgbLightGoldenrodYellow
+                    .Borders(xlEdgeTop).LineStyle = xlDouble
+                End With
+                
+                y = y + 2
             End If
         Next key
     End With

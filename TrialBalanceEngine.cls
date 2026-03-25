@@ -234,7 +234,7 @@ Public Sub OutputSheet()
         With .Range(.Cells(y, 2), .Cells(y + 1, 11))
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
-            .Interior.Color = RGB(240, 240, 240)
+            .Interior.Color = rgbLavender
             .Font.Bold = True
             
             .Borders.LineStyle = xlContinuous
@@ -243,8 +243,6 @@ Public Sub OutputSheet()
             'äOògëæê¸
             .Borders(xlEdgeTop).Weight = xlMedium
             .Borders(xlEdgeBottom).Weight = xlMedium
-            .Borders(xlEdgeLeft).Weight = xlMedium
-            .Borders(xlEdgeRight).Weight = xlMedium
         End With
 
         y = y + 2
@@ -277,7 +275,7 @@ Public Sub OutputSheet()
 
             'É[ÉuÉâ
             If y Mod 2 = 0 Then
-                .Range(.Cells(y, 2), .Cells(y, 11)).Interior.Color = RGB(250, 250, 250)
+                .Range(.Cells(y, 2), .Cells(y, 11)).Interior.Color = rgbAliceBlue
             End If
 
             y = y + 1
@@ -296,7 +294,7 @@ Public Sub OutputSheet()
 
         With .Range(.Cells(y, 2), .Cells(y, 11))
             .Font.Bold = True
-            .Interior.Color = RGB(220, 230, 241)
+            .Interior.Color = rgbLightGoldenrodYellow
             .Borders(xlEdgeTop).LineStyle = xlDouble
         End With
 
@@ -346,7 +344,7 @@ Public Sub OutputSheet()
         With .Range(.Cells(y, 2), .Cells(y + 1, 11))
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
-            .Interior.Color = RGB(240, 240, 240)
+            .Interior.Color = rgbLavender
             .Font.Bold = True
             
             .Borders.LineStyle = xlContinuous
@@ -355,8 +353,6 @@ Public Sub OutputSheet()
             'äOògëæê¸
             .Borders(xlEdgeTop).Weight = xlMedium
             .Borders(xlEdgeBottom).Weight = xlMedium
-            .Borders(xlEdgeLeft).Weight = xlMedium
-            .Borders(xlEdgeRight).Weight = xlMedium
         End With
 
         y = y + 2
@@ -392,7 +388,7 @@ Public Sub OutputSheet()
 
             'É[ÉuÉâ
             If y Mod 2 = 0 Then
-                .Range(.Cells(y, 2), .Cells(y, 11)).Interior.Color = RGB(250, 250, 250)
+                .Range(.Cells(y, 2), .Cells(y, 11)).Interior.Color = rgbAliceBlue
             End If
 
             y = y + 1
@@ -411,7 +407,7 @@ Public Sub OutputSheet()
 
         With .Range(.Cells(y, 2), .Cells(y, 11))
             .Font.Bold = True
-            .Interior.Color = RGB(220, 230, 241)
+            .Interior.Color = rgbLightGoldenrodYellow
             .Borders(xlEdgeTop).LineStyle = xlDouble
         End With
 
