@@ -21,38 +21,8 @@ Attribute VB_Exposed = False
 '==============================================================================
 Option Explicit
 
-'Š¨’è‰È–ÚƒR[ƒh’è‹`
-Private Const idNetAssets_End = 31000       'ˆê”Ê³–¡àŽYŠú––Žc‚
-Private Const idNetAssets_Begin = 31100     'ˆê”Ê³–¡àŽYŠúŽñŽc‚
-Private Const idNetAssets_Diff = 31200      '“–Šúˆê”Ê³–¡àŽY‘Œ¸Šz
-Private Const idSpNetAssets_End = 32000     'Žw’è³–¡àŽYŠú––Žc‚
-Private Const idSpNetAssets_Begin = 32100   'Žw’è³–¡àŽYŠúŽñŽc‚
-Private Const idSpNetAssets_Diff = 32200    '“–ŠúŽw’è³–¡àŽY‘Œ¸Šz
-
 '‘Š¨’èŒ³’ ‚Ìo—Í‚xÀ•W
 Private Const styGeneralLedger = 5          '‘Š¨’èŒ³’ ‚ÌŠJŽnˆÊ’u
-
-'-------------------------------
-' ³–¡àŽYi‘OŠúj
-'-------------------------------
-Private m_iNetAssets_End_p   As Currency   'ˆê”Ê³–¡àŽYŠú––Žc‚
-Private m_iNetAssets_Begin_p As Currency   'ˆê”Ê³–¡àŽYŠúŽñŽc‚
-Private m_iNetAssets_Diff_p  As Currency   '“–Šúˆê”Ê³–¡àŽY‘Œ¸Šz
-    
-Private m_iSpNetAssets_End_p   As Currency 'Žw’è³–¡àŽYŠú––Žc‚
-Private m_iSpNetAssets_Begin_p As Currency 'Žw’è³–¡àŽYŠúŽñŽc‚
-Private m_iSpNetAssets_Diff_p  As Currency '“–ŠúŽw’è³–¡àŽY‘Œ¸Šz
-    
-'-------------------------------
-' ³–¡àŽYi“–Šúj
-'-------------------------------
-Private m_iNetAssets_End   As Currency     'ˆê”Ê³–¡àŽYŠú––Žc‚
-Private m_iNetAssets_Begin As Currency     'ˆê”Ê³–¡àŽYŠúŽñŽc‚
-Private m_iNetAssets_Diff  As Currency     '“–Šúˆê”Ê³–¡àŽY‘Œ¸Šz
-    
-Private m_iSpNetAssets_End   As Currency   'Žw’è³–¡àŽYŠú––Žc‚
-Private m_iSpNetAssets_Begin As Currency   'Žw’è³–¡àŽYŠúŽñŽc‚
-Private m_iSpNetAssets_Diff  As Currency   '“–ŠúŽw’è³–¡àŽY‘Œ¸Šz
 
 Private m_GeneralLedger As Object           '‘Š¨’èŒ³’ 
 Private m_SubLedger As Object               '•â•Œ³’ 
@@ -71,60 +41,6 @@ Public Property Get SubLedger() As Object
     Set SubLedger = m_SubLedger
 End Property
 
-'===============================
-' ³–¡àŽYi‘OŠúj
-'===============================
-Public Property Get NetAssets_End_p() As Currency
-    NetAssets_End_p = m_iNetAssets_End_p
-End Property
-
-Public Property Get NetAssets_Begin_p() As Currency
-    NetAssets_Begin_p = m_iNetAssets_Begin_p
-End Property
-
-Public Property Get NetAssets_Diff_p() As Currency
-    NetAssets_Diff_p = m_iNetAssets_Diff_p
-End Property
-
-Public Property Get SpNetAssets_End_p() As Currency
-    SpNetAssets_End_p = m_iSpNetAssets_End_p
-End Property
-
-Public Property Get SpNetAssets_Begin_p() As Currency
-    SpNetAssets_Begin_p = m_iSpNetAssets_Begin_p
-End Property
-
-Public Property Get SpNetAssets_Diff_p() As Currency
-    SpNetAssets_Diff_p = m_iSpNetAssets_Diff_p
-End Property
-
-'===============================
-' ³–¡àŽYi“–Šúj
-'===============================
-Public Property Get NetAssets_End() As Currency
-    NetAssets_End = m_iNetAssets_End
-End Property
-
-Public Property Get NetAssets_Begin() As Currency
-    NetAssets_Begin = m_iNetAssets_Begin
-End Property
-
-Public Property Get NetAssets_Diff() As Currency
-    NetAssets_Diff = m_iNetAssets_Diff
-End Property
-
-Public Property Get SpNetAssets_End() As Currency
-    SpNetAssets_End = m_iSpNetAssets_End
-End Property
-
-Public Property Get SpNetAssets_Begin() As Currency
-    SpNetAssets_Begin = m_iSpNetAssets_Begin
-End Property
-
-Public Property Get SpNetAssets_Diff() As Currency
-    SpNetAssets_Diff = m_iSpNetAssets_Diff
-End Property
-
 '==============================================================================
 '   ‰Šú‰»
 '==============================================================================
@@ -132,15 +48,6 @@ Private Sub Class_Initialize()
 
     Set m_GeneralLedger = CreateObject("Scripting.Dictionary")
     Set m_SubLedger = CreateObject("Scripting.Dictionary")
-    
-    '³–¡àŽY‚ÌWŒv—p
-    m_iNetAssets_Begin = 0                    'ˆê”Ê³–¡àŽYŠúŽñŽc‚
-    m_iNetAssets_End = 0                      'ˆê”Ê³–¡àŽYŠú––Žc‚
-    m_iNetAssets_Diff = 0                     '“–Šúˆê”Ê³–¡àŽY‘Œ¸Šz
-    
-    m_iSpNetAssets_Begin = 0                  'Žw’è³–¡àŽYŠúŽñŽc‚
-    m_iSpNetAssets_End = 0                    'Žw’è³–¡àŽYŠú––Žc‚
-    m_iSpNetAssets_Diff = 0                   '“–ŠúŽw’è³–¡àŽY‘Œ¸Šz
     
 End Sub
 
@@ -208,49 +115,38 @@ End Function
 '       entry   entrySide
 '
 '==============================================================================
-Public Sub AddOpening(entry As entrySide)
-
-    Dim key As ledgerKey
-    Set key = New ledgerKey
+Public Sub AddOpening(tbLine As TrialBalanceLine, isGeneral As Boolean)
     
-    key.Initialize _
-        entry.AccountCode, _
-        entry.SubAccountCode, _
-        entry.Class
+    Dim key As ledgerKey
+    Set key = tbLine.key
     
     Dim acc As LedgerAccount
-    If (Not entry.IsSubAcc) And (entry.Class = 0) Then
-        
-        '‘O”N“x‚Ì‘Œ¸ŠzEŠúŽñŽc‚EŠú––Žc‚‚©H
-        Select Case entry.AccountCode
-            Case idNetAssets_End
-                m_iNetAssets_End_p = entry.amount
-                m_iNetAssets_Begin = m_iNetAssets_End_p         'ð”NŠú––Žc‚‚ÍA¡ŠúŠú‰Žc‚
-            Case idNetAssets_Begin
-                m_iNetAssets_Begin_p = entry.amount
-            Case idNetAssets_Diff
-                m_iNetAssets_Diff_p = entry.amount
-            Case idSpNetAssets_End
-                m_iSpNetAssets_End_p = entry.amount
-                m_iSpNetAssets_Begin = m_iSpNetAssets_End_p     'ð”NŠú––Žc‚‚ÍA¡ŠúŠú‰Žc‚
-            Case idSpNetAssets_Begin
-                m_iSpNetAssets_Begin_p = entry.amount
-            Case idSpNetAssets_Diff
-                m_iSpNetAssets_Diff_p = entry.amount
-            Case Else
-                'ãˆÈŠO‚ÍAƒŠƒXƒg‰»‚·‚é
-                Set acc = GetOrCreateLedger(m_GeneralLedger, key.key, entry)
-                acc.AddOpeningBalance (entry.amount)
-        End Select
+    
+    'ŽŽŽZ•\‚Ps‚ð‚±‚ÌƒNƒ‰ƒX‚É•ÏŠ·‚·‚é
+    Dim entry As entrySide
+    Set entry = New entrySide
+    
+    Call entry.Initialize( _
+        tbLine.account, _
+        tbLine.SubAccountCode, _
+        tbLine.SubAccountCate, _
+        tbLine.SubAccountName, _
+        tbLine.Class, _
+        tbLine.EndingBalance, _
+        "ŽØ•û", 0, 0)
+
+    If isGeneral Then
+        Set acc = GetOrCreateLedger(m_GeneralLedger, key.key, entry)
+        acc.AddOpeningBalance (entry.Amount)
     Else
         Set acc = GetOrCreateLedger(m_SubLedger, key.key, entry)
-        acc.AddOpeningBalance (entry.amount)
+        acc.AddOpeningBalance (entry.Amount)
     End If
 
 End Sub
 
 '==============================================================================
-'   Žd–ó’ 1s‚ðŒ³’ ‚Ö“]‹L
+'   Žd–ó’ ‚Ps‚ðA‘Š¨’èŒ³’ ••â•Œ³’ i—¼•ûj‚É“]‹L
 '------------------------------------------------------------------------------
 '   Input:
 '       entry   AccountingEntry
@@ -299,20 +195,10 @@ Public Sub AddJournal(entry As AccountingEntry)
             entry.entryDate, _
             counterAcc, _
             entry.summary, _
-            d.amount, _
+            d.Amount, _
             0, _
             isMulti)
         
-        If (d.AccountCode >= 40000) And (d.AccountCode < 80000) Then
-            If d.Class = natDesignated Then
-                'Žw’è³–¡àŽY
-                m_iSpNetAssets_Diff = m_iSpNetAssets_Diff - d.amount
-            Else
-                'ˆê”Ê³–¡àŽY
-                m_iNetAssets_Diff = m_iNetAssets_Diff - d.amount
-            End If
-        End If
-    
         '==============================
         ' •â•Œ³’ iŽØ•ûj
         '==============================
@@ -329,7 +215,7 @@ Public Sub AddJournal(entry As AccountingEntry)
             entry.entryDate, _
             counterAcc, _
             entry.summary, _
-            d.amount, _
+            d.Amount, _
             0, _
             isMulti)
     Next
@@ -369,19 +255,9 @@ Public Sub AddJournal(entry As AccountingEntry)
             counterAcc, _
             entry.summary, _
             0, _
-            c.amount, _
+            c.Amount, _
             isMulti)
     
-        If (c.AccountCode >= 40000) And (c.AccountCode < 80000) Then
-            If c.Class = 1 Then
-                'Žw’è³–¡àŽY
-                m_iSpNetAssets_Diff = m_iSpNetAssets_Diff + c.amount
-            Else
-                'ˆê”Ê³–¡àŽY
-                m_iNetAssets_Diff = m_iNetAssets_Diff + c.amount
-            End If
-        End If
-        
         '==============================
         ' •â•Œ³’ iŽØ•ûj
         '==============================
@@ -399,7 +275,7 @@ Public Sub AddJournal(entry As AccountingEntry)
             counterAcc, _
             entry.summary, _
             0, _
-            c.amount, _
+            c.Amount, _
             isMulti)
 
     Next
@@ -410,9 +286,6 @@ End Sub
 '------------------------------------------------------------------------------
 Public Sub Final()
     
-    m_iNetAssets_End = m_iNetAssets_Begin + m_iNetAssets_Diff
-    m_iSpNetAssets_End = m_iSpNetAssets_Begin + m_iSpNetAssets_Diff
-
     Call SortLedgers
 
     Call OutputSheet
@@ -528,8 +401,8 @@ Public Sub OutputSheet()
                         line.counterMajorAccount, _
                         line.counterMiddleAccount, _
                         line.summary, _
-                        IIf(line.Debit = 0, "", line.Debit), _
-                        IIf(line.Credit = 0, "", line.Credit), _
+                        IIf(line.debit = 0, "", line.debit), _
+                        IIf(line.credit = 0, "", line.credit), _
                         line.DebitCreditLabel, _
                         line.BalanceAbs, _
                         IIf(line.Row = 0, "", "=HYPERLINK(""#'‡@Žd–ó’ '!A" & line.Row & """,""" & line.Row & """)"))
@@ -637,8 +510,8 @@ Public Sub OutputSheet()
                         line.counterMajorAccount, _
                         line.counterMiddleAccount, _
                         line.summary, _
-                        IIf(line.Debit = 0, "", line.Debit), _
-                        IIf(line.Credit = 0, "", line.Credit), _
+                        IIf(line.debit = 0, "", line.debit), _
+                        IIf(line.credit = 0, "", line.credit), _
                         line.DebitCreditLabel, _
                         line.BalanceAbs, _
                         IIf(line.Row = 0, "", "=HYPERLINK(""#'‡@Žd–ó’ '!A" & line.Row & """,""" & line.Row & """)"))

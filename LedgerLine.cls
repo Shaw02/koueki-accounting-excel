@@ -77,15 +77,15 @@ End Property
 '==============================================================================
 '   ŽØ•ûŽæ“¾
 '==============================================================================
-Public Property Get Debit() As Currency
-    Debit = m_Debit
+Public Property Get debit() As Currency
+    debit = m_Debit
 End Property
 
 '==============================================================================
 '   ‘Ý•ûŽæ“¾
 '==============================================================================
-Public Property Get Credit() As Currency
-    Credit = m_Credit
+Public Property Get credit() As Currency
+    credit = m_Credit
 End Property
 
 '==============================================================================

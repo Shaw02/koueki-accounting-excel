@@ -89,7 +89,7 @@ Public Function SumAmount( _
                 total = total + line.EndingBalance
                 
             Case "FLOW"     'ëùå∏äz
-                total = total + (line.Credit - line.Debit)
+                total = total + (line.credit - line.debit)
                 
         End Select
         
@@ -110,9 +110,9 @@ Public Sub SetLastResult( _
     ByVal SubAccountName As String, _
     ByVal Class As NetAssetType, _
     ByVal BeginningBalance As Currency, _
-    ByVal Debit As Currency, _
-    ByVal Credit As Currency, _
-    ByVal EndingBalance)
+    ByVal debit As Currency, _
+    ByVal credit As Currency, _
+    ByVal EndingBalance As Currency)
 
     Dim line As TrialBalanceLine
     
@@ -148,8 +148,8 @@ Public Sub SetLastResult( _
 
         '--- ã‡äzÅiécçÇéééZï\Åj
         line.BeginningBalance = BeginningBalance
-        line.Debit = Debit
-        line.Credit = Credit
+        line.debit = debit
+        line.credit = credit
         line.EndingBalance = EndingBalance
 
         m_Map.Add key, line
@@ -190,8 +190,8 @@ Public Sub Build(ByVal ledgers As Object)
             Set line = m_Map(key)
             Call line.AddAmount( _
                 acc.BeginningBalance, _
-                acc.Debit, _
-                acc.Credit, _
+                acc.debit, _
+                acc.credit, _
                 acc.EndingBalance)
 
         Else
@@ -211,8 +211,8 @@ Public Sub Build(ByVal ledgers As Object)
 
             '--- ã‡äzÅiécçÇéééZï\Åj
             line.BeginningBalance = acc.BeginningBalance
-            line.Debit = acc.Debit
-            line.Credit = acc.Credit
+            line.debit = acc.debit
+            line.credit = acc.credit
             line.EndingBalance = acc.EndingBalance
 
             m_Map.Add key, line

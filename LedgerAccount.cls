@@ -26,7 +26,7 @@ Private m_SubAccountCate    As String           ' 会計区分（公1/公2/公共/収/法/e
 Private m_SubAccountName    As String           ' 補助科目名（VLookup）
 Private m_NetAssetType      As NetAssetType     ' 指定（総勘定元帳のみ）
 
-Private m_Lines As Collection                   ' 各行（LedgerLine）を保持する
+Private m_Lines             As Collection       ' 元帳の各行（LedgerLine）を保持する
 
 Private m_BeginningBalance  As Currency         ' 期初残高  （資産・負債だったら、前期繰越にもなる）
 Private m_EndingBalance     As Currency         ' 期末残高  （来期期初残高）
@@ -124,15 +124,15 @@ End Property
 '==============================================================================
 '   借方合計を取得
 '==============================================================================
-Public Property Get Debit() As Currency
-    Debit = m_Debit
+Public Property Get debit() As Currency
+    debit = m_Debit
 End Property
 
 '==============================================================================
 '   貸方合計を取得
 '==============================================================================
-Public Property Get Credit() As Currency
-    Credit = m_Credit
+Public Property Get credit() As Currency
+    credit = m_Credit
 End Property
 
 '==============================================================================

@@ -9,6 +9,8 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
+Private Const styPerformance = 5
+
 '昨年度の試算表
 Private m_TB_General As TrialBalance            '総勘定元帳ベース
 Private m_TB_Sub As TrialBalance                '補助元帳ベース
@@ -68,8 +70,20 @@ Public Sub Read_LastResult(master As AccountMaster)
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Worksheets("前期実績")
     
+    Dim begin As Currency
+    Dim debit As Currency
+    Dim credit As Currency
+    Dim ending As Currency
+        
     With ws
     
+        .Columns("B").ColumnWidth = 14
+        .Columns("C").ColumnWidth = 18
+        .Columns("D").ColumnWidth = 10
+        .Columns("E").ColumnWidth = 10
+        .Columns("F").ColumnWidth = 22
+        .Columns("G:K").ColumnWidth = 14
+        
         lastRowA = .Cells(.Rows.Count, "A").End(xlUp).Row
         lastRowB = .Cells(.Rows.Count, "B").End(xlUp).Row
         lastRowC = .Cells(.Rows.Count, "C").End(xlUp).Row
@@ -88,44 +102,50 @@ Public Sub Read_LastResult(master As AccountMaster)
                     "貸方:勘定科目コード" & str & "は入力できません。"
                 End If
                 
-                subAcc = .Cells(y, 4)
-                If IsNull(subAcc) Or IsEmpty(subAcc) Or subAcc = "" Then
-                    '--------------------------
-                    ' 総勘定元帳ベース  （補助科目の記載が無い場合）
-                    Call m_TB_LastGeneral.SetLastResult( _
-                        master.GetAccount(str), _
-                        0, _
-                        "", _
-                        "", _
-                        Class, _
-                        .Cells(y, 8), _
-                        .Cells(y, 9), _
-                        .Cells(y, 10), _
-                        .Cells(y, 11))
+                begin = Amount(.Cells(y, 8))
+                debit = Amount(.Cells(y, 9))
+                credit = Amount(.Cells(y, 10))
+                ending = Amount(.Cells(y, 11))
                 
-                Else
-                    '--------------------------
-                    ' 補助元帳ベース    （補助科目の記載が有る場合）
-                    If .Cells(y, 7) = "指定" Then
-                        Class = natDesignated
+                '全て０だったら飛ばす
+                If Not ((begin = 0) And (debit = 0) And (credit = 0) And (ending = 0)) Then
+                
+                    subAcc = .Cells(y, 4)
+                    If IsNull(subAcc) Or IsEmpty(subAcc) Or subAcc = "" Then
+                        '--------------------------
+                        ' 総勘定元帳ベース  （補助科目の記載が無い場合）
+                        Call m_TB_LastGeneral.SetLastResult( _
+                            master.GetAccount(str), _
+                            0, _
+                            "", _
+                            "", _
+                            natGeneral, _
+                            begin, _
+                            debit, _
+                            credit, _
+                            ending)
                     Else
-                        Class = natGeneral
+                        '--------------------------
+                        ' 補助元帳ベース    （補助科目の記載が有る場合）
+                        If .Cells(y, 7) = "指定" Then
+                            Class = natDesignated
+                        Else
+                            Class = natGeneral
+                        End If
+                        Call m_TB_LastSub.SetLastResult( _
+                            master.GetAccount(str), _
+                            .Cells(y, 4), _
+                            .Cells(y, 5), _
+                            .Cells(y, 6), _
+                            Class, _
+                            begin, _
+                            debit, _
+                            credit, _
+                            ending)
                     End If
-                    Call m_TB_LastSub.SetLastResult( _
-                        master.GetAccount(str), _
-                        .Cells(y, 4), _
-                        .Cells(y, 5), _
-                        .Cells(y, 6), _
-                        Class, _
-                        .Cells(y, 8), _
-                        .Cells(y, 9), _
-                        .Cells(y, 10), _
-                        .Cells(y, 11))
-                
                 End If
-                
             End If
-            
+        
         Next
     
     End With
@@ -261,8 +281,8 @@ Public Sub OutputSheet()
             .Cells(y, 6) = ""
             .Cells(y, 7) = ""
             .Cells(y, 8) = IIf(line.BeginningBalanceForDisplay = 0, "-", line.BeginningBalanceForDisplay)
-            .Cells(y, 9) = IIf(line.Debit = 0, "-", line.Debit)
-            .Cells(y, 10) = IIf(line.Credit = 0, "-", line.Credit)
+            .Cells(y, 9) = IIf(line.debit = 0, "-", line.debit)
+            .Cells(y, 10) = IIf(line.credit = 0, "-", line.credit)
             .Cells(y, 11) = IIf(line.EndingBalance = 0, "-", line.EndingBalance)
 
             'インデント（階層）
@@ -374,8 +394,8 @@ Public Sub OutputSheet()
                 .Cells(y, 7) = "一般"
             End If
             .Cells(y, 8) = IIf(line.BeginningBalanceForDisplay = 0, "-", line.BeginningBalanceForDisplay)
-            .Cells(y, 9) = IIf(line.Debit = 0, "-", line.Debit)
-            .Cells(y, 10) = IIf(line.Credit = 0, "-", line.Credit)
+            .Cells(y, 9) = IIf(line.debit = 0, "-", line.debit)
+            .Cells(y, 10) = IIf(line.credit = 0, "-", line.credit)
             .Cells(y, 11) = IIf(line.EndingBalance = 0, "-", line.EndingBalance)
 
             'インデント（階層）

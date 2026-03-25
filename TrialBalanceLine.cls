@@ -13,7 +13,7 @@ Option Explicit
 ' éééZï\1çs
 '===============================
 
-Private m_Key As ledgerKey
+Private m_Key               As ledgerKey
 
 Private m_Account           As account
 
@@ -116,11 +116,11 @@ End Property
 Public Property Let BeginningBalance(ByVal v As Currency): m_BeginningBalance = v: End Property
 Public Property Get BeginningBalance() As Currency: BeginningBalance = m_BeginningBalance: End Property
 
-Public Property Let Debit(ByVal v As Currency): m_Debit = v: End Property
-Public Property Get Debit() As Currency: Debit = m_Debit: End Property
+Public Property Let debit(ByVal v As Currency): m_Debit = v: End Property
+Public Property Get debit() As Currency: debit = m_Debit: End Property
 
-Public Property Let Credit(ByVal v As Currency): m_Credit = v: End Property
-Public Property Get Credit() As Currency: Credit = m_Credit: End Property
+Public Property Let credit(ByVal v As Currency): m_Credit = v: End Property
+Public Property Get credit() As Currency: credit = m_Credit: End Property
 
 Public Property Let EndingBalance(ByVal v As Currency): m_EndingBalance = v: End Property
 Public Property Get EndingBalance() As Currency: EndingBalance = m_EndingBalance: End Property
@@ -169,8 +169,8 @@ End Sub
 '===============================
 Public Sub AddAmount( _
     ByVal beginning As Currency, _
-    ByVal Debit As Currency, _
-    ByVal Credit As Currency, _
+    ByVal debit As Currency, _
+    ByVal credit As Currency, _
     ByVal ending As Currency)
 
     '--------------------------------------------
@@ -184,8 +184,8 @@ Public Sub AddAmount( _
     '--------------------------------------------
 
     m_BeginningBalance = m_BeginningBalance + beginning
-    m_Debit = m_Debit + Debit
-    m_Credit = m_Credit + Credit
+    m_Debit = m_Debit + debit
+    m_Credit = m_Credit + credit
     m_EndingBalance = m_EndingBalance + ending
 
 End Sub

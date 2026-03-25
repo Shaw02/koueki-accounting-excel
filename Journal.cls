@@ -333,8 +333,8 @@ Public Sub ValidateEntries(ByVal master As AccountMaster)
     For Each it In m_record
 
         'ŽØ•û
-        Call it.Debit.CheckEntry(master)
-        Call it.Credit.CheckEntry(master)
+        Call it.debit.CheckEntry(master)
+        Call it.credit.CheckEntry(master)
 
     Next
 

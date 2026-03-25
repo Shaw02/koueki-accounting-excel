@@ -97,7 +97,7 @@ Public Function TotalDebit() As Currency
     Dim i As Long
 
     For i = 1 To m_Debits.Count
-        TotalDebit = TotalDebit + m_Debits(i).amount
+        TotalDebit = TotalDebit + m_Debits(i).Amount
     Next
 
 End Function
@@ -110,7 +110,7 @@ Public Function TotalCredit() As Currency
     Dim i As Long
 
     For i = 1 To m_Credits.Count
-        TotalCredit = TotalCredit + m_Credits(i).amount
+        TotalCredit = TotalCredit + m_Credits(i).Amount
     Next
 
 End Function

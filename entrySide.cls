@@ -20,7 +20,7 @@ Private m_IsSubAcc          As Boolean      ' 補助科目有り？
 Private m_SubAccountCode    As Long         ' 補助科目コード
 Private m_SubAccountCate    As String       ' 会計区分（公1/公2/公共/収/法/etc..）
 Private m_SubAccountName    As String       ' 補助科目名（VLookup）
-Private m_NetAssetType      As NetAssetType
+Private m_NetAssetType      As NetAssetType ' 一般／指定
 Private m_Amount            As Currency     ' 金額
 Private m_Side              As Boolean      ' True=Debit False=Credit
 Private m_Row               As Long         'この明細の行
@@ -155,11 +155,11 @@ Public Property Let Class(ByVal value As Variant)
 
 End Property
 
-Public Property Get amount() As Currency
-    amount = m_Amount
+Public Property Get Amount() As Currency
+    Amount = m_Amount
 End Property
 
-Public Property Let amount(ByVal value As Currency)
+Public Property Let Amount(ByVal value As Currency)
     m_Amount = value
 End Property
 
@@ -209,7 +209,7 @@ Public Sub Initialize( _
     ByVal SubAccountCate As Variant, _
     ByVal SubAccountName As String, _
     ByVal Class As Variant, _
-    ByVal amount As Currency, _
+    ByVal Amount As Currency, _
     ByVal side As String, _
     ByVal Row As Long, _
     ByVal ParentRow As Long)
@@ -222,7 +222,7 @@ Public Sub Initialize( _
     Me.SubAccountCate = SubAccountCate
     Me.SubAccountName = SubAccountName
     Me.Class = Class
-    Me.amount = amount
+    Me.Amount = Amount
     Me.side = side
     m_Row = Row
     m_ParentRow = ParentRow
@@ -241,55 +241,6 @@ Public Sub Initialize( _
 End Sub
 
 '==============================================================================
-'       実績読み込み
-'------------------------------------------------------------------------------
-'   Contents:
-'       実績から、１行分、上のメンバー変数に読み込みます。
-'
-'   Input:
-'       y       入力Ｙ座標
-'       master  勘定科目マスター
-'
-'   Output:
-'       entrySide   仕訳帳 １行分
-'
-'==============================================================================
-Public Sub ReadResults(y As Variant, master As AccountMaster)
-
-    '----------------------------------
-    '   変数宣言
-    '----------------------------------
-    Dim ws As Worksheet
-    Dim str As Variant
-    
-    Set ws = ThisWorkbook.Worksheets("前期実績")
-
-    str = ws.Cells(y, 1)
-    If IsNull(str) Or IsEmpty(str) Then
-        Set m_Account = master.GetAccount(-1)
-        Me.SubAccountCode = 0
-        Me.SubAccountCate = ""
-        Me.SubAccountName = ""
-        Me.Class = ""
-        Me.amount = 0
-    Else
-       If Not master.Exists(str) Then
-            Err.Raise vbObjectError + 3001, _
-            "entrySide.class", _
-            Me.side & ":勘定科目コード" & str & "は入力できません。"
-        Else
-            Set m_Account = master.GetAccount(str)
-            Me.SubAccountCode = ws.Cells(y, 4)
-            Me.SubAccountCate = ws.Cells(y, 5)
-            Me.SubAccountName = ws.Cells(y, 6)
-            Me.Class = ws.Cells(y, 7)
-            Me.amount = ws.Cells(y, 11)
-        End If
-    End If
-    
-End Sub
-
-'==============================================================================
 '   仕訳帳の読み込み
 '==============================================================================
 Public Sub CheckEntry()
@@ -304,7 +255,4 @@ Public Sub CheckEntry()
     End If
 
 End Sub
-
-
-
 

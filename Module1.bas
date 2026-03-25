@@ -16,8 +16,24 @@ Public Const idSpNetAssets_Diff = 32200   '当期指定正味財産増減額
 Public Const iThisX = 6             '当年度
 Public Const iLastX = 7             '前年度
 
-'実績の読み込みＹ座標
-Public Const styPerformance = 7     '実績の開始位置
+'==============================================================================
+'   金額判定
+'------------------------------------------------------------------------------
+'   Input:
+'       str     ソートする連想配列
+'
+'   Output:
+'               文字だったら0、数値だったら金額
+'
+'==============================================================================
+Public Function Amount(ByVal str As Variant) As Currency
+    
+    If IsNumeric(str) And Not IsEmpty(str) Then
+        Amount = CCur(str) ' 数字ならそのまま
+    Else
+        Amount = 0 ' 文字なら0
+    End If
+End Function
 
 '==============================================================================
 ' Dictionary Key ソート（共通）
@@ -222,7 +238,6 @@ Sub main()
     '仕訳帳
     Dim db As journal
     Set db = New journal                    'クラス生成時に仕訳帳も読んでいる
-    Call db.readJournal(master)             '仕訳帳チェック
     
     '総勘定元帳＆補助元帳
     Dim le As LedgerEngine
@@ -232,14 +247,14 @@ Sub main()
     Dim tb As TrialBalanceEngine
     Set tb = New TrialBalanceEngine
 
+    Dim tbLine As TrialBalanceLine
+
     '財務諸表
     Dim FS As FinancialStatements
     Set FS = New FinancialStatements
 
     Dim it As Variant           'for each 用
-    Dim key As Variant          'for each 用
-   
-    Dim yInput As Long
+    
     
     '==================================================
     'Phase [1]  前期実績 ＆ 仕訳帳 ⇒ 総勘定元帳への転記
@@ -248,53 +263,26 @@ Sub main()
     '---------------------------------------
     '[1]-(1) 「前年度実績」⇒「総勘定元帳」＆「補助元帳」に転記
     '---------------------------------------
-    '■To Do: 前年度の実績は、試算表クラスに読み込む形にする。
-    '①前期実績を、試算表クラスに読み込み
+    '① 前期実績を、試算表クラスに読み込み
     Call tb.Read_LastResult(master)
     
-    '②資産・負債は、元帳に期初残高として転記
-    
-    '■To Do:   転記
-
-
-
-    '- - - - - - - - - - - - - - - - - - - - - - - - - -
-    '■To Do:   削除予定
-
-    Dim lastRowA As Long
-    Dim lastRowB As Long
-    Dim lastRowC As Long
-    Dim lastRow As Long
-    
-    Dim ws As Worksheet
-    Set ws = ThisWorkbook.Worksheets("前期実績")
-    
-    lastRowA = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
-    lastRowB = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
-    lastRowC = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
-    
-    '最大値を採用
-    lastRow = Application.WorksheetFunction.Max(lastRowA, lastRowB, lastRowC)
-    
-    For yInput = styPerformance To lastRow
-        
-        '前期実績を1行読み込み
-        Call entrySide.ReadResults(yInput, master)
-        
-        '勘定科目コードの記載が無かったら飛ばし
-        If Not entrySide.AccountCode = -1 Then
-        
-            Call le.AddOpening(entrySide)
-            
-        End If
-        
+    '② 期初残高を総勘定元帳へ転記
+    For Each tbLine In tb.LastGeneralTrialBalance.Lines
+        Call le.AddOpening(tbLine, True)
     Next
-    '- - - - - - - - - - - - - - - - - - - - - - - - - -
     
+    '③ 期初残高を補助元帳へ転記
+    For Each tbLine In tb.LastSubTrialBalance.Lines
+        Call le.AddOpening(tbLine, False)
+    Next
     
     '---------------------------------------
     '[1]-(2) 「仕訳帳」⇒「総勘定元帳」＆「補助元帳」に転記
     '---------------------------------------
+    '① 仕訳帳を、仕訳帳クラスに読み込み
+    Call db.readJournal(master)
+    
+    '② 仕訳帳を、元帳へ転記
     For Each it In db.Items
         Set entry = it
         Call le.AddJournal(entry)
@@ -310,8 +298,10 @@ Sub main()
     '==================================================
     'Phase [2]  試算表を作成
     '--------------------------------------------------
-
+    '① 元帳から、試算表クラスを構成
     Call tb.Build(le)
+    
+    '② 残高試算表として出力
     Call tb.OutputSheet
 
 
@@ -323,10 +313,7 @@ Sub main()
     '---------------------------------------
     '[3]-(1) 資産・負債・収益・費用
     '---------------------------------------
-
-    '今期実績への出力ｙ座標
-    Dim tbLine As TrialBalanceLine
-
+    '   純資産の前期実績は、試算表クラスに入っています。 ←   ※■廃止予定
     For Each tbLine In tb.LastGeneralTrialBalance.Lines
         Call FS.OutFinancialStatements(tbLine.account.code, iLastX, tbLine.EndingBalance)
     Next
@@ -338,13 +325,20 @@ Sub main()
     '---------------------------------------
     '[3]-(2) 正味財産の部
     '---------------------------------------
+    Call FS.OutFinancialStatements(idNetAssets_End, iLastX, tb.LastGeneralTrialBalance.GeneralNetEnd)
+    Call FS.OutFinancialStatements(idNetAssets_Begin, iLastX, tb.LastGeneralTrialBalance.GeneralNetBegin)
+    Call FS.OutFinancialStatements(idNetAssets_Diff, iLastX, tb.LastGeneralTrialBalance.GeneralNetChange)
+    Call FS.OutFinancialStatements(idSpNetAssets_End, iLastX, tb.LastGeneralTrialBalance.DesignatedNetEnd)
+    Call FS.OutFinancialStatements(idSpNetAssets_Begin, iLastX, tb.LastGeneralTrialBalance.DesignatedNetBegin)
+    Call FS.OutFinancialStatements(idSpNetAssets_Diff, iLastX, tb.LastGeneralTrialBalance.DesignatedNetChange)
+
     
-    Call FS.OutFinancialStatements(idNetAssets_End, iThisX, le.NetAssets_End)
-    Call FS.OutFinancialStatements(idNetAssets_Begin, iThisX, le.NetAssets_Begin)
-    Call FS.OutFinancialStatements(idNetAssets_Diff, iThisX, le.NetAssets_Diff)
-    Call FS.OutFinancialStatements(idSpNetAssets_End, iThisX, le.SpNetAssets_End)
-    Call FS.OutFinancialStatements(idSpNetAssets_Begin, iThisX, le.SpNetAssets_Begin)
-    Call FS.OutFinancialStatements(idSpNetAssets_Diff, iThisX, le.SpNetAssets_Diff)
+    Call FS.OutFinancialStatements(idNetAssets_End, iThisX, tb.GeneralTrialBalance.GeneralNetEnd)
+    Call FS.OutFinancialStatements(idNetAssets_Begin, iThisX, tb.GeneralTrialBalance.GeneralNetBegin)
+    Call FS.OutFinancialStatements(idNetAssets_Diff, iThisX, tb.GeneralTrialBalance.GeneralNetChange)
+    Call FS.OutFinancialStatements(idSpNetAssets_End, iThisX, tb.GeneralTrialBalance.DesignatedNetEnd)
+    Call FS.OutFinancialStatements(idSpNetAssets_Begin, iThisX, tb.GeneralTrialBalance.DesignatedNetBegin)
+    Call FS.OutFinancialStatements(idSpNetAssets_Diff, iThisX, tb.GeneralTrialBalance.DesignatedNetChange)
 
 
     MsgBox ("正常終了しました")
