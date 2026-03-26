@@ -105,6 +105,11 @@ End Function
 '==============================================================================
 Public Sub readJournal(master As AccountMaster)
 
+    m_Err = False
+    m_strErr = ""
+    m_size = 0
+    Erase m_record
+
     On Error GoTo ErrHandler
     
     '----------------------------------

@@ -75,6 +75,9 @@ Public Sub Read_LastResult(master As AccountMaster)
     Dim credit As Currency
     Dim ending As Currency
         
+    Call m_TB_LastGeneral.Clear
+    Call m_TB_LastSub.Clear
+    
     With ws
     
         .Columns("B").ColumnWidth = 14
@@ -156,6 +159,9 @@ End Sub
 '==============================================================================
 Public Sub Build(ByVal engine As LedgerEngine)
 
+    Call m_TB_LastGeneral.Clear
+    Call m_TB_LastSub.Clear
+    
     '--------------------------
     ' ëçä®íËå≥í†ÉxÅ[ÉX
     Call m_TB_General.Build(engine.GeneralLedger)

@@ -12,7 +12,16 @@ Option Explicit
 Private m_Lines As Collection
 Private m_Map   As Object ' Dictionary（将来の配賦用）
 
+'==============================================================================
+'   Internal state clear
+'==============================================================================
 Private Sub Class_Initialize()
+
+    Call Clear
+
+End Sub
+
+Public Sub Clear()
 
     Set m_Lines = New Collection
     Set m_Map = CreateObject("Scripting.Dictionary")
