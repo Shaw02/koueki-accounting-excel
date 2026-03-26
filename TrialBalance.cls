@@ -251,7 +251,7 @@ Public Sub SortByAccountCode()
     '--------------------------------
     Set m_Lines = New Collection
     
-    For Each key In sortedDict.keys
+    For Each key In sortedDict.Keys
         m_Lines.Add sortedDict(key)
     Next key
 

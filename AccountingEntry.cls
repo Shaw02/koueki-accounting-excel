@@ -21,6 +21,9 @@ Private m_Credits           As Collection   ' ë›ï˚
 Private m_Summary           As String       ' ìEóv
 Private m_StartRow          As Long         ' édñÛí†ÇÃçs
 
+Private m_TotalDebit        As Currency
+Private m_TotalCredit       As Currency
+
 '==============================================================================
 '   Property
 '==============================================================================
@@ -46,6 +49,9 @@ End Property
 Private Sub Class_Initialize()
     Set m_Debits = New Collection
     Set m_Credits = New Collection
+    
+    m_TotalDebit = 0
+    m_TotalCredit = 0
 End Sub
 
 '==============================================================================
@@ -76,6 +82,7 @@ End Sub
 '==============================================================================
 Public Sub AddDebit(ByVal side As entrySide)
 
+    m_TotalDebit = m_TotalDebit + side.Amount
     m_Debits.Add side
 
 End Sub
@@ -85,6 +92,7 @@ End Sub
 '==============================================================================
 Public Sub AddCredit(ByVal side As entrySide)
 
+    m_TotalCredit = m_TotalCredit + side.Amount
     m_Credits.Add side
 
 End Sub
@@ -94,11 +102,7 @@ End Sub
 '==============================================================================
 Public Function TotalDebit() As Currency
 
-    Dim i As Long
-
-    For i = 1 To m_Debits.Count
-        TotalDebit = TotalDebit + m_Debits(i).Amount
-    Next
+    TotalDebit = m_TotalDebit
 
 End Function
 
@@ -107,10 +111,6 @@ End Function
 '==============================================================================
 Public Function TotalCredit() As Currency
 
-    Dim i As Long
-
-    For i = 1 To m_Credits.Count
-        TotalCredit = TotalCredit + m_Credits(i).Amount
-    Next
+    TotalCredit = m_TotalCredit
 
 End Function
