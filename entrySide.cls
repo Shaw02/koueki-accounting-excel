@@ -46,13 +46,40 @@ Public Property Get SubCode() As Long
 End Property
 
 Public Property Let SubAccountCode(ByVal value As Variant)
+
     If IsNull(value) Or IsEmpty(value) Then
         m_IsSubAcc = False
         m_SubAccountCode = 0
+        Exit Property
+    End If
+
+    Dim strValue As String
+    strValue = Trim(CStr(value))
+
+    If strValue = "" Then
+        m_IsSubAcc = False
+        m_SubAccountCode = 0
+        Exit Property
+    End If
+
+    If Not IsNumeric(strValue) Then
+        Err.Raise vbObjectError + 3003, _
+                  "entrySide.Class", _
+                  "SubAccountCode is not numeric: " & strValue
+    End If
+
+    Dim v As Long
+    v = CLng(strValue)
+
+    If v < 0 Then
+        Err.Raise vbObjectError + 3003, _
+                  "entrySide.Class", _
+                  "SubAccountCode is minus : " & strValue
     Else
         m_IsSubAcc = True
-        m_SubAccountCode = value
+        m_SubAccountCode = v
     End If
+
 End Property
 
 Public Property Get side() As String

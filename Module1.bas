@@ -100,8 +100,8 @@ Public Sub QuickSortKeys(arr As Variant, ByVal first As Long, ByVal last As Long
 
     Dim i As Long
     Dim j As Long
-    Dim pivot As String
-    Dim tmp As String
+    Dim pivot As Variant
+    Dim tmp As Variant
     
     i = first
     j = last
@@ -110,11 +110,11 @@ Public Sub QuickSortKeys(arr As Variant, ByVal first As Long, ByVal last As Long
     
     Do While i <= j
     
-        Do While arr(i) < pivot
+        Do While CompareSortKeys(arr(i), pivot) < 0
             i = i + 1
         Loop
         
-        Do While arr(j) > pivot
+        Do While CompareSortKeys(arr(j), pivot) > 0
             j = j - 1
         Loop
         
@@ -135,6 +135,76 @@ Public Sub QuickSortKeys(arr As Variant, ByVal first As Long, ByVal last As Long
     If i < last Then QuickSortKeys arr, i, last
 
 End Sub
+
+'------------------------------------------------------------------------------
+Private Function CompareSortKeys(ByVal a As Variant, ByVal b As Variant) As Long
+
+    Dim aStr As String
+    Dim bStr As String
+    
+    aStr = CStr(a)
+    bStr = CStr(b)
+
+    Dim aParts() As String
+    Dim bParts() As String
+
+    If TryParseLedgerKey(aStr, aParts) And TryParseLedgerKey(bStr, bParts) Then
+    
+        CompareSortKeys = CompareLongValues(ToLongSafe(aParts(0)), ToLongSafe(bParts(0)))
+        If CompareSortKeys <> 0 Then Exit Function
+
+        CompareSortKeys = CompareLongValues(ToLongSafe(aParts(1)), ToLongSafe(bParts(1)))
+        If CompareSortKeys <> 0 Then Exit Function
+
+        CompareSortKeys = CompareLongValues(ToLongSafe(aParts(2)), ToLongSafe(bParts(2)))
+        Exit Function
+        
+    End If
+
+    CompareSortKeys = StrComp(aStr, bStr, vbTextCompare)
+
+End Function
+
+'------------------------------------------------------------------------------
+Private Function TryParseLedgerKey(ByVal key As String, ByRef parts() As String) As Boolean
+
+    If InStr(1, key, "|", vbBinaryCompare) = 0 Then Exit Function
+
+    parts = Split(key, "|")
+    
+    If UBound(parts) <> 2 Then Exit Function
+    
+    If Not IsNumeric(parts(0)) Then Exit Function
+    If Not IsNumeric(parts(1)) Then Exit Function
+    If Not IsNumeric(parts(2)) Then Exit Function
+
+    TryParseLedgerKey = True
+
+End Function
+
+'------------------------------------------------------------------------------
+Private Function ToLongSafe(ByVal v As String) As Long
+
+    If IsNumeric(v) Then
+        ToLongSafe = CLng(v)
+    Else
+        ToLongSafe = 0
+    End If
+
+End Function
+
+'------------------------------------------------------------------------------
+Private Function CompareLongValues(ByVal a As Long, ByVal b As Long) As Long
+
+    If a < b Then
+        CompareLongValues = -1
+    ElseIf a > b Then
+        CompareLongValues = 1
+    Else
+        CompareLongValues = 0
+    End If
+
+End Function
 
 '==============================================================================
 '      指定のシートをクリアします。
@@ -186,32 +256,40 @@ Public Function LoadAccountMaster(ws As Worksheet) As AccountMaster
     Set master = New AccountMaster
 
     Dim y As Long
-    y = 2
+    Dim lastRow As Long
+    Dim v As Variant
 
-    Do
-        If ws.Cells(y, 1).value <> "" Then
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    For y = 2 To lastRow
+    
+        v = ws.Cells(y, 1).value
         
+        If Not IsEmpty(v) Then
+        
+            If IsNumeric(v) Then
+                If CLng(v) = -1 Then Exit For
+            End If
+            
             Dim acc As account
             Set acc = New account
     
             acc.Initialize _
-                ws.Cells(y, 1), _
-                ws.Cells(y, 2), _
-                ws.Cells(y, 3), _
-                ws.Cells(y, 4), _
-                ws.Cells(y, 5), _
-                ws.Cells(y, 6), _
-                ws.Cells(y, 7), _
-                ws.Cells(y, 8), _
-                ws.Cells(y, 9), _
-                ws.Cells(y, 10)
+                ws.Cells(y, 1).value, _
+                ws.Cells(y, 2).value, _
+                ws.Cells(y, 3).value, _
+                ws.Cells(y, 4).value, _
+                ws.Cells(y, 5).value, _
+                ws.Cells(y, 6).value, _
+                ws.Cells(y, 7).value, _
+                ws.Cells(y, 8).value, _
+                ws.Cells(y, 9).value, _
+                ws.Cells(y, 10).value
     
             master.AddAccount acc
         End If
-        If ws.Cells(y, 1).value = -1 Then Exit Do
-        y = y + 1
 
-    Loop
+    Next y
 
     Set LoadAccountMaster = master
 

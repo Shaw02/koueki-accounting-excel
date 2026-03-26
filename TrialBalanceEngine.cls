@@ -95,7 +95,6 @@ Public Sub Read_LastResult(master As AccountMaster)
         lastRow = Application.WorksheetFunction.Max(lastRowA, lastRowB, lastRowC)
         
         For y = styPerformance To lastRow
-            Debug.Print y
             str = .Cells(y, 1)
             If Not (IsNull(str) Or IsEmpty(str) Or str = "") Then
             
