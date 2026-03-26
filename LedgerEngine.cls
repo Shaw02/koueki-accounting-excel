@@ -131,7 +131,7 @@ Public Sub AddOpening(tbLine As TrialBalanceLine, isGeneral As Boolean)
         tbLine.SubAccountCode, _
         tbLine.SubAccountCate, _
         tbLine.SubAccountName, _
-        tbLine.Class, _
+        tbLine.NetAssetType, _
         tbLine.EndingBalance, _
         "ŽØ•û", 0, 0)
 

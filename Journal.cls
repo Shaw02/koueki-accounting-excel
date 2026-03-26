@@ -73,13 +73,6 @@ Private Sub Class_Terminate()
 End Sub
 
 '==============================================================================
-'   サイズの取得
-'==============================================================================
-Public Function getSize() As Long
-    getSize = m_size
-End Function
-
-'==============================================================================
 '   ｙ行目の仕訳帳の内容を取得
 '==============================================================================
 Public Function getRecord(y As Long) As AccountingEntry
@@ -90,8 +83,19 @@ End Function
 '   仕訳帳全体を取得
 '==============================================================================
 Public Property Get Items() As Variant
-    Items = m_record
+    If m_size = 0 Then
+        Items = Array()
+    Else
+        Items = m_record
+    End If
 End Property
+
+'==============================================================================
+'   サイズの取得
+'==============================================================================
+Public Function getSize() As Long
+    getSize = m_size
+End Function
 
 '==============================================================================
 '   仕訳帳の読み込み
@@ -138,6 +142,7 @@ Public Sub readJournal(master As AccountMaster)
     ' 開始行より上しかデータがない場合は終了
     If lastRow < styJournal Then
         m_size = 0
+        Erase m_record
         Exit Sub
     End If
     
@@ -286,7 +291,11 @@ ContinueLoop:
     ' サイズ調整
     '--------------------------------------
     m_size = i
-    ReDim Preserve m_record(0 To m_size - 1)
+    If m_size > 0 Then
+        ReDim Preserve m_record(0 To m_size - 1)
+    Else
+        Erase m_record
+    End If
     
     '--------------------------------------
     ' 最終貸借チェック
@@ -329,12 +338,17 @@ End Sub
 Public Sub ValidateEntries(ByVal master As AccountMaster)
 
     Dim it As Variant
-
+    Dim side As entrySide
+    
     For Each it In m_record
 
-        '借方
-        Call it.debit.CheckEntry(master)
-        Call it.credit.CheckEntry(master)
+        For Each side In it.Debits
+            side.CheckEntry
+        Next side
+
+        For Each side In it.Credits
+            side.CheckEntry
+        Next side
 
     Next
 

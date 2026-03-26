@@ -259,7 +259,7 @@ Public Sub AddOpeningBalance(ByVal balance As Currency)
     If m_Account.code <> 0 And m_Account.code < 30000 Then
         If balance <> 0 Then
             Call line.InitializeBegin( _
-                DateSerial(Year(Date), 4, 1), _
+                GetFiscalYearStart, _
                 "‘OŠúŒJ‰z", _
                 IIf(balance > 0, balance, 0), _
                 IIf(balance < 0, -balance, 0))

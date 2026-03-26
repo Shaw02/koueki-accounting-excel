@@ -17,6 +17,13 @@ Public Const iThisX = 6             '当年度
 Public Const iLastX = 7             '前年度
 
 '==============================================================================
+'   期初を取得
+'------------------------------------------------------------------------------
+Public Function GetFiscalYearStart() As Date
+    GetFiscalYearStart = ThisWorkbook.Worksheets("設定＆使い方").Cells(14, 3).value
+End Function
+
+'==============================================================================
 '   金額判定
 '------------------------------------------------------------------------------
 '   Input:
@@ -50,22 +57,33 @@ Public Function SortDictionaryByKey(ByVal dict As Object) As Object
     Dim keys As Variant
     Dim i As Long
     Dim newDict As Object
-    
-    keys = dict.keys
-    
-    If UBound(keys) <= 0 Then
-        Set SortDictionaryByKey = dict
+
+    Set newDict = CreateObject("Scripting.Dictionary")
+
+    If dict Is Nothing Then
+        Set SortDictionaryByKey = newDict
         Exit Function
     End If
-    
+
+    If dict.Count = 0 Then
+        Set SortDictionaryByKey = newDict
+        Exit Function
+    End If
+
+    keys = dict.keys
+
+    If UBound(keys) <= 0 Then
+        newDict.Add keys(0), dict(keys(0))
+        Set SortDictionaryByKey = newDict
+        Exit Function
+    End If
+
     Call QuickSortKeys(keys, LBound(keys), UBound(keys))
-    
-    Set newDict = CreateObject("Scripting.Dictionary")
-    
+
     For i = LBound(keys) To UBound(keys)
         newDict.Add keys(i), dict(keys(i))
     Next
-    
+
     Set SortDictionaryByKey = newDict
 
 End Function
@@ -255,7 +273,7 @@ Sub main()
 
     Dim it As Variant           'for each 用
     
-    
+   
     '==================================================
     'Phase [1]  前期実績 ＆ 仕訳帳 ⇒ 総勘定元帳への転記
     '--------------------------------------------------

@@ -168,7 +168,7 @@ Public Property Get Row() As Long
 End Property
 
 Public Property Get ParentRow() As Long
-    ParentRow = m_Row
+    ParentRow = m_ParentRow
 End Property
 
 Public Property Get IsSubAcc() As Boolean
