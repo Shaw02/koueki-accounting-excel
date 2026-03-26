@@ -36,30 +36,30 @@ End Property
 '   貸借対照表用    一般正味財産　取得  （※補助科目を集計したクラスのみ、呼出し可）
 '==============================================================================
 Public Function GeneralNetChange() As Currency
-    GeneralNetChange = SumAmount(natGeneral, "PL", "FLOW")
+    GeneralNetChange = SumAmount(natGeneral, afsPL, "FLOW")
 End Function
 
 Public Function GeneralNetBegin() As Currency
-    GeneralNetBegin = SumAmount(natGeneral, "BS", "BEGIN")
+    GeneralNetBegin = SumAmount(natGeneral, afsBS, "BEGIN")
 End Function
 
 Public Function GeneralNetEnd() As Currency
-    GeneralNetEnd = SumAmount(natGeneral, "BS", "END")
+    GeneralNetEnd = SumAmount(natGeneral, afsBS, "END")
 End Function
 
 '==============================================================================
 '   貸借対照表用    指定正味財産　取得  （※補助科目を集計したクラスのみ、呼出し可）
 '==============================================================================
 Public Function DesignatedNetChange() As Currency
-    DesignatedNetChange = SumAmount(natDesignated, "PL", "FLOW")
+    DesignatedNetChange = SumAmount(natDesignated, afsPL, "FLOW")
 End Function
 
 Public Function DesignatedNetBegin() As Currency
-    DesignatedNetBegin = SumAmount(natDesignated, "BS", "BEGIN")
+    DesignatedNetBegin = SumAmount(natDesignated, afsBS, "BEGIN")
 End Function
 
 Public Function DesignatedNetEnd() As Currency
-    DesignatedNetEnd = SumAmount(natDesignated, "BS", "END")
+    DesignatedNetEnd = SumAmount(natDesignated, afsBS, "END")
 End Function
 
 '==============================================================================
@@ -67,7 +67,7 @@ End Function
 '==============================================================================
 Public Function SumAmount( _
     ByVal fundType As NetAssetType, _
-    ByVal targetGroup As String, _
+    ByVal targetGroup As AccountFSKind, _
     ByVal targetColumn As String _
 ) As Currency
 
@@ -84,7 +84,7 @@ Public Function SumAmount( _
         '--------------------------------
         ' 集計行（PL / BS）
         '--------------------------------
-        If line.account.FS <> targetGroup Then GoTo ContinueLoop
+        If line.account.FSEnum <> targetGroup Then GoTo ContinueLoop
         
         '--------------------------------
         ' 列

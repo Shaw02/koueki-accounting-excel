@@ -15,16 +15,18 @@ Option Explicit
 '------------------------------------------------------------------------------
 '   メンバー変数
 '------------------------------------------------------------------------------
-Private m_Code          As Long     '勘定科目コード
-Private m_LargeClass    As String   '勘定科目　大区分
-Private m_SmallClass    As String   '勘定科目　小区分
-Private m_MajorAccount  As String   '勘定科目　大科目
-Private m_MiddleAccount As String   '勘定科目　中科目
-Private m_FS            As String   'FS区分 （BS/PL）
-Private m_Category      As String   '区分   （資産／負債／純資産／収益／費用）
-Private m_SubCategory   As String   '小区分
-Private m_Postable      As Boolean  '仕訳帳 （入力用／集計用）
-Private m_SubAccount    As Boolean  '補助科目は必須？
+Private m_Code          As Long                 '勘定科目コード
+Private m_LargeClass    As String               '勘定科目　大区分
+Private m_SmallClass    As String               '勘定科目　小区分
+Private m_MajorAccount  As String               '勘定科目　大科目
+Private m_MiddleAccount As String               '勘定科目　中科目
+Private m_FS            As String               'FS区分 （BS/PL）
+Private m_FSEnum        As AccountFSKind        '
+Private m_Category      As String               '区分   （資産／負債／純資産／収益／費用）
+Private m_CategoryEnum  As AccountCategoryKind  '
+Private m_SubCategory   As String               '小区分
+Private m_Postable      As Boolean              '仕訳帳 （入力用／集計用）
+Private m_SubAccount    As Boolean              '補助科目は必須？
 
 '------------------------------------------------------------------------------
 '   Property
@@ -53,8 +55,16 @@ Public Property Get FS() As String
     FS = m_FS
 End Property
 
+Public Property Get FSEnum() As AccountFSKind
+    FSEnum = m_FSEnum
+End Property
+
 Public Property Get Category() As String
     Category = m_Category
+End Property
+
+Public Property Get CategoryEnum() As AccountCategoryKind
+    CategoryEnum = m_CategoryEnum
 End Property
 
 Public Property Get SubCategory() As String
@@ -68,6 +78,58 @@ End Property
 Public Property Get subAccount() As Boolean
     subAccount = m_SubAccount
 End Property
+
+'------------------------------------------------------------------------------
+'   FS区分  （BS/PL）
+'------------------------------------------------------------------------------
+Private Function ParseFS(ByVal v As String) As AccountFSKind
+
+    Select Case UCase$(Trim$(v))
+        Case "BS", "B/S"
+            ParseFS = afsBS
+        Case "PL", "P/L"
+            ParseFS = afsPL
+        Case ""
+            ParseFS = afsUnknown
+        Case Else
+            Err.Raise vbObjectError + 1001, _
+                "Account.Class", _
+                "FS区分が不正です: " & v
+    End Select
+
+End Function
+
+'------------------------------------------------------------------------------
+'   区分   （資産／負債／純資産／収益／費用）
+'------------------------------------------------------------------------------
+Private Function ParseCategory(ByVal v As String) As AccountCategoryKind
+
+    Select Case Trim$(v)
+        Case "資産"
+            ParseCategory = ackAsset
+            
+        Case "負債"
+            ParseCategory = ackLiability
+            
+        Case "純資産", "指定正味財産"
+            ParseCategory = ackNetAsset
+            
+        Case "収益"
+            ParseCategory = ackRevenue
+            
+        Case "費用"
+            ParseCategory = ackExpense
+            
+        Case ""
+            ParseCategory = ackUnknown
+        
+        Case Else
+            Err.Raise vbObjectError + 1001, _
+                "Account.Class", _
+                "勘定科目区分が不正です: " & v
+    End Select
+
+End Function
 
 '------------------------------------------------------------------------------
 '   初期化
@@ -90,7 +152,9 @@ Public Sub Initialize( _
     m_MajorAccount = major
     m_MiddleAccount = middle
     m_FS = FS
+    m_FSEnum = ParseFS(FS)
     m_Category = Category
+    m_CategoryEnum = ParseCategory(Category)
     m_SubCategory = SubCategory
 
     Select Case Trim(postable)

@@ -159,8 +159,8 @@ End Sub
 '==============================================================================
 Public Sub Build(ByVal engine As LedgerEngine)
 
-    Call m_TB_LastGeneral.Clear
-    Call m_TB_LastSub.Clear
+    Call m_TB_General.Clear
+    Call m_TB_Sub.Clear
     
     '--------------------------
     ' ëçä®íËå≥í†ÉxÅ[ÉX
@@ -286,7 +286,7 @@ Public Sub OutputSheet()
             .Cells(y, 5) = ""
             .Cells(y, 6) = ""
             .Cells(y, 7) = ""
-            .Cells(y, 8) = IIf(line.BeginningBalanceForDisplay = 0, "-", line.BeginningBalanceForDisplay)
+            .Cells(y, 8) = IIf(line.BeginningBalance = 0, "-", line.BeginningBalance)
             .Cells(y, 9) = IIf(line.debit = 0, "-", line.debit)
             .Cells(y, 10) = IIf(line.credit = 0, "-", line.credit)
             .Cells(y, 11) = IIf(line.EndingBalance = 0, "-", line.EndingBalance)
@@ -399,7 +399,7 @@ Public Sub OutputSheet()
             Else
                 .Cells(y, 7) = "àÍî "
             End If
-            .Cells(y, 8) = IIf(line.BeginningBalanceForDisplay = 0, "-", line.BeginningBalanceForDisplay)
+            .Cells(y, 8) = IIf(line.BeginningBalance = 0, "-", line.BeginningBalance)
             .Cells(y, 9) = IIf(line.debit = 0, "-", line.debit)
             .Cells(y, 10) = IIf(line.credit = 0, "-", line.credit)
             .Cells(y, 11) = IIf(line.EndingBalance = 0, "-", line.EndingBalance)

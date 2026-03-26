@@ -28,7 +28,7 @@ Private m_NetAssetType      As NetAssetType     ' 指定（総勘定元帳のみ）
 
 Private m_Lines             As Collection       ' 元帳の各行（LedgerLine）を保持する
 
-Private m_BeginningBalance  As Currency         ' 期初残高  （資産・負債だったら、前期繰越にもなる）
+Private m_BeginningBalance  As Currency         ' 期初残高
 Private m_EndingBalance     As Currency         ' 期末残高  （来期期初残高）
 Private m_Debit             As Currency         ' 借方合計
 Private m_Credit            As Currency         ' 貸方合計
@@ -136,50 +136,6 @@ Public Property Get credit() As Currency
 End Property
 
 '==============================================================================
-'   試算表用　残高の取得
-'==============================================================================
-Public Property Get TrialBalanceAmount() As Currency
-
-    Select Case m_Account.FS
-
-        Case "資産", "費用"
-            TrialBalanceAmount = m_EndingBalance
-
-        Case "負債", "純資産", "収益"
-            TrialBalanceAmount = -m_EndingBalance
-        
-        Case Else
-            Err.Raise vbObjectError + 5001, _
-                "LedgerAccount.TrialBalanceAmount", _
-                "FSが不正です: " & m_Account.FS
-    End Select
-
-End Property
-
-'① 借方表示
-Public Property Get TrialBalanceDebit() As Currency
-    If TrialBalanceAmount > 0 Then
-        TrialBalanceDebit = Me.TrialBalanceAmount
-    Else
-        TrialBalanceDebit = 0
-    End If
-End Property
-
-'② 貸方表示
-Public Property Get TrialBalanceCredit() As Currency
-    If TrialBalanceAmount < 0 Then
-        TrialBalanceCredit = -Me.TrialBalanceAmount
-    Else
-        TrialBalanceCredit = 0
-    End If
-End Property
-
-'③ 出力対象判定
-Public Property Get HasBalance() As Boolean
-    HasBalance = (m_EndingBalance <> 0)
-End Property
-
-'==============================================================================
 '   試算表用　カテゴリーの取得
 '==============================================================================
 Public Property Get FS() As String
@@ -251,12 +207,13 @@ Public Sub AddOpeningBalance(ByVal balance As Currency)
 
     Dim line As LedgerLine
     Set line = New LedgerLine
-
-    '昨年度実績
-    m_BeginningBalance = balance
     
-    '資産＆負債の場合は、前期繰越を作る
-    If m_Account.code <> 0 And m_Account.code < 30000 Then
+    '資産・負債の場合は、前期繰越を作る
+    If m_Account.CategoryEnum = ackAsset Or m_Account.CategoryEnum = ackLiability Then
+        
+        '昨年度実績
+        m_BeginningBalance = balance
+        
         If balance <> 0 Then
             Call line.InitializeBegin( _
                 GetFiscalYearStart, _

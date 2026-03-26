@@ -17,8 +17,8 @@ Public Const iThisX = 6             '当年度
 Public Const iLastX = 7             '前年度
 
 '==============================================================================
-'   期初を取得
-'------------------------------------------------------------------------------
+'   期初日付を取得
+'==============================================================================
 Public Function GetFiscalYearStart() As Date
     GetFiscalYearStart = ThisWorkbook.Worksheets("設定＆使い方").Cells(14, 3).value
 End Function
@@ -34,7 +34,6 @@ End Function
 '
 '==============================================================================
 Public Function Amount(ByVal str As Variant) As Currency
-    
     If IsNumeric(str) And Not IsEmpty(str) Then
         Amount = CCur(str) ' 数字ならそのまま
     Else

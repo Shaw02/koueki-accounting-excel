@@ -401,8 +401,8 @@ Public Sub OutputSheet()
                         line.counterMajorAccount, _
                         line.counterMiddleAccount, _
                         line.summary, _
-                        IIf(line.debit = 0, "", line.debit), _
-                        IIf(line.credit = 0, "", line.credit), _
+                        IIf(line.debit = 0, "-", line.debit), _
+                        IIf(line.credit = 0, "-", line.credit), _
                         line.DebitCreditLabel, _
                         line.BalanceAbs, _
                         IIf(line.Row = 0, "", "=HYPERLINK(""#'З@ОdЦєТа'!A" & line.Row & """,""" & line.Row & """)"))
@@ -510,8 +510,8 @@ Public Sub OutputSheet()
                         line.counterMajorAccount, _
                         line.counterMiddleAccount, _
                         line.summary, _
-                        IIf(line.debit = 0, "", line.debit), _
-                        IIf(line.credit = 0, "", line.credit), _
+                        IIf(line.debit = 0, "-", line.debit), _
+                        IIf(line.credit = 0, "-", line.credit), _
                         line.DebitCreditLabel, _
                         line.BalanceAbs, _
                         IIf(line.Row = 0, "", "=HYPERLINK(""#'З@ОdЦєТа'!A" & line.Row & """,""" & line.Row & """)"))
