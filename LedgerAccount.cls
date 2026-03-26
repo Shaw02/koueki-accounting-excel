@@ -8,155 +8,155 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '==============================================================================
-'   Š¨’è‰È–ÚŒ³’  ^ ŠeŠ¨’è‰È–Ú
+'   å‹˜å®šç§‘ç›®å…ƒå¸³ ï¼ å„å‹˜å®šç§‘ç›®
 '------------------------------------------------------------------------------
 '   Contents:
-'       Š¨’è‰È–Ú‚²‚Æ‚ÌŒ³’ ‚ğ•Û‚·‚éƒNƒ‰ƒX
+'       å‹˜å®šç§‘ç›®ã”ã¨ã®å…ƒå¸³ã‚’ä¿æŒã™ã‚‹ã‚¯ãƒ©ã‚¹
 '
-'       ELedgerLine ‚ğ“à•”‚É•Û
-'       Ec‚®Œ³’ ‚É‘Î‰
+'       ãƒ»LedgerLine ã‚’å†…éƒ¨ã«ä¿æŒ
+'       ãƒ»æ®‹é«˜å¼å…ƒå¸³ã«å¯¾å¿œ
 '
 '==============================================================================
 Option Explicit
 
-Private m_Account           As account          ' Š¨’è‰È–Úƒ}ƒXƒ^[‚æ‚è
+Private m_Account           As account          ' å‹˜å®šç§‘ç›®ãƒã‚¹ã‚¿ãƒ¼ã‚ˆã‚Š
 
-Private m_SubAccountCode    As Long             ' •â•‰È–ÚƒR[ƒh
-Private m_SubAccountCate    As String           ' ‰ïŒv‹æ•ªiŒö1/Œö2/Œö‹¤/û/–@/etc..j
-Private m_SubAccountName    As String           ' •â•‰È–Ú–¼iVLookupj
-Private m_NetAssetType      As NetAssetType     ' w’èi‘Š¨’èŒ³’ ‚Ì‚İj
+Private m_SubAccountCode    As Long             ' è£œåŠ©ç§‘ç›®ã‚³ãƒ¼ãƒ‰
+Private m_SubAccountCate    As String           ' ä¼šè¨ˆåŒºåˆ†ï¼ˆå…¬1/å…¬2/å…¬å…±/å/æ³•/etc..ï¼‰
+Private m_SubAccountName    As String           ' è£œåŠ©ç§‘ç›®åï¼ˆVLookupï¼‰
+Private m_NetAssetType      As NetAssetType     ' æŒ‡å®šï¼ˆç·å‹˜å®šå…ƒå¸³ã®ã¿ï¼‰
 
-Private m_Lines             As Collection       ' Œ³’ ‚ÌŠesiLedgerLinej‚ğ•Û‚·‚é
+Private m_Lines             As Collection       ' å…ƒå¸³ã®å„è¡Œï¼ˆLedgerLineï¼‰ã‚’ä¿æŒã™ã‚‹
 
-Private m_BeginningBalance  As Currency         ' Šú‰c‚  i‘YE•‰Â‚¾‚Á‚½‚çA‘OŠúŒJ‰z‚É‚à‚È‚éj
-Private m_EndingBalance     As Currency         ' Šú––c‚  i—ˆŠúŠú‰c‚j
-Private m_Debit             As Currency         ' Ø•û‡Œv
-Private m_Credit            As Currency         ' ‘İ•û‡Œv
+Private m_BeginningBalance  As Currency         ' æœŸåˆæ®‹é«˜  ï¼ˆè³‡ç”£ãƒ»è² å‚µã ã£ãŸã‚‰ã€å‰æœŸç¹°è¶Šã«ã‚‚ãªã‚‹ï¼‰
+Private m_EndingBalance     As Currency         ' æœŸæœ«æ®‹é«˜  ï¼ˆæ¥æœŸæœŸåˆæ®‹é«˜ï¼‰
+Private m_Debit             As Currency         ' å€Ÿæ–¹åˆè¨ˆ
+Private m_Credit            As Currency         ' è²¸æ–¹åˆè¨ˆ
 
 '==============================================================================
-'   Š¨’è‰È–ÚƒNƒ‰ƒX‚ğæ“¾
+'   å‹˜å®šç§‘ç›®ã‚¯ãƒ©ã‚¹ã‚’å–å¾—
 '==============================================================================
 Public Property Get account() As account
     Set account = m_Account
 End Property
 
 '==============================================================================
-'   Š¨’è‰È–ÚƒR[ƒh‚ğæ“¾
+'   å‹˜å®šç§‘ç›®ã‚³ãƒ¼ãƒ‰ã‚’å–å¾—
 '==============================================================================
 Public Property Get AccountCode() As Long
     AccountCode = m_Account.code
 End Property
 
 '==============================================================================
-'   Š¨’è‰È–Ú–¼‚ğæ“¾
+'   å‹˜å®šç§‘ç›®åã‚’å–å¾—
 '==============================================================================
 Public Property Get MajorAccount() As String
     MajorAccount = m_Account.MajorAccount
 End Property
 
 '==============================================================================
-'   Š¨’è‰È–Ú–¼‚ğæ“¾
+'   å‹˜å®šç§‘ç›®åã‚’å–å¾—
 '==============================================================================
 Public Property Get MiddleAccount() As String
     MiddleAccount = m_Account.MiddleAccount
 End Property
 
 '==============================================================================
-'   •â•‰È–ÚƒR[ƒh‚ğæ“¾
+'   è£œåŠ©ç§‘ç›®ã‚³ãƒ¼ãƒ‰ã‚’å–å¾—
 '==============================================================================
 Public Property Get SubAccountCode() As Long
     SubAccountCode = m_SubAccountCode
 End Property
 
 '==============================================================================
-'   ‹æ•ª‚ğæ“¾
+'   åŒºåˆ†ã‚’å–å¾—
 '==============================================================================
 Public Property Get SubAccountCate() As String
     SubAccountCate = m_SubAccountCate
 End Property
 
 '==============================================================================
-'   •â•‰È–Ú–¼‚ğæ“¾
+'   è£œåŠ©ç§‘ç›®åã‚’å–å¾—
 '==============================================================================
 Public Property Get SubAccountName() As String
     SubAccountName = m_SubAccountName
 End Property
 
 '==============================================================================
-'   ˆê”Ê^w’è‚ğæ“¾
+'   ä¸€èˆ¬ï¼æŒ‡å®šã‚’å–å¾—
 '==============================================================================
 Public Property Get NetAssetType() As NetAssetType
     NetAssetType = m_NetAssetType
 End Property
 
 '==============================================================================
-'   w’è‚©H‚ğæ“¾
+'   æŒ‡å®šã‹ï¼Ÿã‚’å–å¾—
 '==============================================================================
 Public Property Get Class() As String
     If m_NetAssetType = natDesignated Then
-        Class = "iw’èj"
+        Class = "ï¼ˆæŒ‡å®šï¼‰"
     Else
         Class = ""
     End If
 End Property
 
 '==============================================================================
-'   Œ³’ s‚ğæ“¾
+'   å…ƒå¸³è¡Œã‚’å–å¾—
 '==============================================================================
 Public Property Get Lines() As Collection
     Set Lines = m_Lines
 End Property
 
 '==============================================================================
-'   Šú‰c‚‚ğæ“¾
+'   æœŸåˆæ®‹é«˜ã‚’å–å¾—
 '==============================================================================
 Public Property Get BeginningBalance() As Currency
     BeginningBalance = m_BeginningBalance
 End Property
 
 '==============================================================================
-'   Šú––c‚‚ğæ“¾
-'==============================================================================
-Public Property Get EndingBalance() As Currency
-    EndingBalance = m_EndingBalance
+    Select Case m_Account.CategoryEnum
+        Case ackAsset, ackExpense
+        Case ackLiability, ackNetAsset, ackRevenue
+                "æ•ªsÅ‚: " & m_Account.Category
 End Property
 
 '==============================================================================
-'   Ø•û‡Œv‚ğæ“¾
+'   å€Ÿæ–¹åˆè¨ˆã‚’å–å¾—
 '==============================================================================
 Public Property Get debit() As Currency
     debit = m_Debit
 End Property
 
 '==============================================================================
-'   ‘İ•û‡Œv‚ğæ“¾
+'   è²¸æ–¹åˆè¨ˆã‚’å–å¾—
 '==============================================================================
 Public Property Get credit() As Currency
     credit = m_Credit
 End Property
 
 '==============================================================================
-'   Z•\—p@c‚‚Ìæ“¾
+'   è©¦ç®—è¡¨ç”¨ã€€æ®‹é«˜ã®å–å¾—
 '==============================================================================
 Public Property Get TrialBalanceAmount() As Currency
 
     Select Case m_Account.FS
 
-        Case "‘Y", "”ï—p"
+        Case "è³‡ç”£", "è²»ç”¨"
             TrialBalanceAmount = m_EndingBalance
 
-        Case "•‰Â", "ƒ‘Y", "û‰v"
+        Case "è² å‚µ", "ç´”è³‡ç”£", "åç›Š"
             TrialBalanceAmount = -m_EndingBalance
         
         Case Else
             Err.Raise vbObjectError + 5001, _
                 "LedgerAccount.TrialBalanceAmount", _
-                "FS‚ª•s³‚Å‚·: " & m_Account.FS
+                "FSãŒä¸æ­£ã§ã™: " & m_Account.FS
     End Select
 
 End Property
 
-'‡@ Ø•û•\¦
+'â‘  å€Ÿæ–¹è¡¨ç¤º
 Public Property Get TrialBalanceDebit() As Currency
     If TrialBalanceAmount > 0 Then
         TrialBalanceDebit = Me.TrialBalanceAmount
@@ -165,7 +165,7 @@ Public Property Get TrialBalanceDebit() As Currency
     End If
 End Property
 
-'‡A ‘İ•û•\¦
+'â‘¡ è²¸æ–¹è¡¨ç¤º
 Public Property Get TrialBalanceCredit() As Currency
     If TrialBalanceAmount < 0 Then
         TrialBalanceCredit = -Me.TrialBalanceAmount
@@ -174,13 +174,13 @@ Public Property Get TrialBalanceCredit() As Currency
     End If
 End Property
 
-'‡B o—Í‘ÎÛ”»’è
+'â‘¢ å‡ºåŠ›å¯¾è±¡åˆ¤å®š
 Public Property Get HasBalance() As Boolean
     HasBalance = (m_EndingBalance <> 0)
 End Property
 
 '==============================================================================
-'   Z•\—p@ƒJƒeƒSƒŠ[‚Ìæ“¾
+'   è©¦ç®—è¡¨ç”¨ã€€ã‚«ãƒ†ã‚´ãƒªãƒ¼ã®å–å¾—
 '==============================================================================
 Public Property Get FS() As String
     FS = m_Account.FS
@@ -195,7 +195,7 @@ Public Property Get SubCategory() As String
 End Property
 
 '==============================================================================
-'   ƒNƒ‰ƒX‰Šú‰»
+'   ã‚¯ãƒ©ã‚¹åˆæœŸåŒ–
 '==============================================================================
 Private Sub Class_Initialize()
 
@@ -209,17 +209,17 @@ Private Sub Class_Initialize()
 End Sub
 
 '==============================================================================
-'       Š¨’è‰È–Ú‰Šú‰»
+'       å‹˜å®šç§‘ç›®åˆæœŸåŒ–
 '------------------------------------------------------------------------------
 '   Contents:
-'       Š¨’è‰È–Úî•ñ‚ğ‰Šú‰»‚µ‚Ü‚·
+'       å‹˜å®šç§‘ç›®æƒ…å ±ã‚’åˆæœŸåŒ–ã—ã¾ã™
 '
 '   Input:
-'       acc             Š¨’è‰È–Ú
-'       subCode         •â•‰È–ÚƒR[ƒh
-'       subCate         ‰ïŒv‹æ•ª
-'       subName         •â•‰È–Ú–¼
-'       NetAssetType    ˆê”Ê^w’è
+'       acc             å‹˜å®šç§‘ç›®
+'       subCode         è£œåŠ©ç§‘ç›®ã‚³ãƒ¼ãƒ‰
+'       subCate         ä¼šè¨ˆåŒºåˆ†
+'       subName         è£œåŠ©ç§‘ç›®å
+'       NetAssetType    ä¸€èˆ¬ï¼æŒ‡å®š
 '
 '==============================================================================
 Public Sub Initialize( _
@@ -238,13 +238,13 @@ Public Sub Initialize( _
 End Sub
 
 '==============================================================================
-'       ‘OŠúŒJ‰z“o˜^
+'       å‰æœŸç¹°è¶Šç™»éŒ²
 '------------------------------------------------------------------------------
 '   Contents:
-'       Œ³’ ‚ÌÅ‰‚É‘OŠúŒJ‰z‚ğ’Ç‰Á‚µ‚Ü‚·
+'       å…ƒå¸³ã®æœ€åˆã«å‰æœŸç¹°è¶Šã‚’è¿½åŠ ã—ã¾ã™
 '
 '   Input:
-'       balance     Šú‰c‚
+'       balance     æœŸåˆæ®‹é«˜
 '
 '==============================================================================
 Public Sub AddOpeningBalance(ByVal balance As Currency)
@@ -252,15 +252,15 @@ Public Sub AddOpeningBalance(ByVal balance As Currency)
     Dim line As LedgerLine
     Set line = New LedgerLine
 
-    'ğ”N“xÀÑ
+    'æ˜¨å¹´åº¦å®Ÿç¸¾
     m_BeginningBalance = balance
     
-    '‘Y••‰Â‚Ìê‡‚ÍA‘OŠúŒJ‰z‚ğì‚é
+    'è³‡ç”£ï¼†è² å‚µã®å ´åˆã¯ã€å‰æœŸç¹°è¶Šã‚’ä½œã‚‹
     If m_Account.code <> 0 And m_Account.code < 30000 Then
         If balance <> 0 Then
             Call line.InitializeBegin( _
                 GetFiscalYearStart, _
-                "‘OŠúŒJ‰z", _
+                "å‰æœŸç¹°è¶Š", _
                 IIf(balance > 0, balance, 0), _
                 IIf(balance < 0, -balance, 0))
         
@@ -276,20 +276,20 @@ Public Sub AddOpeningBalance(ByVal balance As Currency)
 End Sub
 
 '==============================================================================
-'       d–ó’Ç‰Á
+'       ä»•è¨³è¿½åŠ 
 '------------------------------------------------------------------------------
 '   Contents:
-'       Œ³’ ‚Éd–ó‚ğ’Ç‰Á‚µ‚Ü‚·
+'       å…ƒå¸³ã«ä»•è¨³ã‚’è¿½åŠ ã—ã¾ã™
 '
 '   Input:
-'       row                 d–ó’ ‚Ìs
-'       StartRow            d–ó’ ‚ÌŠJns
-'       entryDate           “ú•t
-'       counterAccount      ‘Šè‰È–Ú
-'       summary             “E—v
-'       debitAmount         Ø•û
-'       creditAmount        ‘İ•û
-'       isMulti             ”Œû
+'       row                 ä»•è¨³å¸³ã®è¡Œ
+'       StartRow            ä»•è¨³å¸³ã®é–‹å§‹è¡Œ
+'       entryDate           æ—¥ä»˜
+'       counterAccount      ç›¸æ‰‹ç§‘ç›®
+'       summary             æ‘˜è¦
+'       debitAmount         å€Ÿæ–¹
+'       creditAmount        è²¸æ–¹
+'       isMulti             è«¸å£
 '
 '==============================================================================
 Public Sub AddLine( _
@@ -306,7 +306,7 @@ Public Sub AddLine( _
     Set line = New LedgerLine
 
     '--------------------------------
-    ' c‚XV
+    ' æ®‹é«˜æ›´æ–°
     '--------------------------------
     m_EndingBalance = m_EndingBalance + debitAmount
     m_EndingBalance = m_EndingBalance - creditAmount
@@ -315,7 +315,7 @@ Public Sub AddLine( _
     m_Credit = m_Credit + creditAmount
 
     '--------------------------------
-    ' LedgerLine ì¬
+    ' LedgerLine ä½œæˆ
     '--------------------------------
     Call line.Initialize( _
         Row, _
@@ -334,10 +334,10 @@ Public Sub AddLine( _
 End Sub
 
 '==============================================================================
-'       s”æ“¾
+'       è¡Œæ•°å–å¾—
 '------------------------------------------------------------------------------
 '   Output:
-'       Œ³’ s”
+'       å…ƒå¸³è¡Œæ•°
 '
 '==============================================================================
 Public Property Get Count() As Long
@@ -345,13 +345,13 @@ Public Property Get Count() As Long
 End Property
 
 '==============================================================================
-'       Œ³’ sæ“¾
+'       å…ƒå¸³è¡Œå–å¾—
 '------------------------------------------------------------------------------
 '   Input:
 '       index
 '
 '   Output:
-'       LedgerLine      Œ³’ 1s
+'       LedgerLine      å…ƒå¸³1è¡Œ
 '
 '==============================================================================
 Public Property Get line(ByVal index As Long) As LedgerLine

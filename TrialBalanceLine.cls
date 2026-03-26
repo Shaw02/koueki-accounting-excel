@@ -10,17 +10,17 @@ Attribute VB_Exposed = False
 Option Explicit
 
 '===============================
-' Z•\1s
+' è©¦ç®—è¡¨1è¡Œ
 '===============================
 
 Private m_Key               As ledgerKey
 
 Private m_Account           As account
 
-Private m_SubAccountCode    As Long             ' •â•‰È–ÚƒR[ƒh
-Private m_SubAccountCate    As String           ' ‰ïŒv‹æ•ªiŒö1/Œö2/Œö‹¤/û/–@/etc..j
-Private m_SubAccountName    As String           ' •â•‰È–Ú–¼iVLookupj
-Private m_NetAssetType      As NetAssetType     ' w’èi‘Š¨’èŒ³’ ‚Ì‚İj
+Private m_SubAccountCode    As Long             ' è£œåŠ©ç§‘ç›®ã‚³ãƒ¼ãƒ‰
+Private m_SubAccountCate    As String           ' ä¼šè¨ˆåŒºåˆ†ï¼ˆå…¬1/å…¬2/å…¬å…±/å/æ³•/etc..ï¼‰
+Private m_SubAccountName    As String           ' è£œåŠ©ç§‘ç›®åï¼ˆVLookupï¼‰
+Private m_NetAssetType      As NetAssetType     ' æŒ‡å®šï¼ˆç·å‹˜å®šå…ƒå¸³ã®ã¿ï¼‰
 
 Private m_BeginningBalance As Currency
 Private m_Debit            As Currency
@@ -44,74 +44,74 @@ End Property
 
 
 '==============================================================================
-'   Š¨’è‰È–ÚƒNƒ‰ƒX‚ğæ“¾
+'   å‹˜å®šç§‘ç›®ã‚¯ãƒ©ã‚¹ã‚’å–å¾—
 '==============================================================================
 Public Property Get account() As account
     Set account = m_Account
 End Property
 
 '==============================================================================
-'   Š¨’è‰È–ÚƒR[ƒh‚ğæ“¾
+'   å‹˜å®šç§‘ç›®ã‚³ãƒ¼ãƒ‰ã‚’å–å¾—
 '==============================================================================
 Public Property Get AccountCode() As Long
     AccountCode = m_Account.code
 End Property
 
 '==============================================================================
-'   Š¨’è‰È–Ú–¼‚ğæ“¾
+'   å‹˜å®šç§‘ç›®åã‚’å–å¾—
 '==============================================================================
 Public Property Get MajorAccount() As String
     MajorAccount = m_Account.MajorAccount
 End Property
 
 '==============================================================================
-'   Š¨’è‰È–Ú–¼‚ğæ“¾
+'   å‹˜å®šç§‘ç›®åã‚’å–å¾—
 '==============================================================================
 Public Property Get MiddleAccount() As String
     MiddleAccount = m_Account.MiddleAccount
 End Property
 
 '==============================================================================
-'   •â•‰È–ÚƒR[ƒh‚ğæ“¾
+'   è£œåŠ©ç§‘ç›®ã‚³ãƒ¼ãƒ‰ã‚’å–å¾—
 '==============================================================================
 Public Property Get SubAccountCode() As Long
     SubAccountCode = m_SubAccountCode
 End Property
 
 '==============================================================================
-'   ‹æ•ª‚ğæ“¾
+'   åŒºåˆ†ã‚’å–å¾—
 '==============================================================================
 Public Property Get SubAccountCate() As String
     SubAccountCate = m_SubAccountCate
 End Property
 
 '==============================================================================
-'   •â•‰È–Ú–¼‚ğæ“¾
+'   è£œåŠ©ç§‘ç›®åã‚’å–å¾—
 '==============================================================================
 Public Property Get SubAccountName() As String
     SubAccountName = m_SubAccountName
 End Property
 
 '==============================================================================
-'   ˆê”Ê^w’è‚ğæ“¾
+'   ä¸€èˆ¬ï¼æŒ‡å®šã‚’å–å¾—
 '==============================================================================
 Public Property Get NetAssetType() As NetAssetType
     NetAssetType = m_NetAssetType
 End Property
 
 '==============================================================================
-'   w’è‚©H‚ğæ“¾
+'   æŒ‡å®šã‹ï¼Ÿã‚’å–å¾—
 '==============================================================================
 Public Property Get Class() As String
     If m_NetAssetType = natDesignated Then
-        Class = "iw’èj"
+    If Me.account.FSEnum = afsBS Then
     Else
         Class = ""
     End If
 End Property
 
 '==============================================================================
-'   ŒˆZæ“¾
+'   æ±ºç®—å–å¾—
 '==============================================================================
 Public Property Let BeginningBalance(ByVal v As Currency): m_BeginningBalance = v: End Property
 Public Property Get BeginningBalance() As Currency: BeginningBalance = m_BeginningBalance: End Property
@@ -136,17 +136,17 @@ Public Property Get BeginningBalanceForDisplay() As Currency
 End Property
 
 '==============================================================================
-'       ‰Šú‰»
+'       åˆæœŸåŒ–
 '------------------------------------------------------------------------------
 '   Contents:
-'       Š¨’è‰È–Úî•ñ‚ğ‰Šú‰»‚µ‚Ü‚·
+'       å‹˜å®šç§‘ç›®æƒ…å ±ã‚’åˆæœŸåŒ–ã—ã¾ã™
 '
 '   Input:
-'       acc             Š¨’è‰È–Ú
-'       subCode         •â•‰È–ÚƒR[ƒh
-'       subCate         ‰ïŒv‹æ•ª
-'       subName         •â•‰È–Ú–¼
-'       NetAssetType    ˆê”Ê^w’è
+'       acc             å‹˜å®šç§‘ç›®
+'       subCode         è£œåŠ©ç§‘ç›®ã‚³ãƒ¼ãƒ‰
+'       subCate         ä¼šè¨ˆåŒºåˆ†
+'       subName         è£œåŠ©ç§‘ç›®å
+'       NetAssetType    ä¸€èˆ¬ï¼æŒ‡å®š
 '
 '==============================================================================
 Public Sub Initialize( _
@@ -165,7 +165,7 @@ Public Sub Initialize( _
 End Sub
 
 '===============================
-' ‰ÁZiW–ñj
+' åŠ ç®—ï¼ˆé›†ç´„ï¼‰
 '===============================
 Public Sub AddAmount( _
     ByVal beginning As Currency, _
@@ -174,13 +174,13 @@ Public Sub AddAmount( _
     ByVal ending As Currency)
 
     '--------------------------------------------
-    ' «—ˆ‚Ì”z•Š‘Î‰—p
+    ' å°†æ¥ã®é…è³¦å¯¾å¿œç”¨
     '
-    ' “¯ˆêƒL[iŠ¨’è‰È–Ú{•â•‰È–Ú{w’è‹æ•ª{ƒ¿j‚É
-    ' •¡”‚ÌŒ³’ ƒf[ƒ^‚ªW–ñ‚³‚ê‚éê‡‚Ég—p‚·‚é
+    ' åŒä¸€ã‚­ãƒ¼ï¼ˆå‹˜å®šç§‘ç›®ï¼‹è£œåŠ©ç§‘ç›®ï¼‹æŒ‡å®šåŒºåˆ†ï¼‹Î±ï¼‰ã«
+    ' è¤‡æ•°ã®å…ƒå¸³ãƒ‡ãƒ¼ã‚¿ãŒé›†ç´„ã•ã‚Œã‚‹å ´åˆã«ä½¿ç”¨ã™ã‚‹
     '
-    ' Œ»“_‚Å‚Í LedgerAccount ‚ªˆêˆÓ‚Ì‚½‚ß
-    ' ŒÄ‚Î‚ê‚È‚¢‚ªA«—ˆ•K‚¸•K—v‚É‚È‚é
+    ' ç¾æ™‚ç‚¹ã§ã¯ LedgerAccount ãŒä¸€æ„ã®ãŸã‚
+    ' å‘¼ã°ã‚Œãªã„ãŒã€å°†æ¥å¿…ãšå¿…è¦ã«ãªã‚‹
     '--------------------------------------------
 
     m_BeginningBalance = m_BeginningBalance + beginning

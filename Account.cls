@@ -8,23 +8,71 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '==============================================================================
-'   Š¨’è‰È–Ú
+Private m_FSEnum        As AccountFSKind
+Private m_CategoryEnum  As AccountCategoryKind
+Public Property Get FSEnum() As AccountFSKind
+    FSEnum = m_FSEnum
+End Property
+
+Public Property Get CategoryEnum() As AccountCategoryKind
+    CategoryEnum = m_CategoryEnum
+End Property
+
+    m_FSEnum = ParseFS(FS)
+    m_CategoryEnum = ParseCategory(Category)
+
+Private Function ParseFS(ByVal v As String) As AccountFSKind
+
+    Select Case UCase$(Trim$(v))
+        Case "BS"
+            ParseFS = afsBS
+        Case "PL"
+            ParseFS = afsPL
+        Case Else
+            Err.Raise vbObjectError + 1001, _
+                "Account.Class", _
+                "È–Úƒ}X^[FSæ•ªsÅ‚: " & v
+    End Select
+
+End Function
+
+Private Function ParseCategory(ByVal v As String) As AccountCategoryKind
+
+    Select Case Trim$(v)
+        Case "Y"
+            ParseCategory = ackAsset
+        Case ""
+            ParseCategory = ackLiability
+        Case "Y", "Y", "wè³Y"
+            ParseCategory = ackNetAsset
+        Case "v"
+            ParseCategory = ackRevenue
+        Case "p"
+            ParseCategory = ackExpense
+        Case Else
+            Err.Raise vbObjectError + 1001, _
+                "Account.Class", _
+                "È–Úƒ}X^[Ì‹æ•ªsÅ‚: " & v
+    End Select
+
+End Function
+'   å‹˜å®šç§‘ç›®
 '==============================================================================
 Option Explicit
 
 '------------------------------------------------------------------------------
-'   ƒƒ“ƒo[•Ï”
+'   ãƒ¡ãƒ³ãƒãƒ¼å¤‰æ•°
 '------------------------------------------------------------------------------
-Private m_Code          As Long     'Š¨’è‰È–ÚƒR[ƒh
-Private m_LargeClass    As String   'Š¨’è‰È–Ú@‘å‹æ•ª
-Private m_SmallClass    As String   'Š¨’è‰È–Ú@¬‹æ•ª
-Private m_MajorAccount  As String   'Š¨’è‰È–Ú@‘å‰È–Ú
-Private m_MiddleAccount As String   'Š¨’è‰È–Ú@’†‰È–Ú
-Private m_FS            As String   'FS‹æ•ª iBS/PLj
-Private m_Category      As String   '‹æ•ª   i‘Y^•‰Â^ƒ‘Y^û‰v^”ï—pj
-Private m_SubCategory   As String   '¬‹æ•ª
-Private m_Postable      As Boolean  'd–ó’  i“ü—Í—p^WŒv—pj
-Private m_SubAccount    As Boolean  '•â•‰È–Ú‚Í•K{H
+Private m_Code          As Long     'å‹˜å®šç§‘ç›®ã‚³ãƒ¼ãƒ‰
+Private m_LargeClass    As String   'å‹˜å®šç§‘ç›®ã€€å¤§åŒºåˆ†
+Private m_SmallClass    As String   'å‹˜å®šç§‘ç›®ã€€å°åŒºåˆ†
+Private m_MajorAccount  As String   'å‹˜å®šç§‘ç›®ã€€å¤§ç§‘ç›®
+Private m_MiddleAccount As String   'å‹˜å®šç§‘ç›®ã€€ä¸­ç§‘ç›®
+Private m_FS            As String   'FSåŒºåˆ† ï¼ˆBS/PLï¼‰
+Private m_Category      As String   'åŒºåˆ†   ï¼ˆè³‡ç”£ï¼è² å‚µï¼ç´”è³‡ç”£ï¼åç›Šï¼è²»ç”¨ï¼‰
+Private m_SubCategory   As String   'å°åŒºåˆ†
+Private m_Postable      As Boolean  'ä»•è¨³å¸³ ï¼ˆå…¥åŠ›ç”¨ï¼é›†è¨ˆç”¨ï¼‰
+Private m_SubAccount    As Boolean  'è£œåŠ©ç§‘ç›®ã¯å¿…é ˆï¼Ÿ
 
 '------------------------------------------------------------------------------
 '   Property
@@ -70,7 +118,7 @@ Public Property Get subAccount() As Boolean
 End Property
 
 '------------------------------------------------------------------------------
-'   ‰Šú‰»
+'   åˆæœŸåŒ–
 '------------------------------------------------------------------------------
 Public Sub Initialize( _
     ByVal code As Long, _
@@ -94,25 +142,25 @@ Public Sub Initialize( _
     m_SubCategory = SubCategory
 
     Select Case Trim(postable)
-        Case "WŒv", ""
+        Case "é›†è¨ˆ", ""
             m_Postable = False
-        Case "“ü—Í"
+        Case "å…¥åŠ›"
             m_Postable = True
         Case Else
             Err.Raise vbObjectError + 1001, _
                 "Account.Class", _
-                "Š¨’è‰È–Úƒ}ƒXƒ^[‚Ì“ü—Í‹æ•ª‚ª•s³‚Å‚·: " & postable
+                "å‹˜å®šç§‘ç›®ãƒã‚¹ã‚¿ãƒ¼ã®å…¥åŠ›åŒºåˆ†ãŒä¸æ­£ã§ã™: " & postable
     End Select
 
     Select Case Trim(subAccount)
-        Case "•s—v", ""
+        Case "ä¸è¦", ""
             m_SubAccount = False
-        Case "•K—v", "—v"
+        Case "å¿…è¦", "è¦"
             m_SubAccount = True
         Case Else
             Err.Raise vbObjectError + 1001, _
                 "Account.Class", _
-                "Š¨’è‰È–Úƒ}ƒXƒ^[‚Ì“ü—Í‹æ•ª‚ª•s³‚Å‚·: " & postable
+                "å‹˜å®šç§‘ç›®ãƒã‚¹ã‚¿ãƒ¼ã®å…¥åŠ›åŒºåˆ†ãŒä¸æ­£ã§ã™: " & postable
     End Select
 
 End Sub

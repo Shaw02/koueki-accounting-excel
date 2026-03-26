@@ -10,7 +10,7 @@ Attribute VB_Exposed = False
 Option Explicit
 
 Private m_Lines As Collection
-Private m_Map   As Object ' Dictionaryi«—ˆ‚Ì”z•Š—pj
+Private m_Map   As Object ' Dictionaryï¼ˆå°†æ¥ã®é…è³¦ç”¨ï¼‰
 
 '==============================================================================
 '   Internal state clear
@@ -33,22 +33,22 @@ Public Property Get Lines() As Collection
 End Property
 
 '==============================================================================
-'   ‘İØ‘ÎÆ•\—p    ˆê”Ê³–¡àY@æ“¾  i¦•â•‰È–Ú‚ğWŒv‚µ‚½ƒNƒ‰ƒX‚Ì‚İAŒÄo‚µ‰Âj
+    GeneralNetChange = SumAmount(natGeneral, afsPL, "FLOW")
+    GeneralNetBegin = SumAmount(natGeneral, afsBS, "BEGIN")
+    GeneralNetEnd = SumAmount(natGeneral, afsBS, "END")
+    DesignatedNetChange = SumAmount(natDesignated, afsPL, "FLOW")
+End Function
+
+    DesignatedNetBegin = SumAmount(natDesignated, afsBS, "BEGIN")
+    DesignatedNetEnd = SumAmount(natDesignated, afsBS, "END")
+End Function
+
+    ByVal targetGroup As AccountFSKind, _
+        If line.account.FSEnum <> targetGroup Then GoTo ContinueLoop
+End Function
+
 '==============================================================================
-Public Function GeneralNetChange() As Currency
-    GeneralNetChange = SumAmount(natGeneral, "PL", "FLOW")
-End Function
-
-Public Function GeneralNetBegin() As Currency
-    GeneralNetBegin = SumAmount(natGeneral, "BS", "BEGIN")
-End Function
-
-Public Function GeneralNetEnd() As Currency
-    GeneralNetEnd = SumAmount(natGeneral, "BS", "END")
-End Function
-
-'==============================================================================
-'   ‘İØ‘ÎÆ•\—p    w’è³–¡àY@æ“¾  i¦•â•‰È–Ú‚ğWŒv‚µ‚½ƒNƒ‰ƒX‚Ì‚İAŒÄo‚µ‰Âj
+'   è²¸å€Ÿå¯¾ç…§è¡¨ç”¨    æŒ‡å®šæ­£å‘³è²¡ç”£ã€€å–å¾—  ï¼ˆâ€»è£œåŠ©ç§‘ç›®ã‚’é›†è¨ˆã—ãŸã‚¯ãƒ©ã‚¹ã®ã¿ã€å‘¼å‡ºã—å¯ï¼‰
 '==============================================================================
 Public Function DesignatedNetChange() As Currency
     DesignatedNetChange = SumAmount(natDesignated, "PL", "FLOW")
@@ -63,7 +63,7 @@ Public Function DesignatedNetEnd() As Currency
 End Function
 
 '==============================================================================
-'   ”Ä—pWŒv     i¦•â•‰È–Ú‚ğWŒv‚µ‚½ƒNƒ‰ƒX‚Ì‚İAŒÄo‚µ‰Âj
+'   æ±ç”¨é›†è¨ˆ     ï¼ˆâ€»è£œåŠ©ç§‘ç›®ã‚’é›†è¨ˆã—ãŸã‚¯ãƒ©ã‚¹ã®ã¿ã€å‘¼å‡ºã—å¯ï¼‰
 '==============================================================================
 Public Function SumAmount( _
     ByVal fundType As NetAssetType, _
@@ -77,27 +77,27 @@ Public Function SumAmount( _
     For Each line In m_Lines
         
         '--------------------------------
-        ' ˆê”Ê^w’è
+        ' ä¸€èˆ¬ï¼æŒ‡å®š
         '--------------------------------
         If line.NetAssetType <> fundType Then GoTo ContinueLoop
         
         '--------------------------------
-        ' WŒvsiPL / BSj
+        ' é›†è¨ˆè¡Œï¼ˆPL / BSï¼‰
         '--------------------------------
         If line.account.FS <> targetGroup Then GoTo ContinueLoop
         
         '--------------------------------
-        ' —ñ
+        ' åˆ—
         '--------------------------------
         Select Case targetColumn
         
-            Case "BEGIN"    'Šú‰c‚
+            Case "BEGIN"    'æœŸåˆæ®‹é«˜
                 total = total + line.BeginningBalance
                 
-            Case "END"      'Šú––c‚
+            Case "END"      'æœŸæœ«æ®‹é«˜
                 total = total + line.EndingBalance
                 
-            Case "FLOW"     '‘Œ¸Šz
+            Case "FLOW"     'å¢—æ¸›é¡
                 total = total + (line.credit - line.debit)
                 
         End Select
@@ -110,7 +110,7 @@ ContinueLoop:
 End Function
 
 '==============================================================================
-'   ğ”N“x‚Ìc‚Z•\@“Ç‚İ‚İ
+'   æ˜¨å¹´åº¦ã®æ®‹é«˜è©¦ç®—è¡¨ã€€èª­ã¿è¾¼ã¿
 '==============================================================================
 Public Sub SetLastResult( _
     ByVal account As account, _
@@ -126,7 +126,7 @@ Public Sub SetLastResult( _
     Dim line As TrialBalanceLine
     
     '--------------------------------
-    ' KeyiLedger‚ÆŠ®‘Sˆê’vj
+    ' Keyï¼ˆLedgerã¨å®Œå…¨ä¸€è‡´ï¼‰
     '--------------------------------
     Dim keyObj As ledgerKey
     Dim key As String
@@ -136,10 +136,10 @@ Public Sub SetLastResult( _
     key = keyObj.key
 
     '--------------------------------
-    ' ƒ‰ƒCƒ“ì¬
+    ' ãƒ©ã‚¤ãƒ³ä½œæˆ
     '--------------------------------
     If m_Map.Exists(key) Then
-        Err.Raise vbObjectError + 3001, "TrialBalance:SetLastResult", key & ":‚ªd•¡‚µ‚Ä‚¢‚Ü‚·B"
+        Err.Raise vbObjectError + 3001, "TrialBalance:SetLastResult", key & ":ãŒé‡è¤‡ã—ã¦ã„ã¾ã™ã€‚"
     Else
 
         Set line = New TrialBalanceLine
@@ -147,7 +147,7 @@ Public Sub SetLastResult( _
         '--- Key
         Set line.key = keyObj
 
-        '--- ‰È–Ú
+        '--- ç§‘ç›®
         Call line.Initialize( _
             account, _
             SubAccountCode, _
@@ -155,7 +155,7 @@ Public Sub SetLastResult( _
             SubAccountName, _
             Class)
 
-        '--- ‹àŠzic‚Z•\j
+        '--- é‡‘é¡ï¼ˆæ®‹é«˜è©¦ç®—è¡¨ï¼‰
         line.BeginningBalance = BeginningBalance
         line.debit = debit
         line.credit = credit
@@ -169,7 +169,7 @@ Public Sub SetLastResult( _
 End Sub
 
 '==============================================================================
-'   Œ³’ ‚©‚ç¡Šú‚Ìc‚Z•\‚Ìì¬
+'   å…ƒå¸³ã‹ã‚‰ä»ŠæœŸã®æ®‹é«˜è©¦ç®—è¡¨ã®ä½œæˆ
 '==============================================================================
 Public Sub Build(ByVal ledgers As Object)
 
@@ -183,7 +183,7 @@ Public Sub Build(ByVal ledgers As Object)
         Set acc = ledgers.Item(it)
 
         '--------------------------------
-        ' KeyiLedger‚ÆŠ®‘Sˆê’vj
+        ' Keyï¼ˆLedgerã¨å®Œå…¨ä¸€è‡´ï¼‰
         '--------------------------------
         Set keyObj = New ledgerKey
         keyObj.Initialize acc.AccountCode, acc.SubAccountCode, acc.NetAssetType
@@ -191,8 +191,8 @@ Public Sub Build(ByVal ledgers As Object)
         key = keyObj.key
 
         '--------------------------------
-        ' Œ»“_F1‘Î1‚È‚Ì‚ÅŠî–{‚ÍV‹Kì¬
-        ' i«—ˆF”z•Š‚Å•¡”¨AddAmountg—pj
+        ' ç¾æ™‚ç‚¹ï¼š1å¯¾1ãªã®ã§åŸºæœ¬ã¯æ–°è¦ä½œæˆ
+        ' ï¼ˆå°†æ¥ï¼šé…è³¦ã§è¤‡æ•°â†’AddAmountä½¿ç”¨ï¼‰
         '--------------------------------
         If m_Map.Exists(key) Then
 
@@ -210,7 +210,7 @@ Public Sub Build(ByVal ledgers As Object)
             '--- Key
             Set line.key = keyObj
 
-            '--- ‰È–Ú
+            '--- ç§‘ç›®
             Call line.Initialize( _
                 acc.account, _
                 acc.SubAccountCode, _
@@ -218,7 +218,7 @@ Public Sub Build(ByVal ledgers As Object)
                 acc.SubAccountName, _
                 acc.NetAssetType)
 
-            '--- ‹àŠzic‚Z•\j
+            '--- é‡‘é¡ï¼ˆæ®‹é«˜è©¦ç®—è¡¨ï¼‰
             line.BeginningBalance = acc.BeginningBalance
             line.debit = acc.debit
             line.credit = acc.credit
@@ -234,7 +234,7 @@ Public Sub Build(ByVal ledgers As Object)
 End Sub
 
 '==============================================================================
-'   ƒ\[ƒg
+'   ã‚½ãƒ¼ãƒˆ
 '==============================================================================
 Public Sub SortByAccountCode()
 
@@ -242,12 +242,12 @@ Public Sub SortByAccountCode()
     Dim key As Variant
     
     '--------------------------------
-    ' Dictionary‚ğƒ\[ƒg
+    ' Dictionaryã‚’ã‚½ãƒ¼ãƒˆ
     '--------------------------------
     Set sortedDict = SortDictionaryByKey(m_Map)
     
     '--------------------------------
-    ' Collection‚ğì‚è’¼‚·
+    ' Collectionã‚’ä½œã‚Šç›´ã™
     '--------------------------------
     Set m_Lines = New Collection
     
