@@ -113,7 +113,7 @@ Public Sub Read_LastResult(master As AccountMaster)
     Dim str As Variant
     Dim subAcc As Variant
     
-    Dim Class As NetAssetType
+    Dim netAssetClass As NetAssetType
     
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Worksheets("前期実績")
@@ -240,10 +240,10 @@ Public Sub Read_LastResult(master As AccountMaster)
                         '--------------------------
                         ' 補助元帳ベース
                         '--------------------------
-                        If .Cells(y, 7) = "指定" Then
-                            Class = natDesignated
+                        If .Cells(y, 7) = "w" Then
+                            netAssetClass = natDesignated
                         Else
-                            Class = natGeneral
+                            netAssetClass = natGeneral
                         End If
                         
                         Call m_TB_LastSub.SetLastResult( _
@@ -251,7 +251,7 @@ Public Sub Read_LastResult(master As AccountMaster)
                             .Cells(y, 4), _
                             .Cells(y, 5), _
                             .Cells(y, 6), _
-                            Class, _
+                            netAssetClass, _
                             begin, _
                             debit, _
                             credit, _
@@ -672,7 +672,7 @@ Public Sub OutputSheet()
 
 End Sub
 
-Private Function OutputHeading(ws As Worksheet, y As Long)
+Private Function OutputHeading(ws As Worksheet, y As Long) As Long
         
     With ws
     
