@@ -424,20 +424,25 @@ Sub main()
     '---------------------------------------
     '[3]-(2) 正味財産の部
     '---------------------------------------
-    Call FS.OutFinancialStatements(idNetAssets_End, iLastX, tb.LastGeneralTrialBalance.GeneralNetEnd)
-    Call FS.OutFinancialStatements(idNetAssets_Begin, iLastX, tb.LastGeneralTrialBalance.GeneralNetBegin)
-    Call FS.OutFinancialStatements(idNetAssets_Diff, iLastX, tb.LastGeneralTrialBalance.GeneralNetChange)
-    Call FS.OutFinancialStatements(idSpNetAssets_End, iLastX, tb.LastGeneralTrialBalance.DesignatedNetEnd)
-    Call FS.OutFinancialStatements(idSpNetAssets_Begin, iLastX, tb.LastGeneralTrialBalance.DesignatedNetBegin)
-    Call FS.OutFinancialStatements(idSpNetAssets_Diff, iLastX, tb.LastGeneralTrialBalance.DesignatedNetChange)
-
+    '=======================================
+    ' 前期実績（iLastX） → Property Get版を使用
+    '=======================================
+    Call FS.OutFinancialStatements(idNetAssets_End, iLastX, tb.LastGeneralNetEnd)
+    Call FS.OutFinancialStatements(idNetAssets_Begin, iLastX, tb.LastGeneralNetBegin)
+    Call FS.OutFinancialStatements(idNetAssets_Diff, iLastX, tb.LastGeneralNetChange)
+    Call FS.OutFinancialStatements(idSpNetAssets_End, iLastX, tb.LastDesignatedNetEnd)
+    Call FS.OutFinancialStatements(idSpNetAssets_Begin, iLastX, tb.LastDesignatedNetBegin)
+    Call FS.OutFinancialStatements(idSpNetAssets_Diff, iLastX, tb.LastDesignatedNetChange)
     
-    Call FS.OutFinancialStatements(idNetAssets_End, iThisX, tb.GeneralTrialBalance.GeneralNetEnd)
-    Call FS.OutFinancialStatements(idNetAssets_Begin, iThisX, tb.GeneralTrialBalance.GeneralNetBegin)
-    Call FS.OutFinancialStatements(idNetAssets_Diff, iThisX, tb.GeneralTrialBalance.GeneralNetChange)
-    Call FS.OutFinancialStatements(idSpNetAssets_End, iThisX, tb.GeneralTrialBalance.DesignatedNetEnd)
-    Call FS.OutFinancialStatements(idSpNetAssets_Begin, iThisX, tb.GeneralTrialBalance.DesignatedNetBegin)
-    Call FS.OutFinancialStatements(idSpNetAssets_Diff, iThisX, tb.GeneralTrialBalance.DesignatedNetChange)
+    '=======================================
+    ' 今期実績（iThisX） → NetAssetLine 取得関数版を使用
+    '=======================================
+    Call FS.OutFinancialStatements(idNetAssets_End, iThisX, tb.GeneralNetAssetEnd)
+    Call FS.OutFinancialStatements(idNetAssets_Begin, iThisX, tb.GeneralNetAssetBegin)
+    Call FS.OutFinancialStatements(idNetAssets_Diff, iThisX, tb.GeneralNetAssetChange)
+    Call FS.OutFinancialStatements(idSpNetAssets_End, iThisX, tb.DesignatedNetAssetEnd)
+    Call FS.OutFinancialStatements(idSpNetAssets_Begin, iThisX, tb.DesignatedNetAssetBegin)
+    Call FS.OutFinancialStatements(idSpNetAssets_Diff, iThisX, tb.DesignatedNetAssetChange)
 
 
     MsgBox ("正常終了しました")

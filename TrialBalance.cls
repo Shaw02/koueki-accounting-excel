@@ -33,36 +33,6 @@ Public Property Get Lines() As Collection
 End Property
 
 '==============================================================================
-'   貸借対照表用    一般正味財産　取得  （※補助科目を集計したクラスのみ、呼出し可）
-'==============================================================================
-Public Function GeneralNetChange() As Currency
-    GeneralNetChange = SumAmount(natGeneral, afsPL, "FLOW")
-End Function
-
-Public Function GeneralNetBegin() As Currency
-    GeneralNetBegin = SumAmount(natGeneral, afsBS, "BEGIN")
-End Function
-
-Public Function GeneralNetEnd() As Currency
-    GeneralNetEnd = SumAmount(natGeneral, afsBS, "END")
-End Function
-
-'==============================================================================
-'   貸借対照表用    指定正味財産　取得  （※補助科目を集計したクラスのみ、呼出し可）
-'==============================================================================
-Public Function DesignatedNetChange() As Currency
-    DesignatedNetChange = SumAmount(natDesignated, afsPL, "FLOW")
-End Function
-
-Public Function DesignatedNetBegin() As Currency
-    DesignatedNetBegin = SumAmount(natDesignated, afsBS, "BEGIN")
-End Function
-
-Public Function DesignatedNetEnd() As Currency
-    DesignatedNetEnd = SumAmount(natDesignated, afsBS, "END")
-End Function
-
-'==============================================================================
 '   汎用集計     （※補助科目を集計したクラスのみ、呼出し可）
 '==============================================================================
 Public Function SumAmount( _
@@ -76,6 +46,11 @@ Public Function SumAmount( _
     
     For Each line In m_Lines
         
+        '--------------------------------
+        ' 純資産は除外
+        '--------------------------------
+        If line.account.CategoryEnum = ackNetAsset Then GoTo ContinueLoop
+
         '--------------------------------
         ' 一般／指定
         '--------------------------------

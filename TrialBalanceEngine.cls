@@ -12,15 +12,109 @@ Option Explicit
 Private Const styPerformance = 5
 
 '昨年度の試算表
-Private m_TB_General As TrialBalance            '総勘定元帳ベース
-Private m_TB_Sub As TrialBalance                '補助元帳ベース
+Private m_TB_General        As TrialBalance     '総勘定元帳ベース
+Private m_TB_Sub            As TrialBalance     '補助元帳ベース
 
 '今年度の試算表
-Private m_TB_LastGeneral As TrialBalance        '総勘定元帳ベース
-Private m_TB_LastSub As TrialBalance            '補助元帳ベース
+Private m_TB_LastGeneral    As TrialBalance     '総勘定元帳ベース
+Private m_TB_LastSub        As TrialBalance     '補助元帳ベース
 
-'純資産（事業別）
-Private m_NetAssets As Object                   'Dictionary
+'純資産（事業別） Dictionary
+Private m_LastNetAssets     As Object           ' 昨年度
+Private m_NetAssets         As Object           ' 今年度
+
+'昨年度純資産実績
+Private m_LastGeneralNetEnd       As Currency         '一般正味財産期末残高
+Private m_LastGeneralNetBegin     As Currency         '一般正味財産期首残高
+Private m_LastGeneralNetChange    As Currency         '当期一般正味財産増減額
+Private m_LastDesignatedNetEnd    As Currency         '指定正味財産期末残高
+Private m_LastDesignatedNetBegin  As Currency         '指定正味財産期首残高
+Private m_LastDesignatedNetChange As Currency         '当期指定正味財産増減額
+
+'===============================
+' 一般正味財産期末残高 取得
+'===============================
+Public Property Get LastGeneralNetEnd() As Currency
+    LastGeneralNetEnd = m_LastGeneralNetEnd
+End Property
+
+'===============================
+' 一般正味財産期首残高 取得
+'===============================
+Public Property Get LastGeneralNetBegin() As Currency
+    LastGeneralNetBegin = m_LastGeneralNetBegin
+End Property
+
+'===============================
+' 当期一般正味財産増減額 取得
+'===============================
+Public Property Get LastGeneralNetChange() As Currency
+    LastGeneralNetChange = m_LastGeneralNetChange
+End Property
+
+'===============================
+' 指定正味財産期末残高 取得
+'===============================
+Public Property Get LastDesignatedNetEnd() As Currency
+    LastDesignatedNetEnd = m_LastDesignatedNetEnd
+End Property
+
+'===============================
+' 指定正味財産期首残高 取得
+'===============================
+Public Property Get LastDesignatedNetBegin() As Currency
+    LastDesignatedNetBegin = m_LastDesignatedNetBegin
+End Property
+
+'===============================
+' 当期指定正味財産増減額 取得
+'===============================
+Public Property Get LastDesignatedNetChange() As Currency
+    LastDesignatedNetChange = m_LastDesignatedNetChange
+End Property
+    
+'==============================================================================
+'   Net asset totals (m_NetAssets based)
+'==============================================================================
+Private Function GetNetAssetTotal(ByVal nat As NetAssetType) As NetAssetLine
+
+    Set GetNetAssetTotal = GetOrCreateNetAsset(0, "", "Total", nat)
+
+End Function
+
+Public Function GeneralNetAssetBegin() As Currency
+    GeneralNetAssetBegin = GetNetAssetTotal(natGeneral).BeginningBalance
+End Function
+
+Public Function GeneralNetAssetChange() As Currency
+    Dim na As NetAssetLine
+    Set na = GetNetAssetTotal(natGeneral)
+    GeneralNetAssetChange = na.credit - na.debit
+End Function
+
+Public Function GeneralNetAssetEnd() As Currency
+    Dim na As NetAssetLine
+    Set na = GetNetAssetTotal(natGeneral)
+    Call na.CalcEnding
+    GeneralNetAssetEnd = na.EndingBalance
+End Function
+
+Public Function DesignatedNetAssetBegin() As Currency
+    DesignatedNetAssetBegin = GetNetAssetTotal(natDesignated).BeginningBalance
+End Function
+
+Public Function DesignatedNetAssetChange() As Currency
+    Dim na As NetAssetLine
+    Set na = GetNetAssetTotal(natDesignated)
+    DesignatedNetAssetChange = na.credit - na.debit
+End Function
+
+Public Function DesignatedNetAssetEnd() As Currency
+    Dim na As NetAssetLine
+    Set na = GetNetAssetTotal(natDesignated)
+    Call na.CalcEnding
+    DesignatedNetAssetEnd = na.EndingBalance
+End Function
 
 '==============================================================================
 '   試算表クラスの取得
@@ -53,6 +147,7 @@ Private Sub Class_Initialize()
     Set m_TB_LastSub = New TrialBalance
 
     '純資産の保持用
+    Set m_LastNetAssets = CreateObject("Scripting.Dictionary")
     Set m_NetAssets = CreateObject("Scripting.Dictionary")
 
 End Sub
@@ -69,6 +164,33 @@ Private Function IsNetAssetAccount(ByVal code As Long) As Boolean
         Case Else
             IsNetAssetAccount = False
     End Select
+
+End Function
+
+'==============================================================================
+'   前期用 純資産LINE取得 or 作成
+'==============================================================================
+Private Function GetOrCreateLastNetAsset( _
+    ByVal subCode As Long, _
+    ByVal subCate As String, _
+    ByVal subName As String, _
+    ByVal nat As NetAssetType) As NetAssetLine
+
+    Dim key As String
+    key = subCode & "_" & nat
+
+    If Not m_LastNetAssets.Exists(key) Then
+        
+        Dim na As NetAssetLine
+        Set na = New NetAssetLine
+        
+        Call na.Initialize(subCode, subCate, subName, nat)
+        
+        m_LastNetAssets.Add key, na
+        
+    End If
+
+    Set GetOrCreateLastNetAsset = m_LastNetAssets(key)
 
 End Function
 
@@ -123,15 +245,21 @@ Public Sub Read_LastResult(master As AccountMaster)
     Dim credit As Currency
     Dim ending As Currency
     
-    Dim na As NetAssetLine   '★純資産用
+    Dim na As NetAssetLine      '★今年度用純資産
+    Dim lastNa As NetAssetLine  '★前期用純資産
         
     Call m_TB_LastGeneral.Clear
     Call m_TB_LastSub.Clear
     
     '----------------------------------
-    ' 純資産初期化
+    ' 今年度用 純資産初期化
     '----------------------------------
     Set m_NetAssets = CreateObject("Scripting.Dictionary")
+    
+    '----------------------------------
+    ' 前期用 純資産初期化
+    '----------------------------------
+    Set m_LastNetAssets = CreateObject("Scripting.Dictionary")
     
     With ws
     
@@ -184,14 +312,25 @@ Public Sub Read_LastResult(master As AccountMaster)
                             '補助科目なし（0）のみ対象
                             If IsNull(subAcc) Or IsEmpty(subAcc) Or subAcc = "" Or subAcc = 0 Then
                             
+                                '今年度用
                                 Set na = GetOrCreateNetAsset( _
                                     0, _
                                     "", _
                                     "共通", _
                                     natGeneral)
-                                
-                                '期末残高のみ保持
                                 Call na.SetBeginning(ending)
+                                
+                                '前期用
+                                Set lastNa = GetOrCreateLastNetAsset( _
+                                    0, _
+                                    "", _
+                                    "共通", _
+                                    natGeneral)
+                                Call lastNa.SetBeginning(begin)
+                                
+                                m_LastGeneralNetEnd = ending                  '今年度期末残高
+                                m_LastGeneralNetBegin = begin                 '今年度期首残高
+                                m_LastGeneralNetChange = credit - debit       '今年度増減額
                             
                             End If
                         
@@ -200,15 +339,29 @@ Public Sub Read_LastResult(master As AccountMaster)
                         '==============================
                         ElseIf str = idSpNetAssets Then
                         
+                            '今年度用
                             Set na = GetOrCreateNetAsset( _
                                 .Cells(y, 4), _
                                 .Cells(y, 5), _
                                 .Cells(y, 6), _
                                 natDesignated)
-                            
-                            '期末残高のみ保持
                             Call na.SetBeginning(ending)
-                        
+                            
+                            '前期用
+                            Set lastNa = GetOrCreateLastNetAsset( _
+                                .Cells(y, 4), _
+                                .Cells(y, 5), _
+                                .Cells(y, 6), _
+                                natDesignated)
+                            Call lastNa.SetBeginning(begin)
+                            
+                            '補助科目なし（0）のみ対象
+                            If IsNull(subAcc) Or IsEmpty(subAcc) Or subAcc = "" Or subAcc = 0 Then
+                                m_LastDesignatedNetEnd = ending                  '今年度期末残高
+                                m_LastDesignatedNetBegin = begin                 '今年度期首残高
+                                m_LastDesignatedNetChange = credit - debit       '今年度増減額
+                            End If
+                    
                         End If
                         
                         '元帳には入れない
@@ -345,6 +498,24 @@ Private Sub BuildNetAssets()
     Next line
 
 End Sub
+
+'==============================================================================
+'   前期一般正味財産期首残高 取得
+'==============================================================================
+Public Function LastGeneralNetAssetBegin() As Currency
+    Dim na As NetAssetLine
+    Set na = GetOrCreateLastNetAsset(0, "", "総合", natGeneral)
+    LastGeneralNetAssetBegin = na.BeginningBalance
+End Function
+
+'==============================================================================
+'   前期指定正味財産期首残高 取得
+'==============================================================================
+Public Function LastDesignatedNetAssetBegin() As Currency
+    Dim na As NetAssetLine
+    Set na = GetOrCreateLastNetAsset(0, "", "総合", natDesignated)
+    LastDesignatedNetAssetBegin = na.BeginningBalance
+End Function
 
 '==============================================================================
 '   残高試算表 出力
