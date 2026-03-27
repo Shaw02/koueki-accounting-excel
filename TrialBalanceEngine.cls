@@ -902,3 +902,94 @@ Private Function OutputHeading(ws As Worksheet, y As Long) As Long
     OutputHeading = y + 2
 
 End Function
+
+'==============================================================================
+'   Net asset consistency check
+'==============================================================================
+Public Sub ValidateNetAssetConsistency()
+
+    Dim errMessages As Collection
+    Set errMessages = New Collection
+
+    Dim expected As Currency
+    Dim actual As Currency
+
+    '----------------------------------
+    ' Last year: beginning + change = ending
+    '----------------------------------
+    expected = m_LastGeneralNetBegin + m_LastGeneralNetChange
+    actual = m_LastGeneralNetEnd
+    Call AssertCurrencyEqual(errMessages, "Last year / General net assets", expected, actual)
+
+    expected = m_LastDesignatedNetBegin + m_LastDesignatedNetChange
+    actual = m_LastDesignatedNetEnd
+    Call AssertCurrencyEqual(errMessages, "Last year / Designated net assets", expected, actual)
+
+    '----------------------------------
+    ' This year: beginning + change = ending
+    '----------------------------------
+    expected = GeneralNetAssetBegin + GeneralNetAssetChange
+    actual = GeneralNetAssetEnd
+    Call AssertCurrencyEqual(errMessages, "This year / General net assets", expected, actual)
+
+    expected = DesignatedNetAssetBegin + DesignatedNetAssetChange
+    actual = DesignatedNetAssetEnd
+    Call AssertCurrencyEqual(errMessages, "This year / Designated net assets", expected, actual)
+
+    '----------------------------------
+    ' Roll-forward consistency
+    '----------------------------------
+    Call AssertCurrencyEqual(errMessages, "General beginning = prior ending", LastGeneralNetEnd, GeneralNetAssetBegin)
+    Call AssertCurrencyEqual(errMessages, "Designated beginning = prior ending", LastDesignatedNetEnd, DesignatedNetAssetBegin)
+
+    '----------------------------------
+    ' PL flow consistency
+    '----------------------------------
+    expected = m_TB_Sub.SumAmount(natGeneral, afsPL, "FLOW")
+    actual = GeneralNetAssetChange
+    Call AssertCurrencyEqual(errMessages, "General change = PL flow", expected, actual)
+
+    expected = m_TB_Sub.SumAmount(natDesignated, afsPL, "FLOW")
+    actual = DesignatedNetAssetChange
+    Call AssertCurrencyEqual(errMessages, "Designated change = PL flow", expected, actual)
+
+    If errMessages.Count > 0 Then
+        Err.Raise vbObjectError + 3010, _
+                  "TrialBalanceEngine.ValidateNetAssetConsistency", _
+                  BuildConsistencyErrorMessage(errMessages)
+    End If
+
+End Sub
+
+'------------------------------------------------------------------------------
+Private Sub AssertCurrencyEqual( _
+    ByRef errs As Collection, _
+    ByVal checkName As String, _
+    ByVal expected As Currency, _
+    ByVal actual As Currency)
+
+    If expected <> actual Then
+        errs.Add checkName & " / expected=" & CStr(expected) & " actual=" & CStr(actual)
+    End If
+
+End Sub
+
+'------------------------------------------------------------------------------
+Private Function BuildConsistencyErrorMessage(ByVal errs As Collection) As String
+
+    Dim msg As String
+    Dim i As Long
+
+    msg = "Net asset consistency check failed."
+    msg = msg & vbCrLf & "Please review the following points:" & vbCrLf
+
+    For i = 1 To errs.Count
+        msg = msg & " - " & errs(i) & vbCrLf
+    Next i
+
+    BuildConsistencyErrorMessage = msg
+
+End Function
+
+
+

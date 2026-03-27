@@ -402,7 +402,9 @@ Sub main()
     
     '‡A c‚Z•\‚Æ‚µ‚Äo—Í
     Call tb.OutputSheet
-
+    
+    ' Net asset business consistency check
+    Call tb.ValidateNetAssetConsistency
 
 
     '==================================================
