@@ -137,10 +137,10 @@ Public Sub AddOpening(tbLine As TrialBalanceLine, isGeneral As Boolean)
 
     If isGeneral Then
         Set acc = GetOrCreateLedger(m_GeneralLedger, key.key, entry)
-        acc.AddOpeningBalance (entry.Amount)
+        acc.AddOpeningBalance (entry.amount)
     Else
         Set acc = GetOrCreateLedger(m_SubLedger, key.key, entry)
-        acc.AddOpeningBalance (entry.Amount)
+        acc.AddOpeningBalance (entry.amount)
     End If
 
 End Sub
@@ -195,7 +195,7 @@ Public Sub AddJournal(entry As AccountingEntry)
             entry.entryDate, _
             counterAcc, _
             entry.summary, _
-            d.Amount, _
+            d.amount, _
             0, _
             isMulti)
         
@@ -215,7 +215,7 @@ Public Sub AddJournal(entry As AccountingEntry)
             entry.entryDate, _
             counterAcc, _
             entry.summary, _
-            d.Amount, _
+            d.amount, _
             0, _
             isMulti)
     Next
@@ -255,7 +255,7 @@ Public Sub AddJournal(entry As AccountingEntry)
             counterAcc, _
             entry.summary, _
             0, _
-            c.Amount, _
+            c.amount, _
             isMulti)
     
         '==============================
@@ -275,7 +275,7 @@ Public Sub AddJournal(entry As AccountingEntry)
             counterAcc, _
             entry.summary, _
             0, _
-            c.Amount, _
+            c.amount, _
             isMulti)
 
     Next

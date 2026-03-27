@@ -180,13 +180,13 @@ End Sub
 '==============================================================================
 Public Sub Initialize( _
         ByVal acc As account, _
-        ByVal SubCode As Long, _
+        ByVal subCode As Long, _
         ByVal subCate As String, _
         ByVal subName As String, _
         ByVal NetAssetType As NetAssetType)
 
     Set m_Account = acc
-    m_SubAccountCode = SubCode
+    m_SubAccountCode = subCode
     m_SubAccountCate = subCate
     m_SubAccountName = subName
     m_NetAssetType = NetAssetType

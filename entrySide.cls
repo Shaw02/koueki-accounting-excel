@@ -41,8 +41,8 @@ Public Property Get SubAccountCode() As Variant
     SubAccountCode = m_SubAccountCode
 End Property
 
-Public Property Get SubCode() As Long
-    SubCode = m_SubAccountCode
+Public Property Get subCode() As Long
+    subCode = m_SubAccountCode
 End Property
 
 Public Property Let SubAccountCode(ByVal value As Variant)
@@ -182,11 +182,11 @@ Public Property Let Class(ByVal value As Variant)
 
 End Property
 
-Public Property Get Amount() As Currency
-    Amount = m_Amount
+Public Property Get amount() As Currency
+    amount = m_Amount
 End Property
 
-Public Property Let Amount(ByVal value As Currency)
+Public Property Let amount(ByVal value As Currency)
     m_Amount = value
 End Property
 
@@ -236,7 +236,7 @@ Public Sub Initialize( _
     ByVal SubAccountCate As Variant, _
     ByVal SubAccountName As String, _
     ByVal Class As Variant, _
-    ByVal Amount As Currency, _
+    ByVal amount As Currency, _
     ByVal side As String, _
     ByVal Row As Long, _
     ByVal ParentRow As Long)
@@ -249,7 +249,7 @@ Public Sub Initialize( _
     Me.SubAccountCate = SubAccountCate
     Me.SubAccountName = SubAccountName
     Me.Class = Class
-    Me.Amount = Amount
+    Me.amount = amount
     Me.side = side
     m_Row = Row
     m_ParentRow = ParentRow

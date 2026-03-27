@@ -13,6 +13,10 @@ Public Const idSpNetAssets_End = 32000    '指定正味財産期末残高
 Public Const idSpNetAssets_Begin = 32100  '指定正味財産期首残高
 Public Const idSpNetAssets_Diff = 32200   '当期指定正味財産増減額
 
+'勘定科目コード定義
+Public Const idNetAssets = 31000    '一般正味財産期末残高
+Public Const idSpNetAssets = 32000  '指定正味財産期末残高
+
 Public Const iThisX = 6             '当年度
 Public Const iLastX = 7             '前年度
 
@@ -33,11 +37,11 @@ End Function
 '               文字だったら0、数値だったら金額
 '
 '==============================================================================
-Public Function Amount(ByVal str As Variant) As Currency
+Public Function amount(ByVal str As Variant) As Currency
     If IsNumeric(str) And Not IsEmpty(str) Then
-        Amount = CCur(str) ' 数字ならそのまま
+        amount = CCur(str) ' 数字ならそのまま
     Else
-        Amount = 0 ' 文字なら0
+        amount = 0 ' 文字なら0
     End If
 End Function
 
@@ -53,7 +57,7 @@ End Function
 '==============================================================================
 Public Function SortDictionaryByKey(ByVal dict As Object) As Object
 
-    Dim keys As Variant
+    Dim Keys As Variant
     Dim i As Long
     Dim newDict As Object
 
@@ -69,18 +73,18 @@ Public Function SortDictionaryByKey(ByVal dict As Object) As Object
         Exit Function
     End If
 
-    keys = dict.keys
+    Keys = dict.Keys
 
-    If UBound(keys) <= 0 Then
-        newDict.Add keys(0), dict(keys(0))
+    If UBound(Keys) <= 0 Then
+        newDict.Add Keys(0), dict(Keys(0))
         Set SortDictionaryByKey = newDict
         Exit Function
     End If
 
-    Call QuickSortKeys(keys, LBound(keys), UBound(keys))
+    Call QuickSortKeys(Keys, LBound(Keys), UBound(Keys))
 
-    For i = LBound(keys) To UBound(keys)
-        newDict.Add keys(i), dict(keys(i))
+    For i = LBound(Keys) To UBound(Keys)
+        newDict.Add Keys(i), dict(Keys(i))
     Next
 
     Set SortDictionaryByKey = newDict

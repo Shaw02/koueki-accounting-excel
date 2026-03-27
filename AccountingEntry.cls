@@ -82,7 +82,7 @@ End Sub
 '==============================================================================
 Public Sub AddDebit(ByVal side As entrySide)
 
-    m_TotalDebit = m_TotalDebit + side.Amount
+    m_TotalDebit = m_TotalDebit + side.amount
     m_Debits.Add side
 
 End Sub
@@ -92,7 +92,7 @@ End Sub
 '==============================================================================
 Public Sub AddCredit(ByVal side As entrySide)
 
-    m_TotalCredit = m_TotalCredit + side.Amount
+    m_TotalCredit = m_TotalCredit + side.amount
     m_Credits.Add side
 
 End Sub
