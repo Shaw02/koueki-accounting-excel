@@ -34,6 +34,15 @@ End Property
 
 '==============================================================================
 '   汎用集計     （※補助科目を集計したクラスのみ、呼出し可）
+'------------------------------------------------------------------------------
+'   Input:
+'       fundType        一般／指定
+'       targetGroup    BS / PL
+'       targetColumn   BEGIN / END / FLOW
+'
+'   Output:
+'       集計金額
+'
 '==============================================================================
 Public Function SumAmount( _
     ByVal fundType As NetAssetType, _
@@ -48,34 +57,19 @@ Public Function SumAmount( _
         
         '--------------------------------
         ' 純資産は除外
-        '--------------------------------
         If line.account.CategoryEnum = ackNetAsset Then GoTo ContinueLoop
 
         '--------------------------------
         ' 一般／指定
-        '--------------------------------
         If line.NetAssetType <> fundType Then GoTo ContinueLoop
         
         '--------------------------------
         ' 集計行（PL / BS）
-        '--------------------------------
         If line.account.FSEnum <> targetGroup Then GoTo ContinueLoop
         
         '--------------------------------
         ' 列
-        '--------------------------------
-        Select Case targetColumn
-        
-            Case "BEGIN"    '期初残高
-                total = total + line.BeginningBalance
-                
-            Case "END"      '期末残高
-                total = total + line.EndingBalance
-                
-            Case "FLOW"     '増減額
-                total = total + (line.credit - line.debit)
-                
-        End Select
+        total = total + line.Amount(targetGroup, targetColumn)
         
 ContinueLoop:
     Next
@@ -86,6 +80,9 @@ End Function
 
 '==============================================================================
 '   昨年度の残高試算表　読み込み
+'------------------------------------------------------------------------------
+'   Input:
+'
 '==============================================================================
 Public Sub SetLastResult( _
     ByVal account As account, _
@@ -145,6 +142,10 @@ End Sub
 
 '==============================================================================
 '   元帳から今期の残高試算表の作成
+'------------------------------------------------------------------------------
+'   Input:
+'       ledgers     元帳
+'
 '==============================================================================
 Public Sub Build(ByVal ledgers As Object)
 

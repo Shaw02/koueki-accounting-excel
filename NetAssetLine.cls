@@ -10,7 +10,7 @@ Attribute VB_Exposed = False
 Option Explicit
 
 '===============================
-' 純資産管理1行（事業別）
+'   純資産管理1行（事業別）
 '===============================
 
 Private m_Key               As ledgerKey
@@ -20,30 +20,14 @@ Private m_SubAccountCate    As String
 Private m_SubAccountName    As String
 Private m_NetAssetType      As NetAssetType
 
-Private m_BeginningBalance As Currency
-Private m_Debit            As Currency   '増加（収益）
-Private m_Credit           As Currency   '減少（費用）
-Private m_EndingBalance    As Currency
+Private m_BeginningBalance  As Currency
+Private m_Debit             As Currency   '増加（収益）
+Private m_Credit            As Currency   '減少（費用）
+Private m_EndingBalance     As Currency
 
-'===============================
-' 初期化
-'===============================
-Public Sub Initialize( _
-        ByVal subCode As Long, _
-        ByVal subCate As String, _
-        ByVal subName As String, _
-        ByVal NetAssetType As NetAssetType)
-
-    m_SubAccountCode = subCode
-    m_SubAccountCate = subCate
-    m_SubAccountName = subName
-    m_NetAssetType = NetAssetType
-
-End Sub
-
-'===============================
-' プロパティ
-'===============================
+'****************************************
+'*      Property                        *
+'****************************************
 Public Property Get SubAccountCode() As Long: SubAccountCode = m_SubAccountCode: End Property
 Public Property Get SubAccountCate() As String: SubAccountCate = m_SubAccountCate: End Property
 Public Property Get SubAccountName() As String: SubAccountName = m_SubAccountName: End Property
@@ -62,16 +46,32 @@ Public Property Let EndingBalance(ByVal v As Currency): m_EndingBalance = v: End
 Public Property Get EndingBalance() As Currency: EndingBalance = m_EndingBalance: End Property
 
 '===============================
+' 初期化
+'===============================
+Public Sub Initialize( _
+        ByVal subCode As Long, _
+        ByVal subCate As String, _
+        ByVal subName As String, _
+        ByVal NetAssetType As NetAssetType)
+
+    m_SubAccountCode = subCode
+    m_SubAccountCate = subCate
+    m_SubAccountName = subName
+    m_NetAssetType = NetAssetType
+
+End Sub
+
+'===============================
 '   期首
 '===============================
-Public Sub SetBeginning(ByVal amount As Currency)
-    m_BeginningBalance = amount
+Public Sub SetBeginning(ByVal Amount As Currency)
+    m_BeginningBalance = Amount
     m_Debit = 0
     m_Credit = 0
 End Sub
 
 '===============================
-' 加算（集約）
+'   加算（集約）
 '===============================
 Public Sub AddAmount( _
     ByVal debit As Currency, _
@@ -83,7 +83,7 @@ Public Sub AddAmount( _
 End Sub
 
 '===============================
-' 期末計算
+'   期末計算
 '===============================
 Public Sub CalcEnding()
     m_EndingBalance = m_BeginningBalance - m_Debit + m_Credit
