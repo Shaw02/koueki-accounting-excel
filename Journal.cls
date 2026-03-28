@@ -311,11 +311,12 @@ ContinueLoop:
             "仕訳帳：借方と貸方の合計金額が一致しません"
     End If
     
+    On Error GoTo 0
+    
     If m_Err = True Then
-        MsgBox "《仕訳帳入力エラー》" & vbCrLf & "仕訳帳の以下の行を修正してください：" & vbCrLf & _
-           m_strErr, _
-           vbExclamation, "仕訳帳入力エラー"
-        End
+        Err.Raise vbObjectError + 5900, _
+            "Journal.readJournal", _
+            "《仕訳帳入力エラー》" & vbCrLf & "仕訳帳の以下の行を修正してください：" & vbCrLf & m_strErr
     End If
     
     Exit Sub

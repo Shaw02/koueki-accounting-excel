@@ -141,8 +141,9 @@ Sub OutFinancialStatements(idAccount As Variant, iColumn As Variant, iMoney As C
             yOutBS = yOutBS + 1
         Loop
         If flagErr = True Then
-            MsgBox "貸借対照表に勘定科目がありません。：勘定科目コード＝" & str(idAccount)
-            End
+            Err.Raise vbObjectError + 6101, _
+                "FinancialStatements.OutFinancialStatements", _
+                "貸借対照表に勘定科目が存在しません。勘定科目コード：" & CStr(idAccount)
         End If
         
     Else
@@ -177,8 +178,9 @@ Sub OutFinancialStatements(idAccount As Variant, iColumn As Variant, iMoney As C
             yOutPL = yOutPL + 1
         Loop
         If flagErr = True Then
-            MsgBox "正味財産増減計算書に勘定科目がありません。：勘定科目コード＝" & str(idAccount)
-            End
+            Err.Raise vbObjectError + 6102, _
+                "FinancialStatements.OutFinancialStatements", _
+                "正味財産増減計算書に勘定科目が存在しません。勘定科目コード：" & CStr(idAccount)
         End If
 
     End If
