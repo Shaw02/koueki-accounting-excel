@@ -299,10 +299,10 @@ Public Sub Read_LastResult(master As AccountMaster)
                     "貸方:勘定科目コード" & str & "は入力できません。"
                 End If
                 
-                begin = Amount(.Cells(y, 8))
-                debit = Amount(.Cells(y, 9))
-                credit = Amount(.Cells(y, 10))
-                ending = Amount(.Cells(y, 11))
+                begin = amount(.Cells(y, 8))
+                debit = amount(.Cells(y, 9))
+                credit = amount(.Cells(y, 10))
+                ending = amount(.Cells(y, 11))
                 
                 '全て０だったら飛ばす
                 If Not ((begin = 0) And (debit = 0) And (credit = 0) And (ending = 0)) Then
@@ -605,10 +605,10 @@ Public Sub OutputSheet()
         '==============================
         .Cells(y, 2) = "合計"
 
-        .Cells(y, 8).Formula = "=SUM(H" & sty & ":H" & y - 1 & ")"
-        .Cells(y, 9).Formula = "=SUM(I" & sty & ":I" & y - 1 & ")"
-        .Cells(y, 10).Formula = "=SUM(J" & sty & ":J" & y - 1 & ")"
-        .Cells(y, 11).Formula = "=SUM(K" & sty & ":K" & y - 1 & ")"
+        .Cells(y, 8).formula = "=SUM(H" & sty & ":H" & y - 1 & ")"
+        .Cells(y, 9).formula = "=SUM(I" & sty & ":I" & y - 1 & ")"
+        .Cells(y, 10).formula = "=SUM(J" & sty & ":J" & y - 1 & ")"
+        .Cells(y, 11).formula = "=SUM(K" & sty & ":K" & y - 1 & ")"
 
         With .Range(.Cells(y, 2), .Cells(y, 11))
             .Font.Bold = True
@@ -668,10 +668,10 @@ Public Sub OutputSheet()
         '==============================
         .Cells(y, 2) = "合計"
 
-        .Cells(y, 8).Formula = "=SUM(H" & sty & ":H" & y - 1 & ")"
-        .Cells(y, 9).Formula = "=SUM(I" & sty & ":I" & y - 1 & ")"
-        .Cells(y, 10).Formula = "=SUM(J" & sty & ":J" & y - 1 & ")"
-        .Cells(y, 11).Formula = "=SUM(K" & sty & ":K" & y - 1 & ")"
+        .Cells(y, 8).formula = "=SUM(H" & sty & ":H" & y - 1 & ")"
+        .Cells(y, 9).formula = "=SUM(I" & sty & ":I" & y - 1 & ")"
+        .Cells(y, 10).formula = "=SUM(J" & sty & ":J" & y - 1 & ")"
+        .Cells(y, 11).formula = "=SUM(K" & sty & ":K" & y - 1 & ")"
 
         With .Range(.Cells(y, 2), .Cells(y, 11))
             .Font.Bold = True

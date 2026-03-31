@@ -13,7 +13,7 @@ Option Explicit
 ' éééZï\1çs
 '===============================
 
-Private m_Key               As ledgerKey
+Private m_Key               As LedgerKey
 
 Private m_Account           As account
 
@@ -33,11 +33,11 @@ Private m_EndingBalance    As Currency
 '------------------------------------------------------------------------------
 '   Key
 '------------------------------------------------------------------------------
-Public Property Set key(ByVal v As ledgerKey)
+Public Property Set key(ByVal v As LedgerKey)
     Set m_Key = v
 End Property
 
-Public Property Get key() As ledgerKey
+Public Property Get key() As LedgerKey
     Set key = m_Key
 End Property
 
@@ -217,7 +217,7 @@ End Function
 '       targetColumn   BEGIN / END / FLOW
 '
 '==============================================================================
-Public Function Amount( _
+Public Function amount( _
     ByVal targetGroup As AccountFSKind, _
     ByVal targetColumn As String _
 ) As Currency
@@ -231,10 +231,10 @@ Public Function Amount( _
         
             Select Case targetColumn
                 Case "BEGIN"
-                    Amount = m_BeginningBalance
+                    amount = m_BeginningBalance
                     
                 Case "END"
-                    Amount = Me.SignedEndingBalance
+                    amount = Me.SignedEndingBalance
             End Select
         
         '------------------------------
@@ -243,9 +243,9 @@ Public Function Amount( _
         Case afsPL
         
             If targetColumn = "FLOW" Then
-                Amount = Me.FlowAmount
+                amount = Me.FlowAmount
             Else
-                Amount = 0
+                amount = 0
             End If
             
     End Select

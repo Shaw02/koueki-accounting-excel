@@ -117,7 +117,7 @@ End Function
 '==============================================================================
 Public Sub AddOpening(tbLine As TrialBalanceLine, isGeneral As Boolean)
     
-    Dim key As ledgerKey
+    Dim key As LedgerKey
     Set key = tbLine.key
     
     Dim acc As LedgerAccount
@@ -179,8 +179,8 @@ Public Sub AddJournal(entry As AccountingEntry)
     For Each d In entry.Debits
     
         Dim accD As LedgerAccount
-        Dim keyD As ledgerKey
-        Set keyD = New ledgerKey
+        Dim keyD As LedgerKey
+        Set keyD = New LedgerKey
         
         '==============================
         ' 総勘定元帳（借方）
@@ -238,8 +238,8 @@ Public Sub AddJournal(entry As AccountingEntry)
     For Each c In entry.Credits
         
         Dim accC As LedgerAccount
-        Dim keyC As ledgerKey
-        Set keyC = New ledgerKey
+        Dim keyC As LedgerKey
+        Set keyC = New LedgerKey
         
         '==============================
         ' 総勘定元帳（貸方）
@@ -418,8 +418,8 @@ Public Sub OutputSheet()
                 '--------------------------
                 '合計行
                 .Cells(y, 1) = "合計"
-                .Cells(y, 5).Formula = "=SUM(E" & sty & ":E" & y - 1 & ")"
-                .Cells(y, 6).Formula = "=SUM(F" & sty & ":F" & y - 1 & ")"
+                .Cells(y, 5).formula = "=SUM(E" & sty & ":E" & y - 1 & ")"
+                .Cells(y, 6).formula = "=SUM(F" & sty & ":F" & y - 1 & ")"
         
                 With .Range(.Cells(y, 1), .Cells(y, MaxColumn))
                     .Font.Bold = True
@@ -527,8 +527,8 @@ Public Sub OutputSheet()
                 '--------------------------
                 '合計行
                 .Cells(y, 1) = "合計"
-                .Cells(y, 5).Formula = "=SUM(E" & sty & ":E" & y - 1 & ")"
-                .Cells(y, 6).Formula = "=SUM(F" & sty & ":F" & y - 1 & ")"
+                .Cells(y, 5).formula = "=SUM(E" & sty & ":E" & y - 1 & ")"
+                .Cells(y, 6).formula = "=SUM(F" & sty & ":F" & y - 1 & ")"
         
                 With .Range(.Cells(y, 1), .Cells(y, MaxColumn))
                     .Font.Bold = True

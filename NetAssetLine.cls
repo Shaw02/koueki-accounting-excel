@@ -13,7 +13,7 @@ Option Explicit
 '   ƒ‘YŠÇ—1si–‹Æ•Êj
 '===============================
 
-Private m_Key               As ledgerKey
+Private m_Key               As LedgerKey
 
 Private m_SubAccountCode    As Long
 Private m_SubAccountCate    As String
@@ -64,8 +64,8 @@ End Sub
 '===============================
 '   Šúñ
 '===============================
-Public Sub SetBeginning(ByVal Amount As Currency)
-    m_BeginningBalance = Amount
+Public Sub SetBeginning(ByVal amount As Currency)
+    m_BeginningBalance = amount
     m_Debit = 0
     m_Credit = 0
 End Sub

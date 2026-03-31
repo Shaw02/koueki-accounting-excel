@@ -288,8 +288,9 @@ Public Function LoadAccountMaster(ws As Worksheet) As AccountMaster
                 ws.Cells(y, 7).value, _
                 ws.Cells(y, 8).value, _
                 ws.Cells(y, 9).value, _
-                ws.Cells(y, 10).value
-    
+                ws.Cells(y, 10).value, _
+                ws.Cells(y, 11).value
+                
             master.AddAccount acc
         End If
 
@@ -335,8 +336,8 @@ Sub main()
     Set entrySide = New entrySide
 
     '仕訳帳
-    Dim db As journal
-    Set db = New journal                    'クラス生成時に仕訳帳も読んでいる
+    Dim db As Journal
+    Set db = New Journal                    'クラス生成時に仕訳帳も読んでいる
     
     '総勘定元帳＆補助元帳
     Dim le As LedgerEngine
@@ -349,6 +350,10 @@ Sub main()
     Dim tbLine As TrialBalanceLine
 
     '財務諸表
+    Dim fsReport As FinancialStatement
+    Set fsReport = New FinancialStatement
+    
+    '廃止予定
     Dim FS As FinancialStatements
     Set FS = New FinancialStatements
 
@@ -410,6 +415,7 @@ Sub main()
     '==================================================
     'Phase [3]  財務諸表 ＆ 今期実績を作成
     '--------------------------------------------------
+    Call fsReport.BuildAndOutput(tb)
 
     '---------------------------------------
     '[3]-(1) 資産・負債・収益・費用

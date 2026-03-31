@@ -69,7 +69,7 @@ Public Function SumAmount( _
         
         '--------------------------------
         ' 列
-        total = total + line.Amount(targetGroup, targetColumn)
+        total = total + line.amount(targetGroup, targetColumn)
         
 ContinueLoop:
     Next
@@ -100,10 +100,10 @@ Public Sub SetLastResult( _
     '--------------------------------
     ' Key（Ledgerと完全一致）
     '--------------------------------
-    Dim keyObj As ledgerKey
+    Dim keyObj As LedgerKey
     Dim key As String
     
-    Set keyObj = New ledgerKey
+    Set keyObj = New LedgerKey
     Call keyObj.Initialize(account.code, SubAccountCode, Class)
     key = keyObj.key
 
@@ -151,7 +151,7 @@ Public Sub Build(ByVal ledgers As Object)
 
     Dim acc As LedgerAccount
     Dim line As TrialBalanceLine
-    Dim keyObj As ledgerKey
+    Dim keyObj As LedgerKey
     Dim key As String
     Dim it As Variant
 
@@ -161,7 +161,7 @@ Public Sub Build(ByVal ledgers As Object)
         '--------------------------------
         ' Key（Ledgerと完全一致）
         '--------------------------------
-        Set keyObj = New ledgerKey
+        Set keyObj = New LedgerKey
         keyObj.Initialize acc.AccountCode, acc.SubAccountCode, acc.NetAssetType
         
         key = keyObj.key

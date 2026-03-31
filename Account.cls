@@ -27,6 +27,7 @@ Private m_CategoryEnum  As AccountCategoryKind  '
 Private m_SubCategory   As String               '小区分
 Private m_Postable      As Boolean              '仕訳帳 （入力用／集計用）
 Private m_SubAccount    As Boolean              '補助科目は必須？
+Private m_FSLineIDs     As String               '財務諸表ID
 
 '------------------------------------------------------------------------------
 '   Property
@@ -79,6 +80,9 @@ Public Property Get subAccount() As Boolean
     subAccount = m_SubAccount
 End Property
 
+Public Property Get fsLineIDs() As String
+    fsLineIDs = m_FSLineIDs
+End Property
 '------------------------------------------------------------------------------
 '   FS区分  （BS/PL）
 '------------------------------------------------------------------------------
@@ -144,7 +148,8 @@ Public Sub Initialize( _
     ByVal Category As String, _
     ByVal SubCategory As String, _
     ByVal postable As String, _
-    ByVal subAccount As String)
+    ByVal subAccount As String, _
+    Optional ByVal fsLineIDs As String = "")
 
     m_Code = code
     m_LargeClass = largeClass
@@ -178,6 +183,8 @@ Public Sub Initialize( _
                 "Account.Class", _
                 "勘定科目マスターの入力区分が不正です: " & postable
     End Select
+    
+    m_FSLineIDs = Trim$(fsLineIDs)
 
 End Sub
 
