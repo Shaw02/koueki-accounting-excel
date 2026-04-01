@@ -142,8 +142,8 @@ Public Property Get FS() As String
     FS = m_Account.FS
 End Property
 
-Public Property Get Category() As String
-    Category = m_Account.Category
+Public Property Get category() As String
+    category = m_Account.category
 End Property
 
 Public Property Get SubCategory() As String

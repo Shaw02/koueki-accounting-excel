@@ -60,8 +60,8 @@ Public Property Get FSEnum() As AccountFSKind
     FSEnum = m_FSEnum
 End Property
 
-Public Property Get Category() As String
-    Category = m_Category
+Public Property Get category() As String
+    category = m_Category
 End Property
 
 Public Property Get CategoryEnum() As AccountCategoryKind
@@ -145,7 +145,7 @@ Public Sub Initialize( _
     ByVal major As String, _
     ByVal middle As String, _
     ByVal FS As String, _
-    ByVal Category As String, _
+    ByVal category As String, _
     ByVal SubCategory As String, _
     ByVal postable As String, _
     ByVal subAccount As String, _
@@ -158,8 +158,8 @@ Public Sub Initialize( _
     m_MiddleAccount = middle
     m_FS = FS
     m_FSEnum = ParseFS(FS)
-    m_Category = Category
-    m_CategoryEnum = ParseCategory(Category)
+    m_Category = category
+    m_CategoryEnum = ParseCategory(category)
     m_SubCategory = SubCategory
 
     Select Case Trim(postable)

@@ -28,21 +28,67 @@ Public Property Get Lines() As Collection
     Set Lines = m_Lines
 End Property
 
-Public Function Exists(ByVal lineID As String) As Boolean
-    Exists = m_LineMap.Exists(UCase$(Trim$(lineID)))
+'==============================================================================
+'   キー生成関数
+'------------------------------------------------------------------------------
+'   Contents:
+'       財務諸表マスタにおける内部キーを生成する。
+'
+'       ■設計要件
+'       ・lineID単独では重複が発生するため使用不可
+'       ・同一lineIDでも、会計区分（公1、公2等）ごとに別行として扱う必要がある
+'       ・そのため「lineID + accountingCategory」を一意キーとする
+'
+'       ■例
+'           PL_BIZ | 公1
+'           PL_BIZ | 公2
+'
+'       ■備考
+'           accountingCategoryが空の場合は "*" として扱う
+'
+'==============================================================================
+Private Function BuildKey(ByVal lineID As String, ByVal category As String) As String
+
+    Dim cat As String
+    
+    cat = UCase$(Trim$(category))
+    If cat = "" Then cat = "*"
+    
+    BuildKey = UCase$(Trim$(lineID)) & "|" & cat
+
 End Function
 
-Public Function GetLine(ByVal lineID As String) As FinancialStatementMasterLine
+'==============================================================================
+'   存在確認
+'==============================================================================
+Public Function Exists(ByVal lineID As String, Optional ByVal category As String = "*") As Boolean
+    Exists = m_LineMap.Exists(BuildKey(lineID, category))
+End Function
+
+'==============================================================================
+'   行取得
+'==============================================================================
+Public Function GetLine( _
+    ByVal lineID As String, _
+    Optional ByVal category As String = "*") _
+    As FinancialStatementMasterLine
+
     Dim key As String
-    key = UCase$(Trim$(lineID))
+    key = BuildKey(lineID, category)
 
     If Not m_LineMap.Exists(key) Then
-        Err.Raise vbObjectError + 6201, "FinancialStatementMaster.GetLine", "LineID not found: " & lineID
+        Err.Raise vbObjectError + 6201, _
+            "FinancialStatementMaster.GetLine", _
+            "Line not found: " & key
     End If
 
     Set GetLine = m_LineMap(key)
+
 End Function
 
+'==============================================================================
+'   ワークシートから読込
+'==============================================================================
 Public Sub LoadFromWorksheet(ByVal ws As Worksheet)
 
     Dim lastRow As Long
@@ -60,6 +106,9 @@ Public Sub LoadFromWorksheet(ByVal ws As Worksheet)
 
 End Sub
 
+'==============================================================================
+'   行追加（ワークシート1行 → クラス）
+'==============================================================================
 Private Sub AppendLineFromRow(ByVal ws As Worksheet, ByVal y As Long)
 
     Dim line As FinancialStatementMasterLine
@@ -81,13 +130,31 @@ Private Sub AppendLineFromRow(ByVal ws As Worksheet, ByVal y As Long)
 
 End Sub
 
+'==============================================================================
+'   行登録
+'------------------------------------------------------------------------------
+'   Contents:
+'       財務諸表マスタの1行を内部コレクションへ登録する
+'
+'       ■設計要件
+'       ・lineIDは重複可能（例：PL_BIZ）
+'       ・ただし、lineID＋accountingCategoryの組み合わせは一意
+'       ・同一キーが存在した場合は設計ミスとみなしエラーとする
+'
+'       ■目的
+'       ・会計区分別表示（公1、公2など）を実現する
+'       ・勘定科目マスタのIDと財務諸表表示を分離する
+'
+'==============================================================================
 Public Sub AddLine(ByVal line As FinancialStatementMasterLine)
 
     Dim key As String
-    key = UCase$(line.lineID)
+    key = BuildKey(line.lineID, line.accountingCategory)
 
     If m_LineMap.Exists(key) Then
-        Err.Raise vbObjectError + 6202, "FinancialStatementMaster.AddLine", "Duplicate LineID: " & line.lineID
+        Err.Raise vbObjectError + 6202, _
+            "FinancialStatementMaster.AddLine", _
+            "Duplicate Line: " & key
     End If
 
     m_LineMap.Add key, line
@@ -95,6 +162,9 @@ Public Sub AddLine(ByVal line As FinancialStatementMasterLine)
 
 End Sub
 
+'==============================================================================
+'   数値変換
+'==============================================================================
 Private Function ParseLong(ByVal v As Variant, ByVal defaultValue As Long) As Long
     If IsNumeric(v) Then
         ParseLong = CLng(v)
@@ -103,6 +173,9 @@ Private Function ParseLong(ByVal v As Variant, ByVal defaultValue As Long) As Lo
     End If
 End Function
 
+'==============================================================================
+'   Boolean変換
+'==============================================================================
 Private Function ParseBoolean(ByVal v As Variant, ByVal defaultValue As Boolean) As Boolean
 
     Dim s As String
@@ -119,5 +192,4 @@ Private Function ParseBoolean(ByVal v As Variant, ByVal defaultValue As Boolean)
     End If
 
 End Function
-
 
