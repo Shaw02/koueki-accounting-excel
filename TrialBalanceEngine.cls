@@ -328,7 +328,7 @@ Public Sub Read_LastResult(master As AccountMaster)
                                     "", _
                                     "共通", _
                                     natGeneral)
-                                Call na.SetBeginning(ending)
+                                Call na.SetBeginning(ending)    '期初残高として、前期末残高
                                 
                                 '前期用
                                 Set lastNa = GetOrCreateLastNetAsset( _
@@ -337,11 +337,9 @@ Public Sub Read_LastResult(master As AccountMaster)
                                     "共通", _
                                     natGeneral)
                                 Call lastNa.SetBeginning(begin)
+                                Call lastNa.AddAmount(debit, credit)
+                                Call lastNa.CalcEnding
                                 
-                                m_LastGeneralNetEnd = ending                  '今年度期末残高
-                                m_LastGeneralNetBegin = begin                 '今年度期首残高
-                                m_LastGeneralNetChange = credit - debit       '今年度増減額
-                            
                             End If
                         
                         '==============================
@@ -355,7 +353,7 @@ Public Sub Read_LastResult(master As AccountMaster)
                                 .Cells(y, 5), _
                                 .Cells(y, 6), _
                                 natDesignated)
-                            Call na.SetBeginning(ending)
+                            Call na.SetBeginning(ending)    '期初残高として、前期末残高
                             
                             '前期用
                             Set lastNa = GetOrCreateLastNetAsset( _
@@ -364,14 +362,9 @@ Public Sub Read_LastResult(master As AccountMaster)
                                 .Cells(y, 6), _
                                 natDesignated)
                             Call lastNa.SetBeginning(begin)
+                            Call lastNa.AddAmount(debit, credit)
+                            Call lastNa.CalcEnding
                             
-                            '補助科目なし（0）のみ対象
-                            If IsNull(subAcc) Or IsEmpty(subAcc) Or subAcc = "" Or subAcc = 0 Then
-                                m_LastDesignatedNetEnd = ending                  '今年度期末残高
-                                m_LastDesignatedNetBegin = begin                 '今年度期首残高
-                                m_LastDesignatedNetChange = credit - debit       '今年度増減額
-                            End If
-                    
                         End If
                         
                         '元帳には入れない
@@ -429,6 +422,128 @@ ContinueLoop:
         Next
     
     End With
+
+    '----------------------------------
+    ' 前期純資産合計補完
+    '   ・合計行（補助科目=0）が無い場合、明細行から集計して補完する
+    '----------------------------------
+    Call RefreshLastNetAssetTotals
+
+End Sub
+
+'==============================================================================
+'   前期純資産合計の補完再計算
+'------------------------------------------------------------------------------
+'   Contents:
+'       前期純資産の合計行（補助科目=0）が存在しない、または未設定の場合に
+'       明細行から合計を再計算して補完する
+'
+'       ※合計行が存在する場合はそれを優先（上書きしない）
+'       ※明細が無い場合でも安全に動作する
+'       ※Debit / Credit も補完（将来の注記対応）
+'
+'==============================================================================
+Private Sub RefreshLastNetAssetTotals()
+
+    Dim v As Variant
+    Dim na As NetAssetLine
+    
+    Dim totalGeneralBegin As Currency
+    Dim totalGeneralEnd As Currency
+    Dim totalGeneralDebit As Currency
+    Dim totalGeneralCredit As Currency
+    
+    Dim totalDesignatedBegin As Currency
+    Dim totalDesignatedEnd As Currency
+    Dim totalDesignatedDebit As Currency
+    Dim totalDesignatedCredit As Currency
+    
+    '----------------------------------
+    ' 明細行から合計を算出
+    '----------------------------------
+    For Each v In m_LastNetAssets.Keys
+        Set na = m_LastNetAssets(v)
+    
+        If na.SubAccountCode <> 0 Then
+            
+            If na.NetAssetType = natGeneral Then
+                
+                totalGeneralBegin = totalGeneralBegin + na.BeginningBalance
+                totalGeneralEnd = totalGeneralEnd + na.EndingBalance
+                totalGeneralDebit = totalGeneralDebit + na.debit
+                totalGeneralCredit = totalGeneralCredit + na.credit
+                
+            ElseIf na.NetAssetType = natDesignated Then
+                
+                totalDesignatedBegin = totalDesignatedBegin + na.BeginningBalance
+                totalDesignatedEnd = totalDesignatedEnd + na.EndingBalance
+                totalDesignatedDebit = totalDesignatedDebit + na.debit
+                totalDesignatedCredit = totalDesignatedCredit + na.credit
+                
+            End If
+            
+        End If
+    Next
+
+    '----------------------------------
+    ' 一般純資産（合計行）
+    '----------------------------------
+    Dim key As String
+    key = "0_" & natGeneral
+    
+    If m_LastNetAssets.Exists(key) Then
+        
+        ' 合計行がある → それを信頼
+        Set na = m_LastNetAssets(key)
+        
+    Else
+        
+        ' 合計行が無い → 明細から作成
+        Set na = GetOrCreateLastNetAsset(0, "", "共通", natGeneral)
+        
+        If totalGeneralBegin <> 0 Or totalGeneralEnd <> 0 Then
+            na.SetBeginning totalGeneralBegin
+            na.debit = totalGeneralDebit
+            na.credit = totalGeneralCredit
+            na.CalcEnding
+        End If
+        
+    End If
+    
+    ' エンジン値へ反映
+    m_LastGeneralNetBegin = na.BeginningBalance
+    m_LastGeneralNetEnd = na.EndingBalance
+    m_LastGeneralNetChange = na.EndingBalance - na.BeginningBalance
+
+
+    '----------------------------------
+    ' 指定純資産（合計行）
+    '----------------------------------
+    key = "0_" & natDesignated
+    
+    If m_LastNetAssets.Exists(key) Then
+        
+        ' 合計行がある → それを信頼
+        Set na = m_LastNetAssets(key)
+        
+    Else
+        
+        ' 合計行が無い → 明細から作成
+        Set na = GetOrCreateLastNetAsset(0, "", "共通", natDesignated)
+        
+        If totalDesignatedBegin <> 0 Or totalDesignatedEnd <> 0 Then
+            na.SetBeginning totalDesignatedBegin
+            na.debit = totalDesignatedDebit
+            na.credit = totalDesignatedCredit
+            na.CalcEnding
+        End If
+        
+    End If
+    
+    ' エンジン値へ反映
+    m_LastDesignatedNetBegin = na.BeginningBalance
+    m_LastDesignatedNetEnd = na.EndingBalance
+    m_LastDesignatedNetChange = na.EndingBalance - na.BeginningBalance
 
 End Sub
 

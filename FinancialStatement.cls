@@ -278,7 +278,7 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
             ws.Cells(y, 2).HorizontalAlignment = line.LineLabelAligh
     
             'タイトル、集計項目でない無い場合、且つ、前期・当期残高が0の場合は、表示を省略する。
-            If Not (line.LineType = "ACCOUNT" And vThis = 0 And vLast = 0) Then
+            If Not ((line.LineType = "ACCOUNT" Or line.LineType = "ACCOUNTS") And vThis = 0 And vLast = 0) Then
                 If line.LineType = "TITLE" Then
                     ws.Cells(y, 3).value = ""
                     ws.Cells(y, 4).value = ""
@@ -426,7 +426,7 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
             val = 0
             
             For Each k In values.Keys
-                If Left$(k, Len(lineID) + 1) = lineID & "|" Then
+                If Left$(UCase$(CStr(k)), Len(UCase$(lineID)) + 1) = UCase$(lineID) & "|" Then
                     val = val + values(k)
                 End If
             Next
