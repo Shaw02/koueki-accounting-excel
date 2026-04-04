@@ -945,11 +945,11 @@ Public Sub ValidateNetAssetConsistency()
     '----------------------------------
     ' PL flow consistency
     '----------------------------------
-    expected = m_TB_Sub.SumAmount(natGeneral, afsPL, "FLOW")
+    expected = m_TB_Sub.GetPLflow(natGeneral)
     actual = GeneralNetAssetChange
     Call AssertCurrencyEqual(errMessages, "General change = PL flow", expected, actual)
 
-    expected = m_TB_Sub.SumAmount(natDesignated, afsPL, "FLOW")
+    expected = m_TB_Sub.GetPLflow(natDesignated)
     actual = DesignatedNetAssetChange
     Call AssertCurrencyEqual(errMessages, "Designated change = PL flow", expected, actual)
 

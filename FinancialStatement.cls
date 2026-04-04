@@ -20,11 +20,18 @@ Private Function BuildKey(ByVal lineID As String, ByVal category As String) As S
     BuildKey = UCase$(Trim$(lineID)) & "|" & UCase$(Trim$(category))
 End Function
 
+'==============================================================================
+'       財務諸表の生成～出力
+'------------------------------------------------------------------------------
+'   Input:
+'       tbEngine        試算表クラス
+'
+'==============================================================================
 Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
 
     Dim wsMaster As Worksheet
     Set wsMaster = ThisWorkbook.Worksheets("財務諸表マスタ")
-
+    
     Call m_Master.LoadFromWorksheet(wsMaster)
 
     Dim thisAmounts As Object
@@ -53,13 +60,7 @@ Private Function BuildAccountAmountMap(ByVal tb As TrialBalance) As Object
     Dim i As Long
 
     For Each line In tb.Lines
-        If line.account.FSEnum = afsBS Then
-            amount = line.amount(afsBS, "END")
-        ElseIf line.account.FSEnum = afsPL Then
-            amount = line.amount(afsPL, "FLOW")
-        Else
-            amount = 0
-        End If
+        amount = line.amount()
 
         If amount = 0 Then GoTo ContinueLoop
 
@@ -182,8 +183,12 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
     Dim vThis As Currency
     Dim vLast As Currency
 
-    Dim y As Long
-    y = 5
+    Dim nextRowBySheet As Object
+    Set nextRowBySheet = CreateObject("Scripting.Dictionary")
+
+    nextRowBySheet(wsBS.Name) = START_ROW + 1
+    nextRowBySheet(wsPL.Name) = START_ROW + 1
+    nextRowBySheet(wsPL2.Name) = START_ROW + 1
 
     Call ClearSheet(wsBS, START_ROW)
     Call ClearSheet(wsPL, START_ROW)
@@ -244,8 +249,6 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
     wsPL2.Range("C:D").NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
     wsPL2.Range("C:D").HorizontalAlignment = xlRight
 
-    y = y + 1
-
     For Each line In m_Master.Lines
     
         If line.enabled Then
@@ -268,6 +271,9 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
             Dim ws As Worksheet
             Set ws = ThisWorkbook.Worksheets(line.TargetSheet)
     
+            Dim y As Long
+            y = CLng(nextRowBySheet(ws.Name))
+            
             ws.Cells(y, 2) = line.LineLabel
             ws.Cells(y, 2).HorizontalAlignment = line.LineLabelAligh
     
@@ -289,11 +295,9 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
                     ws.Range(ws.Cells(y, 2), ws.Cells(y, 4)).Interior.Color = rgbAliceBlue
                 End If
 
-                y = y + 1
+                nextRowBySheet(ws.Name) = y + 1
             End If
-    
         End If
-    
     Next
 
 
@@ -306,9 +310,9 @@ Private Function ResolveLineAmount( _
 
     Select Case line.LineType
         Case "ACCOUNT", "ACCOUNTS"
-            ResolveLineAmount = ResolveAccountAmount(line, accountMap) * line.signFactor
+            ResolveLineAmount = ResolveAccountAmount(line, accountMap)
         Case "FORMULA", "CALC"
-            ResolveLineAmount = ResolveFormula(line.formula, resolvedValues) * line.signFactor
+            ResolveLineAmount = ResolveFormula(line.formula, resolvedValues)
         Case Else
             ResolveLineAmount = 0
     End Select

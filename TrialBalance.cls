@@ -37,18 +37,12 @@ End Property
 '------------------------------------------------------------------------------
 '   Input:
 '       fundType        一般／指定
-'       targetGroup    BS / PL
-'       targetColumn   BEGIN / END / FLOW
 '
 '   Output:
 '       集計金額
 '
 '==============================================================================
-Public Function SumAmount( _
-    ByVal fundType As NetAssetType, _
-    ByVal targetGroup As AccountFSKind, _
-    ByVal targetColumn As String _
-) As Currency
+Public Function GetPLflow(ByVal fundType As NetAssetType) As Currency
 
     Dim line As TrialBalanceLine
     Dim total As Currency
@@ -65,16 +59,18 @@ Public Function SumAmount( _
         
         '--------------------------------
         ' 集計行（PL / BS）
-        If line.account.FSEnum <> targetGroup Then GoTo ContinueLoop
+        If line.account.FSEnum <> afsPL Then GoTo ContinueLoop
         
-        '--------------------------------
-        ' 列
-        total = total + line.amount(targetGroup, targetColumn)
+        If line.account.CategoryEnum = ackRevenue Then
+            total = total + line.amount()
+        ElseIf line.account.CategoryEnum = ackExpense Then
+            total = total - line.amount()
+        End If
         
 ContinueLoop:
     Next
     
-    SumAmount = total
+    GetPLflow = total
 
 End Function
 

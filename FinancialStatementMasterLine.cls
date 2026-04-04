@@ -16,7 +16,6 @@ Private m_AccountingCategory As String
 Private m_LineLabel As String
 Private m_LineLabelAligh As XlHAlign
 Private m_LineType As String
-Private m_Sign As Long
 Private m_Formula As String
 Private m_Enabled As Boolean
 
@@ -28,7 +27,6 @@ Public Sub Initialize( _
     ByVal LineLabel As String, _
     ByVal LineLabelAligh As XlHAlign, _
     ByVal LineType As String, _
-    ByVal signFactor As Long, _
     ByVal formula As String, _
     ByVal enabled As Boolean)
 
@@ -44,7 +42,6 @@ Public Sub Initialize( _
     m_LineLabel = LineLabel
     m_LineLabelAligh = LineLabelAligh
     m_LineType = UCase$(Trim$(LineType))
-    m_Sign = signFactor
     m_Formula = Trim$(formula)
     m_Enabled = enabled
 
@@ -57,7 +54,6 @@ Public Property Get accountingCategory() As String: accountingCategory = m_Accou
 Public Property Get LineLabel() As String: LineLabel = m_LineLabel: End Property
 Public Property Get LineLabelAligh() As XlHAlign: LineLabelAligh = m_LineLabelAligh: End Property
 Public Property Get LineType() As String: LineType = m_LineType: End Property
-Public Property Get signFactor() As Long: signFactor = m_Sign: End Property
 Public Property Get formula() As String: formula = m_Formula: End Property
 Public Property Get enabled() As Boolean: enabled = m_Enabled: End Property
 

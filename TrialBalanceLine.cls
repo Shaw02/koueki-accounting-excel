@@ -175,11 +175,38 @@ End Sub
 '   増減額（PL用）
 '------------------------------------------------------------------------------
 '   Contents:
-'       借方・貸方から増減額を算出する
+'       借方・貸方から増減額を算出する（表示用符号に補正）
+'       ※収益・費用以外はエラー
 '
 '==============================================================================
 Public Function FlowAmount() As Currency
-    FlowAmount = m_Credit - m_Debit
+
+    Dim val As Currency
+    
+    ' 生の増減
+    val = m_Credit - m_Debit
+    
+    Select Case m_Account.CategoryEnum
+        
+        Case ackExpense
+            ' 費用 → プラス表示
+            FlowAmount = -val
+            
+        Case ackRevenue
+            ' 収益 → プラス表示
+            FlowAmount = val
+            
+        Case Else
+            '------------------------------------------
+            ' 想定外（設計ミス）
+            '------------------------------------------
+            Err.Raise vbObjectError + 5101, _
+                      "TrialBalanceLine.FlowAmount", _
+                      "PL対象外の科目です: " & _
+                      "Account=" & m_Account.MiddleAccount & _
+                      ", CategoryEnum=" & m_Account.CategoryEnum
+    End Select
+
 End Function
 
 '==============================================================================
@@ -202,6 +229,15 @@ Public Function SignedEndingBalance() As Currency
         Case ackLiability, ackRevenue, ackNetAsset
             SignedEndingBalance = -val
             
+        Case Else
+            '------------------------------------------
+            ' 想定外（設計ミス）
+            '------------------------------------------
+            Err.Raise vbObjectError + 5201, _
+                      "TrialBalanceLine.SignedEndingBalance", _
+                      "未対応のCategoryEnumです: " & _
+                      "Account=" & m_Account.MiddleAccount & _
+                      ", CategoryEnum=" & m_Account.CategoryEnum
     End Select
 
 End Function
@@ -212,42 +248,39 @@ End Function
 '   Contents:
 '       試算表・財務諸表はこの関数のみ使用する
 '
-'   Input:
-'       targetGroup    BS / PL
-'       targetColumn   BEGIN / END / FLOW
-'
 '==============================================================================
-Public Function amount( _
-    ByVal targetGroup As AccountFSKind, _
-    ByVal targetColumn As String _
-) As Currency
+Public Function amount() As Currency
 
-    Select Case targetGroup
+    If m_Account Is Nothing Then
+        Err.Raise vbObjectError + 5300, _
+                  "TrialBalanceLine.amount", _
+                  "Accountが設定されていません"
+    End If
+
+    Select Case m_Account.FSEnum
     
         '------------------------------
         ' BS
         '------------------------------
         Case afsBS
-        
-            Select Case targetColumn
-                Case "BEGIN"
-                    amount = m_BeginningBalance
-                    
-                Case "END"
-                    amount = Me.SignedEndingBalance
-            End Select
+            amount = Me.SignedEndingBalance
         
         '------------------------------
         ' PL
         '------------------------------
         Case afsPL
-        
-            If targetColumn = "FLOW" Then
-                amount = Me.FlowAmount
-            Else
-                amount = 0
-            End If
+            amount = Me.FlowAmount
             
+        '------------------------------
+        ' 想定外
+        '------------------------------
+        Case Else
+            Err.Raise vbObjectError + 5301, _
+                      "TrialBalanceLine.amount", _
+                      "未対応のFSEnumです: " & _
+                      "Account=" & m_Account.MiddleAccount & _
+                      ", FSEnum=" & m_Account.FSEnum
+                      
     End Select
 
 End Function
