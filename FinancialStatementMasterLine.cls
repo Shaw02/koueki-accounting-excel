@@ -17,6 +17,7 @@ Private m_LineLabel As String
 Private m_LineLabelAligh As XlHAlign
 Private m_LineType As String
 Private m_Formula As String
+Private m_AggregateTo As String
 Private m_Enabled As Boolean
 
 Public Sub Initialize( _
@@ -28,6 +29,7 @@ Public Sub Initialize( _
     ByVal LineLabelAligh As XlHAlign, _
     ByVal LineType As String, _
     ByVal formula As String, _
+    ByVal AggregateTo As String, _
     ByVal enabled As Boolean)
 
     m_StatementID = Trim$(statementID)
@@ -43,6 +45,7 @@ Public Sub Initialize( _
     m_LineLabelAligh = LineLabelAligh
     m_LineType = UCase$(Trim$(LineType))
     m_Formula = Trim$(formula)
+    Me.AggregateTo = AggregateTo
     m_Enabled = enabled
 
 End Sub
@@ -55,6 +58,24 @@ Public Property Get LineLabel() As String: LineLabel = m_LineLabel: End Property
 Public Property Get LineLabelAligh() As XlHAlign: LineLabelAligh = m_LineLabelAligh: End Property
 Public Property Get LineType() As String: LineType = m_LineType: End Property
 Public Property Get formula() As String: formula = m_Formula: End Property
+Public Property Get AggregateTo() As String: AggregateTo = m_AggregateTo: End Property
+Public Property Let AggregateTo(ByVal value As String)
+
+    Dim normalized As String
+    normalized = UCase$(Trim$(value))
+
+    '自分自身を参照していないかチェック
+    If normalized <> "" Then
+        If normalized = UCase$(Trim$(m_LineID)) Then
+            Err.Raise vbObjectError + 6401, _
+                "FinancialStatementMasterLine.AggregateTo", _
+                "AggregateTo cannot point to itself: " & normalized
+        End If
+    End If
+
+    m_AggregateTo = normalized
+
+End Property
 Public Property Get enabled() As Boolean: enabled = m_Enabled: End Property
 
 

@@ -41,17 +41,26 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
     Dim thisAmounts As Object
     Dim lastAmounts As Object
 
-    Set thisAmounts = BuildAccountAmountMap(tbEngine.SubTrialBalance)
-    Set lastAmounts = BuildAccountAmountMap(tbEngine.LastSubTrialBalance)
-
+    Set thisAmounts = BuildStatementAmountMap(tbEngine.SubTrialBalance)
+    Set lastAmounts = BuildStatementAmountMap(tbEngine.LastSubTrialBalance)
+    
     Call AddNetAssetAmounts(thisAmounts, tbEngine, False)
     Call AddNetAssetAmounts(lastAmounts, tbEngine, True)
-    
+
+    Call RollupAggregateTo(thisAmounts, False)
+    Call RollupAggregateTo(lastAmounts, False)
+
+    Call ResolveFormulaAmounts(thisAmounts)
+    Call ResolveFormulaAmounts(lastAmounts)
+
+    Call RollupAggregateTo(thisAmounts, True)
+    Call RollupAggregateTo(lastAmounts, True)
+        
     Call OutputAll(thisAmounts, lastAmounts)
 
 End Sub
 
-Private Function BuildAccountAmountMap(ByVal tb As TrialBalance) As Object
+Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
 
     Dim result As Object
     Set result = CreateObject("Scripting.Dictionary")
@@ -62,30 +71,61 @@ Private Function BuildAccountAmountMap(ByVal tb As TrialBalance) As Object
     Dim accountingCategory As String
     Dim amount As Currency
     Dim i As Long
-
+    Dim mapped As Boolean
+    
     For Each line In tb.Lines
         amount = line.amount()
-
-        If amount = 0 Then GoTo ContinueLoop
+        mapped = False
 
         If Trim$(line.account.fsLineIDs) <> "" Then
             lineIDs = Split(line.account.fsLineIDs, ";")
             For i = LBound(lineIDs) To UBound(lineIDs)
                 lineID = UCase$(Trim$(CStr(lineIDs(i))))
                 If lineID <> "" Then
-                    accountingCategory = UCase$(Trim$(line.SubAccountCate))
-                    Call AddAmountToMap(result, lineID, "*", amount)
-                    If accountingCategory <> "" Then
-                        Call AddAmountToMap(result, lineID, accountingCategory, amount)
+                    If Not ExistsLineID(lineID) Then
+                        Err.Raise vbObjectError + 7001, _
+                            "BuildStatementAmountMap", _
+                            "Undefined FS_ID mapping in account master: " & lineID
+                    End If
+
+                    mapped = True
+                    If amount <> 0 Then
+                        accountingCategory = UCase$(Trim$(line.SubAccountCate))
+                        Call AddAmountToMap(result, lineID, "*", amount)
+                        If accountingCategory <> "" Then
+                            Call AddAmountToMap(result, lineID, accountingCategory, amount)
+                        End If
                     End If
                 End If
             Next i
         End If
 
-ContinueLoop:
+        If Not mapped Then
+            Err.Raise vbObjectError + 7002, _
+                "BuildStatementAmountMap", _
+                "TrialBalanceLine is not mapped to FS_ID. AccountCode=" & CStr(line.AccountCode)
+        End If
     Next
 
-    Set BuildAccountAmountMap = result
+    Set BuildStatementAmountMap = result
+
+End Function
+
+Private Function ExistsLineID(ByVal lineID As String) As Boolean
+
+    Dim line As FinancialStatementMasterLine
+    Dim targetID As String
+
+    targetID = UCase$(Trim$(lineID))
+
+    For Each line In m_Master.Lines
+        If UCase$(Trim$(line.lineID)) = targetID Then
+            ExistsLineID = True
+            Exit Function
+        End If
+    Next
+
+    ExistsLineID = False
 
 End Function
 
@@ -167,17 +207,11 @@ End Sub
 '==============================================================================
 Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
 
-    Dim valuesThis As Object
-    Dim valuesLast As Object
-
     Dim line As FinancialStatementMasterLine
     
     Dim vThis As Currency
     Dim vLast As Currency
     Dim vDiff As Currency
-
-    Set valuesThis = CreateObject("Scripting.Dictionary")
-    Set valuesLast = CreateObject("Scripting.Dictionary")
 
     Dim nextRowBySheet As Object
     Set nextRowBySheet = CreateObject("Scripting.Dictionary")
@@ -188,19 +222,10 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
     
         If line.enabled Then
     
-            vThis = ResolveLineAmount(line, thisAmounts, valuesThis)
-            vLast = ResolveLineAmount(line, lastAmounts, valuesLast)
+            vThis = GetAmountByLine(thisAmounts, line)
+            vLast = GetAmountByLine(lastAmounts, line)
             vDiff = vThis - vLast
             
-            '------------------------------------------
-            ' キー生成（重要）
-            '------------------------------------------
-            Dim key As String
-            key = BuildKey(line.lineID, line.accountingCategory)
-    
-            valuesThis(key) = vThis
-            valuesLast(key) = vLast
-    
             '------------------------------------------
             ' シート出力
             '------------------------------------------
@@ -293,7 +318,9 @@ End Sub
 '==============================================================================
 Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency) As Boolean
 
-    If line.LineType = "TITLE" Then
+    
+
+    If line.LineType = "TITLE" Or line.LineType = "ACCOUNTS" Then
         ShouldSkipOutputLine = False
         Exit Function
     End If
@@ -303,7 +330,6 @@ Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine
         Exit Function
     End If
        
-    
     ShouldSkipOutputLine = False  '←これ必須
     
 End Function
@@ -311,67 +337,126 @@ End Function
 '==============================================================================
 '       金額取得
 '==============================================================================
-Private Function ResolveLineAmount( _
-    ByVal line As FinancialStatementMasterLine, _
-    ByVal accountMap As Object, _
-    ByVal resolvedValues As Object) As Currency
+Private Function GetAmountByLine(ByVal amountMap As Object, ByVal line As FinancialStatementMasterLine) As Currency
 
-    Select Case line.LineType
-        Case "ACCOUNT", "ACCOUNTS"
-            ResolveLineAmount = ResolveAccountAmount(line, accountMap)
-        Case "FORMULA", "CALC"
-            ResolveLineAmount = ResolveFormula(line.formula, resolvedValues)
-        Case Else
-            ResolveLineAmount = 0
-    End Select
+    Dim key As String
+    key = BuildKey(line.lineID, line.accountingCategory)
+
+    If amountMap.Exists(key) Then
+        GetAmountByLine = CCur(amountMap(key))
+    Else
+        GetAmountByLine = 0
+    End If
 
 End Function
 
-'==============================================================================
-'       勘定金額取得（マスタ準拠版）
-'------------------------------------------------------------------------------
-'   Contents:
-'       ・マスタに存在しないカテゴリ → エラー
-'       ・マスタに存在するが金額無し → 0円
-'
-'==============================================================================
-Private Function ResolveAccountAmount( _
-    ByVal def As FinancialStatementMasterLine, _
-    ByVal accountMap As Object) As Currency
 
-    Dim lineID As String
-    Dim category As String
+Private Sub ResolveFormulaAmounts(ByVal values As Object)
+
+    Dim line As FinancialStatementMasterLine
     Dim key As String
 
-    lineID = UCase$(Trim$(def.lineID))
-    category = UCase$(Trim$(def.accountingCategory))
+    For Each line In m_Master.Lines
+        If line.enabled Then
+            If line.LineType = "FORMULA" Or line.LineType = "CALC" Then
+                key = BuildKey(line.lineID, line.accountingCategory)
+                values(key) = ResolveFormula(line.formula, values)
+            End If
+        End If
+    Next
 
-    If category = "" Then category = "*"
+End Sub
 
-    key = lineID & "|" & category
+Private Sub RollupAggregateTo(ByVal amountMap As Object, ByVal includeFormula As Boolean)
 
-    '------------------------------------------
-    ' ① マスタに存在するかチェック（最重要）
-    '------------------------------------------
-    If Not m_Master.Exists(lineID, category) Then
-        
-        Err.Raise vbObjectError + 2003, _
-                  "ResolveAccountAmount", _
-                  "未定義の会計区分です: lineID=" & lineID & _
-                  ", category=" & category
-        
-    End If
+    Dim line As FinancialStatementMasterLine
+    Dim childType As String
 
-    '------------------------------------------
-    ' ② 金額取得（無ければ0）
-    '------------------------------------------
-    If accountMap.Exists(key) Then
-        ResolveAccountAmount = CCur(accountMap(key))
+    For Each line In m_Master.Lines
+        If line.enabled Then
+            childType = UCase$(Trim$(line.LineType))
+
+            If childType <> "TITLE" And Trim$(line.AggregateTo) <> "" Then
+                If (includeFormula And (childType = "FORMULA" Or childType = "CALC")) _
+                    Or ((Not includeFormula) And (childType = "ACCOUNT" Or childType = "ACCOUNTS")) Then
+                    Call RollupLineAmount(line, amountMap)
+                End If
+            End If
+        End If
+    Next
+
+End Sub
+
+Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal amountMap As Object)
+
+    Dim currentLine As FinancialStatementMasterLine
+    Dim parentLine As FinancialStatementMasterLine
+    Dim visited As Object
+    Dim currentAggregateTo As String
+    Dim childKey As String
+    Dim parentKey As String
+    Dim childAmount As Currency
+
+    Set visited = CreateObject("Scripting.Dictionary")
+    Set currentLine = child
+
+    childKey = BuildKey(child.lineID, child.accountingCategory)
+    If amountMap.Exists(childKey) Then
+        childAmount = CCur(amountMap(childKey))
     Else
-        ResolveAccountAmount = 0
+        childAmount = 0
     End If
+
+    Do While Trim$(currentLine.AggregateTo) <> ""
+        currentAggregateTo = UCase$(Trim$(currentLine.AggregateTo))
+
+        If visited.Exists(currentAggregateTo) Then
+            Err.Raise vbObjectError + 7101, _
+                "RollupLineAmount", _
+                "Circular AggregateTo reference detected: " & currentAggregateTo
+        End If
+        visited.Add currentAggregateTo, True
+
+        Set parentLine = GetAggregateParentLine(currentAggregateTo, currentLine.accountingCategory)
+        parentKey = BuildKey(parentLine.lineID, parentLine.accountingCategory)
+
+        If Not amountMap.Exists(parentKey) Then
+            amountMap.Add parentKey, CCur(0)
+        End If
+        amountMap(parentKey) = CCur(amountMap(parentKey)) + childAmount
+
+        Set currentLine = parentLine
+    Loop
+
+End Sub
+
+Private Function GetAggregateParentLine(ByVal parentLineID As String, ByVal category As String) As FinancialStatementMasterLine
+
+    Dim normalizedParent As String
+    normalizedParent = UCase$(Trim$(parentLineID))
+
+    If normalizedParent = "" Then
+        Err.Raise vbObjectError + 7102, _
+            "GetAggregateParentLine", _
+            "AggregateTo target is blank."
+    End If
+
+    If m_Master.Exists(normalizedParent, category) Then
+        Set GetAggregateParentLine = m_Master.GetLine(normalizedParent, category)
+        Exit Function
+    End If
+
+    If m_Master.Exists(normalizedParent, "*") Then
+        Set GetAggregateParentLine = m_Master.GetLine(normalizedParent, "*")
+        Exit Function
+    End If
+
+    Err.Raise vbObjectError + 7103, _
+        "GetAggregateParentLine", _
+        "AggregateTo target does not exist: " & normalizedParent & "|" & UCase$(Trim$(category))
 
 End Function
+
 
 Private Function ResolveFormula(ByVal formula As String, ByVal values As Object) As Currency
 
@@ -407,11 +492,27 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
         ' [PL_BIZ|公1] or [PL_BIZ]
         '------------------------------------------
         If InStr(token, "|") > 0 Then
-            lineID = Split(token, "|")(0)
-            category = Split(token, "|")(1)
+            lineID = UCase$(Trim$(Split(token, "|")(0)))
+            category = UCase$(Trim$(Split(token, "|")(1)))
         Else
-            lineID = token
+            lineID = UCase$(Trim$(token))
             category = "*"
+        End If
+
+        If category = "" Then category = "*"
+
+        If category = "*" Then
+            If Not ExistsLineID(lineID) Then
+                Err.Raise vbObjectError + 3002, _
+                    "ResolveFormula", _
+                    "Undefined FS_ID in formula: [" & token & "]"
+            End If
+        Else
+            If Not m_Master.Exists(lineID, category) Then
+                Err.Raise vbObjectError + 3003, _
+                    "ResolveFormula", _
+                    "Undefined FS_ID/category in formula: [" & token & "]"
+            End If
         End If
         
         Dim key As String
