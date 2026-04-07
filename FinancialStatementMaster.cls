@@ -104,6 +104,9 @@ Public Sub LoadFromWorksheet(ByVal ws As Worksheet)
         End If
     Next
 
+    'マスタのチェック
+    Call ValidateMasterLight
+    
 End Sub
 
 '==============================================================================
@@ -193,3 +196,237 @@ Private Function ParseBoolean(ByVal v As Variant, ByVal defaultValue As Boolean)
 
 End Function
 
+'==============================================================================
+'       マスタ簡易検証
+'------------------------------------------------------------------------------
+'   Contents:
+'       読み込んだ財務諸表マスタの整合性をチェックする
+'
+'==============================================================================
+Private Sub ValidateMasterLight()
+
+    Call ValidateAggregateToExists
+    Call ValidateFormulaReferences
+    Call ValidateCircularReference
+End Sub
+
+'==============================================================================
+'       AggregateTo 存在チェック
+'------------------------------------------------------------------------------
+'   Contents:
+'       各行の AggregateTo（集計先）が正しく定義されているかを検証する
+'
+'       ■チェック内容
+'       ・AggregateTo が指定されている場合
+'           → 同一category または "*" に該当する親行が存在すること
+'
+'       ■エラー条件
+'           ・指定された親行がマスタに存在しない場合
+'
+'       ■目的
+'           ・Rollup処理時の実行時エラー防止
+'           ・マスタ定義ミスの早期検出
+'
+'==============================================================================
+Private Sub ValidateAggregateToExists()
+
+    Dim line As FinancialStatementMasterLine
+
+    For Each line In m_Lines
+
+        If Trim$(line.AggregateTo) <> "" Then
+
+            If Not Me.Exists(line.AggregateTo, line.accountingCategory) _
+               And Not Me.Exists(line.AggregateTo, "*") Then
+
+                Err.Raise vbObjectError + 9002, _
+                    "FinancialStatementMaster.ValidateAggregateToExists", _
+                    "AggregateTo未定義: " & line.lineID & " → " & line.AggregateTo
+            End If
+
+        End If
+
+    Next
+
+End Sub
+
+'==============================================================================
+'       Formula参照チェック
+'------------------------------------------------------------------------------
+'   Contents:
+'       FORMULA / CALC 行に定義された数式内の参照が、
+'       財務諸表マスタ上に正しく存在するかを検証する
+'
+'       ■対応形式
+'           [FS_ID]
+'           [FS_ID|category]
+'
+'       ■チェック内容
+'           ・lineID が存在するか
+'           ・category 指定時は該当組み合わせが存在するか
+'
+'       ■エラー条件
+'           ・参照先のFS_IDが存在しない
+'           ・category付き参照で該当行が存在しない
+'
+'       ■目的
+'           ・ResolveFormula 実行時のエラー防止
+'           ・数式定義ミスの事前検出
+'
+'==============================================================================
+Private Sub ValidateFormulaReferences()
+
+    Dim re As Object
+    Set re = CreateObject("VBScript.RegExp")
+
+    With re
+        .Pattern = "\[([^\]]+)\]"
+        .Global = True
+    End With
+
+    Dim line As FinancialStatementMasterLine
+    Dim matches As Object
+    Dim m As Object
+
+    For Each line In m_Lines
+
+        If line.LineType = "FORMULA" Or line.LineType = "CALC" Then
+
+            Set matches = re.Execute(line.formula)
+
+            For Each m In matches
+
+                Dim token As String
+                token = m.SubMatches(0)
+
+                Dim lineID As String
+                Dim category As String
+
+                If InStr(token, "|") > 0 Then
+                    lineID = UCase$(Split(token, "|")(0))
+                    category = UCase$(Split(token, "|")(1))
+                Else
+                    lineID = UCase$(token)
+                    category = "*"
+                End If
+
+                If category = "*" Then
+                    If Not Me.Exists(lineID) Then
+                        Err.Raise vbObjectError + 9003, _
+                            "FinancialStatementMaster.ValidateFormulaReferences", _
+                            "Formula参照不正: [" & token & "]"
+                    End If
+                Else
+                    If Not Me.Exists(lineID, category) Then
+                        Err.Raise vbObjectError + 9004, _
+                            "FinancialStatementMaster.ValidateFormulaReferences", _
+                            "Formula参照不正: [" & token & "]"
+                    End If
+                End If
+
+            Next
+
+        End If
+
+    Next
+
+End Sub
+
+'==============================================================================
+'       循環参照チェック（AggregateTo）
+'------------------------------------------------------------------------------
+'   Contents:
+'       AggregateTo の親子関係に循環が無いかを検証する
+'
+'       ■チェック例（NG）
+'           A → B
+'           B → C
+'           C → A
+'
+'       ■仕様
+'           ・DFS（深さ優先探索）で検出
+'           ・同一スタック上に同じノードが現れたら循環
+'
+'==============================================================================
+Private Sub ValidateCircularReference()
+
+    Dim visited As Object
+    Set visited = CreateObject("Scripting.Dictionary")
+
+    Dim stack As Object
+    Set stack = CreateObject("Scripting.Dictionary")
+
+    Dim line As FinancialStatementMasterLine
+
+    For Each line In m_Lines
+        Call ValidateCircularReference_DFS(line, visited, stack)
+    Next
+
+End Sub
+
+'==============================================================================
+'       DFSによる循環検出
+'------------------------------------------------------------------------------
+'   Contents:
+'       再帰的に親を辿り、循環を検出する
+'
+'   Input:
+'       line        現在の行
+'       visited     訪問済みノード
+'       stack       現在の探索スタック
+'
+'==============================================================================
+Private Sub ValidateCircularReference_DFS( _
+    ByVal line As FinancialStatementMasterLine, _
+    ByVal visited As Object, _
+    ByVal stack As Object)
+
+    Dim key As String
+    key = BuildKey(line.lineID, line.accountingCategory)
+
+    '------------------------------------------
+    ' スタックに存在 → 循環
+    '------------------------------------------
+    If stack.Exists(key) Then
+        Err.Raise vbObjectError + 9005, _
+            "FinancialStatementMaster.ValidateCircularReference", _
+            "循環参照が検出されました: " & key
+    End If
+
+    '------------------------------------------
+    ' 既訪問ならスキップ
+    '------------------------------------------
+    If visited.Exists(key) Then Exit Sub
+
+    visited.Add key, True
+    stack.Add key, True
+
+    '------------------------------------------
+    ' 親へ遷移
+    '------------------------------------------
+    If Trim$(line.AggregateTo) <> "" Then
+
+        Dim parent As FinancialStatementMasterLine
+
+        'GetLineはエラーを投げる仕様なのでここではそのまま使う
+        If Me.Exists(line.AggregateTo, line.accountingCategory) Then
+            Set parent = Me.GetLine(line.AggregateTo, line.accountingCategory)
+        ElseIf Me.Exists(line.AggregateTo, "*") Then
+            Set parent = Me.GetLine(line.AggregateTo, "*")
+        Else
+            'ここは別チェックで拾っているが保険
+            Err.Raise vbObjectError + 9006, _
+                "FinancialStatementMaster.ValidateCircularReference", _
+                "親が存在しません: " & line.AggregateTo
+        End If
+
+        Call ValidateCircularReference_DFS(parent, visited, stack)
+
+    End If
+
+    '------------------------------------------
+    ' スタックから除外
+    '------------------------------------------
+    stack.Remove key
+
+End Sub
