@@ -9,6 +9,10 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
+Private Const MaxColumn As Long = 5
+Private Const START_ROW As Long = 5
+Private Const MASTER_SHEET_NAME As String = "財務諸表マスタ"
+
 Private m_Master As FinancialStatementMaster
 
 Private Sub Class_Initialize()
@@ -30,7 +34,7 @@ End Function
 Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
 
     Dim wsMaster As Worksheet
-    Set wsMaster = ThisWorkbook.Worksheets("財務諸表マスタ")
+    Set wsMaster = ThisWorkbook.Worksheets(MASTER_SHEET_NAME)
     
     Call m_Master.LoadFromWorksheet(wsMaster)
 
@@ -163,91 +167,22 @@ End Sub
 '==============================================================================
 Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
 
-    Const START_ROW As Long = 5
-    
     Dim valuesThis As Object
     Dim valuesLast As Object
 
-    Dim wsBS As Worksheet
-    Dim wsPL As Worksheet
-    Dim wsPL2 As Worksheet
-    
-    Set wsBS = ThisWorkbook.Worksheets("貸借対照表")
-    Set wsPL = ThisWorkbook.Worksheets("活動計算書")
-    Set wsPL2 = ThisWorkbook.Worksheets("活動計算書の注記")
-    
-    Set valuesThis = CreateObject("Scripting.Dictionary")
-    Set valuesLast = CreateObject("Scripting.Dictionary")
-
     Dim line As FinancialStatementMasterLine
+    
     Dim vThis As Currency
     Dim vLast As Currency
+    Dim vDiff As Currency
+
+    Set valuesThis = CreateObject("Scripting.Dictionary")
+    Set valuesLast = CreateObject("Scripting.Dictionary")
 
     Dim nextRowBySheet As Object
     Set nextRowBySheet = CreateObject("Scripting.Dictionary")
 
-    nextRowBySheet(wsBS.Name) = START_ROW + 1
-    nextRowBySheet(wsPL.Name) = START_ROW + 1
-    nextRowBySheet(wsPL2.Name) = START_ROW + 1
-
-    Call ClearSheet(wsBS, START_ROW)
-    Call ClearSheet(wsPL, START_ROW)
-    Call ClearSheet(wsPL2, START_ROW)
-
-    '==============================
-    ' 数値書式
-    '==============================
-    
-    '貸借対照表
-    With wsBS
-        .Range("C:D").NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
-        .Range("C:D").HorizontalAlignment = xlRight
-        
-        .Cells(START_ROW, 2) = "科目"
-        .Cells(START_ROW, 3) = "当期"
-        .Cells(START_ROW, 4) = "前期"
-        With .Range(.Cells(START_ROW, 2), .Cells(START_ROW, 4))
-            .HorizontalAlignment = xlCenter
-            .VerticalAlignment = xlCenter
-            .Interior.Color = rgbLavender
-            .Font.Bold = True
-            
-            .Borders.LineStyle = xlContinuous
-            .Borders.Weight = xlThin
-            
-            '外枠太線
-            .Borders(xlEdgeTop).Weight = xlMedium
-            .Borders(xlEdgeBottom).Weight = xlMedium
-        End With
-    End With
-    
-    '活動計算書
-    With wsPL
-        .Range("C:D").NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
-        .Range("C:D").HorizontalAlignment = xlRight
-        
-        .Cells(START_ROW, 2) = "科目"
-        .Cells(START_ROW, 3) = "当期"
-        .Cells(START_ROW, 4) = "前期"
-        With .Range(.Cells(START_ROW, 2), .Cells(START_ROW, 4))
-            .HorizontalAlignment = xlCenter
-            .VerticalAlignment = xlCenter
-            .Interior.Color = rgbLavender
-            .Font.Bold = True
-            
-            .Borders.LineStyle = xlContinuous
-            .Borders.Weight = xlThin
-            
-            '外枠太線
-            .Borders(xlEdgeTop).Weight = xlMedium
-            .Borders(xlEdgeBottom).Weight = xlMedium
-        End With
-    End With
-    
-    
-    '活動計算書の注記
-    wsPL2.Range("C:D").NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
-    wsPL2.Range("C:D").HorizontalAlignment = xlRight
+    Call InitializeOutputSheets(nextRowBySheet)
 
     For Each line In m_Master.Lines
     
@@ -255,7 +190,8 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
     
             vThis = ResolveLineAmount(line, thisAmounts, valuesThis)
             vLast = ResolveLineAmount(line, lastAmounts, valuesLast)
-    
+            vDiff = vThis - vLast
+            
             '------------------------------------------
             ' キー生成（重要）
             '------------------------------------------
@@ -278,21 +214,23 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
             ws.Cells(y, 2).HorizontalAlignment = line.LineLabelAligh
     
             'タイトル、集計項目でない無い場合、且つ、前期・当期残高が0の場合は、表示を省略する。
-            If Not ((line.LineType = "ACCOUNT" Or line.LineType = "ACCOUNTS") And vThis = 0 And vLast = 0) Then
+            If Not ShouldSkipOutputLine(line, vThis, vLast) Then
                 If line.LineType = "TITLE" Then
                     ws.Cells(y, 3).value = ""
                     ws.Cells(y, 4).value = ""
+                    ws.Cells(y, 5).value = ""
                 Else
                     ws.Cells(y, 3).value = vThis
                     ws.Cells(y, 4).value = vLast
+                    ws.Cells(y, 5).value = vDiff
                 End If
                                     
                 '横罫線のみ（帳簿感）
-                ws.Range(ws.Cells(y, 2), ws.Cells(y, 4)).Borders(xlEdgeBottom).LineStyle = xlContinuous
+                ws.Range(ws.Cells(y, 2), ws.Cells(y, MaxColumn)).Borders(xlEdgeBottom).LineStyle = xlContinuous
     
                 'ゼブラ
                 If y Mod 2 = 0 Then
-                    ws.Range(ws.Cells(y, 2), ws.Cells(y, 4)).Interior.Color = rgbAliceBlue
+                    ws.Range(ws.Cells(y, 2), ws.Cells(y, MaxColumn)).Interior.Color = rgbAliceBlue
                 End If
 
                 nextRowBySheet(ws.Name) = y + 1
@@ -303,6 +241,76 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
 
 End Sub
 
+'==============================================================================
+'       ヘッダー出力
+'==============================================================================
+Private Sub InitializeOutputSheets(ByVal nextRowBySheet As Object)
+
+    Dim line As FinancialStatementMasterLine
+    Dim ws As Worksheet
+
+    For Each line In m_Master.Lines
+        If line.enabled Then
+            If Not nextRowBySheet.Exists(line.TargetSheet) Then
+                Set ws = ThisWorkbook.Worksheets(line.TargetSheet)
+                nextRowBySheet.Add line.TargetSheet, START_ROW + 1
+                Call ClearSheet(ws, START_ROW)
+                Call SetupSheetHeader(ws, line.statementID)
+            End If
+        End If
+    Next
+
+End Sub
+
+'==============================================================================
+'       ヘッダー出力
+'==============================================================================
+Private Sub SetupSheetHeader(ByVal ws As Worksheet, ByVal statementID As String)
+
+    ws.Range("C:E").NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
+    ws.Range("C:E").HorizontalAlignment = xlRight
+
+    ws.Cells(START_ROW, 2) = "科目"
+    ws.Cells(START_ROW, 3) = "当期"
+    ws.Cells(START_ROW, 4) = "前期"
+    ws.Cells(START_ROW, 5) = "増減"
+
+    With ws.Range(ws.Cells(START_ROW, 2), ws.Cells(START_ROW, MaxColumn))
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Interior.Color = rgbLavender
+        .Font.Bold = True
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+        .Borders(xlEdgeTop).Weight = xlMedium
+        .Borders(xlEdgeBottom).Weight = xlMedium
+    End With
+
+End Sub
+
+'==============================================================================
+'       表示するか？
+'==============================================================================
+Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency) As Boolean
+
+    If line.LineType = "TITLE" Then
+        ShouldSkipOutputLine = False
+        Exit Function
+    End If
+
+    If (line.LineType = "ACCOUNT" Or line.LineType = "ACCOUNTS") And vThis = 0 And vLast = 0 Then
+        ShouldSkipOutputLine = True
+        Exit Function
+    End If
+       
+    
+    ShouldSkipOutputLine = False  '←これ必須
+    
+End Function
+
+'==============================================================================
+'       金額取得
+'==============================================================================
 Private Function ResolveLineAmount( _
     ByVal line As FinancialStatementMasterLine, _
     ByVal accountMap As Object, _

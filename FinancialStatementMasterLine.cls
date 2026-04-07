@@ -20,7 +20,7 @@ Private m_Formula As String
 Private m_Enabled As Boolean
 
 Public Sub Initialize( _
-    ByVal StatementID As String, _
+    ByVal statementID As String, _
     ByVal TargetSheet As String, _
     ByVal lineID As String, _
     ByVal accountingCategory As String, _
@@ -30,7 +30,7 @@ Public Sub Initialize( _
     ByVal formula As String, _
     ByVal enabled As Boolean)
 
-    m_StatementID = Trim$(StatementID)
+    m_StatementID = Trim$(statementID)
     m_TargetSheet = Trim$(TargetSheet)
     m_LineID = Trim$(lineID)
     
@@ -47,7 +47,7 @@ Public Sub Initialize( _
 
 End Sub
 
-Public Property Get StatementID() As String: StatementID = m_StatementID: End Property
+Public Property Get statementID() As String: statementID = m_StatementID: End Property
 Public Property Get TargetSheet() As String: TargetSheet = m_TargetSheet: End Property
 Public Property Get lineID() As String: lineID = m_LineID: End Property
 Public Property Get accountingCategory() As String: accountingCategory = m_AccountingCategory: End Property
