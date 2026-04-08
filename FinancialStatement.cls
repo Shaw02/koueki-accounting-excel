@@ -15,6 +15,7 @@ Option Explicit
 Private Const MaxColumn As Long = 5                             '出力する最大列（E列まで）
 Private Const START_ROW As Long = 2                             'ヘッダー開始行
 Private Const MASTER_SHEET_NAME As String = "財務諸表マスタ"    'マスタシート名
+Private Const CATEGORY_EACH_ACCOUNT_SUM As String = "EACH_ACCOUNT_SUM"
 Private Const CATEGORY_EACH_ACCOUNT As String = "EACH_ACCOUNT"
 Private Const CATEGORY_EACH_PROJECT As String = "EACH_PROJECT"
 Private Const CATEGORY_EACH_FUND As String = "EACH_FUND"
@@ -34,6 +35,7 @@ Private m_ColumnKeysByCategory As Object
 '==============================================================================
 Private Sub Class_Initialize()
     Set m_Master = New FinancialStatementMaster
+    Set m_ColumnKeysByCategory = CreateObject("Scripting.Dictionary")
 End Sub
 
 '==============================================================================
@@ -73,15 +75,19 @@ End Function
 '==============================================================================
 Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
 
+    Dim thisAmounts As Object
+    Dim lastAmounts As Object
+
+    
     Dim wsMaster As Worksheet
     Set wsMaster = ThisWorkbook.Worksheets(MASTER_SHEET_NAME)
     
     'マスタ読込
     Call m_Master.LoadFromWorksheet(wsMaster)
 
-    Dim thisAmounts As Object
-    Dim lastAmounts As Object
-
+    '会計区分・補助科目抽出
+    Call BuildColumnKeysByCategory(tbEngine.SubTrialBalance)
+    
     '試算表→財務諸表マップ生成
     Set thisAmounts = BuildStatementAmountMap(tbEngine.SubTrialBalance)
     Set lastAmounts = BuildStatementAmountMap(tbEngine.LastSubTrialBalance)
@@ -547,8 +553,10 @@ End Sub
 Private Function OutputNotePLFundHeader(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
 
     Const x_size As Long = 5
-
+    
     Dim y_inc As Long
+    Dim headerRow As Long
+
     y_inc = 0
     
     With ws
@@ -556,11 +564,10 @@ Private Function OutputNotePLFundHeader(ByVal ws As Worksheet, ByVal y As Long, 
         '========================
         ' １行目：  注記タイトル
         '========================
-        .Cells(y, 2).value = line.LineLabel
-    
-        With .Cells(y, 2).Font
+        .Cells(y + y_inc, 2).value = line.LineLabel
+        With .Cells(y + y_inc, 2).Font
             .Name = "Meiryo UI"
-            .Bold = True                 '太字
+            .Bold = True
         End With
         
         '========================
@@ -573,23 +580,15 @@ Private Function OutputNotePLFundHeader(ByVal ws As Worksheet, ByVal y As Long, 
         '========================
         ' ３行目：  ヘッダ（財源区分）
         '========================
+        headerRow = y + y_inc
         .Cells(y + y_inc, 2).value = "科目"
         .Cells(y + y_inc, 3).value = "一般"
         .Cells(y + y_inc, 4).value = "指定"
         .Cells(y + y_inc, 5).value = "合計"
 
         'ヘッダー装飾
-        With .Range(.Cells(y + y_inc, 2), .Cells(y + y_inc, x_size))
-            .HorizontalAlignment = xlCenter
-            .VerticalAlignment = xlCenter
-            .Interior.Color = rgbLavender
-            .Font.Bold = True
-            .Borders.LineStyle = xlContinuous
-            .Borders.Weight = xlThin
-            .Borders(xlEdgeTop).Weight = xlMedium
-            .Borders(xlEdgeBottom).Weight = xlMedium
-        End With
-    
+        Call ApplyHeaderStyle(ws, headerRow, headerRow, 2, x_size)
+        
         y_inc = y_inc + 1
     
     End With
@@ -604,82 +603,93 @@ End Function
 Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
 
     Dim y_inc As Long
-    Dim y_header As Long
-    
-    y_inc = 0
+    Dim headerRow As Long
+    Dim headerDepth As Long
+    Dim mode As String
+    Dim columns As Collection
+    Dim c As Long
+    Dim i As Long
+    Dim parts() As String
+    Dim groupStart As Long
+    Dim currentGroup As String
 
-    '表示数
-    Dim x_size As Long
-    x_size = 7              ' To Do 後で動的生成に置き換え
+    mode = UCase$(Trim$(line.accountingCategory))
+    If mode <> CATEGORY_EACH_PROJECT Then mode = CATEGORY_EACH_ACCOUNT
+
+    Set columns = GetNoteColumns(mode)
+
+    y_inc = 0
 
     With ws
 
         '========================
         ' １行目：  注記タイトル
         '========================
-        .Cells(y, 2).value = line.LineLabel
-        
-        With .Cells(y, 2).Font
+        .Cells(y + y_inc, 2).value = line.LineLabel
+        With .Cells(y + y_inc, 2).Font
             .Name = "Meiryo UI"
-            .Bold = True                 '太字
+            .Bold = True
         End With
-
         y_inc = y_inc + 1
         
         '========================
         ' ２行目：  単位
         '========================
-        .Cells(y + y_inc, x_size).value = "（単位：円）"
-        .Cells(y + y_inc, x_size).HorizontalAlignment = xlRight
+        .Cells(y + y_inc, 3 + columns.Count + 1).value = "（単位：円）"
+        .Cells(y + y_inc, 3 + columns.Count + 1).HorizontalAlignment = xlRight
         y_inc = y_inc + 1
         
-        y_header = y_inc
         '========================
         ' ３行目：  会計
         '========================
-        .Cells(y + y_inc, 2).value = "科目"
-        .Cells(y + y_inc, 3).value = "公益目的事業会計"
-        ' to do 公益目的事業会計に属す、会計区分 or 補助科目の数の長さで、セルをマージ
-        .Cells(y + y_inc, 4).value = "収益事業等会計"
-        ' to do 収益事業等会計に属す、会計区分 or 補助科目の数の長さで、セルをマージ
-        .Cells(y + y_inc, 5).value = "法人会計"
-        .Cells(y + y_inc, 6).value = "内部取引等消去"
-        .Cells(y + y_inc, 7).value = "合計"
-        y_inc = y_inc + 1
+        headerRow = y + y_inc
+        headerDepth = IIf(mode = CATEGORY_EACH_PROJECT, 3, 2)
 
-        '========================
-        ' ４行目：  会計区分        ※  抽出された、試算表に出現する会計区分（公1、公2、公共、収1、法人、等）を、横軸に出力
-        '========================
-    
-    
-        '========================
-        ' ５行目：  補助科目単位    ※  抽出された、試算表に出現する補助科目を、横軸に出力
-        '========================
-        ' ここは、line.accountingCategory ="EACH_PROJECT" の場合に作成
-    
-    
-    
-    
-        'ヘッダー装飾
-        With .Range(.Cells(y + y_header, 2), .Cells(y + y_header, x_size))
-            .HorizontalAlignment = xlCenter
-            .VerticalAlignment = xlCenter
-            .Interior.Color = rgbLavender
-            .Font.Bold = True
-            .Borders.LineStyle = xlContinuous
-            .Borders.Weight = xlThin
-            .Borders(xlEdgeTop).Weight = xlMedium
-            .Borders(xlEdgeBottom).Weight = xlMedium
-        End With
+        .Cells(headerRow, 2).value = "科目"
+        If headerDepth > 1 Then .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
 
-        ' To Do 科目、法人会計、内部取引等消去、合計は、３～５行目のセルをマージ
+        c = 3
+        currentGroup = ""
+        groupStart = c
 
-    
+        For i = 1 To columns.Count
+            parts = Split(CStr(columns(i)), "|", 3)
+
+            If mode = CATEGORY_EACH_PROJECT Then
+                .Cells(headerRow + 2, c).value = parts(2)
+            End If
+
+            .Cells(headerRow + 1, c).value = parts(1)
+            .Cells(headerRow, c).value = parts(0)
+
+            If currentGroup = "" Then
+                currentGroup = parts(0)
+                groupStart = c
+            ElseIf currentGroup <> parts(0) Then
+                .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
+                currentGroup = parts(0)
+                groupStart = c
+            End If
+
+            c = c + 1
+        Next i
+
+        If columns.Count > 0 Then
+            .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
+        End If
+
+        .Cells(headerRow, c).value = "内部取引等消去"
+        .Cells(headerRow, c + 1).value = "合計"
+        If headerDepth > 1 Then .Range(.Cells(headerRow, c), .Cells(headerRow + headerDepth - 1, c + 1)).Merge
+
+        Call ApplyHeaderStyle(ws, headerRow, headerRow + headerDepth - 1, 2, c)
+        y_inc = y_inc + headerDepth
     End With
-       
+
     OutputNotePLAccountProjectHeader = y_inc
 
 End Function
+
 
 '==============================================================================
 '       活動計算書の注記    （3）事業費及び管理費の形態別区分
@@ -687,24 +697,34 @@ End Function
 Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
     
     Dim y_inc As Long
-    Dim y_header As Long
-    
-    y_inc = 0
+    Dim headerRow As Long
+    Dim headerDepth As Long
+    Dim mode As String
+    Dim columns As Collection
+    Dim c As Long
+    Dim i As Long
+    Dim parts() As String
+    Dim groupStart As Long
+    Dim currentGroup As String
 
-    '表示数
-    Dim x_size As Long
-    x_size = 7              ' To Do 後で動的生成に置き換え
+    mode = UCase$(Trim$(line.accountingCategory))
+    If mode <> CATEGORY_EACH_ACCOUNT_SUM And mode <> CATEGORY_EACH_ACCOUNT And mode <> CATEGORY_EACH_PROJECT Then
+        mode = CATEGORY_EACH_ACCOUNT_SUM
+    End If
+
+    Set columns = GetNoteColumns(mode)
+
+    y_inc = 0
 
     With ws
 
         '========================
         ' １行目：  注記タイトル
         '========================
-        .Cells(y, 2).value = line.LineLabel
-        
-        With .Cells(y, 2).Font
+        .Cells(y + y_inc, 2).value = line.LineLabel
+        With .Cells(y + y_inc, 2).Font
             .Name = "Meiryo UI"
-            .Bold = True                 '太字
+            .Bold = True
         End With
         
         y_inc = y_inc + 1
@@ -712,58 +732,204 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
         '========================
         ' ２行目：  単位
         '========================
-        .Cells(y + y_inc, x_size).value = "（単位：円）"
-        .Cells(y + y_inc, x_size).HorizontalAlignment = xlRight
+        .Cells(y + y_inc, 3 + columns.Count + 2).value = "（単位：円）"
+        .Cells(y + y_inc, 3 + columns.Count + 2).HorizontalAlignment = xlRight
         y_inc = y_inc + 1
         
-        y_header = y_inc
         '========================
         ' ３行目：  会計
         '========================
-        .Cells(y + y_inc, 2).value = "科目"
-        .Cells(y + y_inc, 3).value = "公益目的事業会計"
-        ' to do 公益目的事業会計に属す、会計区分 or 補助科目の数の長さで、セルをマージ
-        .Cells(y + y_inc, 4).value = "収益事業等会計"
-        ' to do 収益事業等会計に属す、会計区分 or 補助科目の数の長さで、セルをマージ
-        .Cells(y + y_inc, 5).value = "法人会計"
-        .Cells(y + y_inc, 6).value = "合計"
-        .Cells(y + y_inc, 7).value = "配賦基準"
-        y_inc = y_inc + 1
+        headerRow = y + y_inc
+        Select Case mode
+            Case CATEGORY_EACH_PROJECT: headerDepth = 3
+            Case CATEGORY_EACH_ACCOUNT: headerDepth = 2
+            Case Else: headerDepth = 1
+        End Select
 
-        '========================
-        ' ４行目：  会計区分        ※  抽出された、試算表に出現する会計区分（公1、公2、公共、収1、法人、等）を、横軸に出力
-        '========================
-        ' ここは、line.accountingCategory ="EACH_PROJECT" or "EACH_ACCOUNT" の場合に作成
-    
-    
-        '========================
-        ' ５行目：  補助科目単位    ※  抽出された、試算表に出現する補助科目を、横軸に出力
-        '========================
-        ' ここは、line.accountingCategory ="EACH_PROJECT" の場合に作成
+        .Cells(headerRow, 2).value = "科目"
+        If headerDepth > 1 Then .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
 
+        c = 3
+        currentGroup = ""
+        groupStart = c
 
+        For i = 1 To columns.Count
+            parts = Split(CStr(columns(i)), "|", 3)
+            .Cells(headerRow, c).value = parts(0)
 
+            If headerDepth >= 2 Then .Cells(headerRow + 1, c).value = IIf(UBound(parts) >= 1, parts(1), "")
+            If headerDepth = 3 Then .Cells(headerRow + 2, c).value = IIf(UBound(parts) >= 2, parts(2), "")
 
+            If headerDepth >= 2 Then
+                If currentGroup = "" Then
+                    currentGroup = parts(0)
+                    groupStart = c
+                ElseIf currentGroup <> parts(0) Then
+                    .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
+                    currentGroup = parts(0)
+                    groupStart = c
+                End If
+            End If
 
-        'ヘッダー装飾
-        With .Range(.Cells(y + y_header, 2), .Cells(y + y_header, x_size))
-            .HorizontalAlignment = xlCenter
-            .VerticalAlignment = xlCenter
-            .Interior.Color = rgbLavender
-            .Font.Bold = True
-            .Borders.LineStyle = xlContinuous
-            .Borders.Weight = xlThin
-            .Borders(xlEdgeTop).Weight = xlMedium
-            .Borders(xlEdgeBottom).Weight = xlMedium
-        End With
-        
-        ' To Do 科目、法人会計、合計、配賦基準は、３～５行目のセルをマージ
+            c = c + 1
+        Next i
 
+        If headerDepth >= 2 And columns.Count > 0 Then
+            .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
+        End If
+
+        .Cells(headerRow, c).value = "合計"
+        .Cells(headerRow, c + 1).value = "配賦基準"
+        If headerDepth > 1 Then
+            .Range(.Cells(headerRow, c), .Cells(headerRow + headerDepth - 1, c)).Merge
+            .Range(.Cells(headerRow, c + 1), .Cells(headerRow + headerDepth - 1, c + 1)).Merge
+        End If
+
+        Call ApplyHeaderStyle(ws, headerRow, headerRow + headerDepth - 1, 2, c + 1)
+        y_inc = y_inc + headerDepth
     End With
-    
+
     OutputNotePLNatureHeader = y_inc
 
 End Function
+
+'==============================================================================
+'       補助科目・会計区分の列キー生成
+'------------------------------------------------------------------------------
+'   Contents:
+'       試算表から会計区分・補助科目（事業）を抽出し、
+'       注記用の横軸キーを生成する
+'
+'       ※費用・収益のみ対象とする
+'
+'==============================================================================
+Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
+
+    Dim accountSeen As Object
+    Dim projectSeen As Object
+    Dim groupSeen As Object
+    Dim line As TrialBalanceLine
+    Dim cate As String
+    Dim proj As String
+    Dim grp As String
+
+    Set m_ColumnKeysByCategory = CreateObject("Scripting.Dictionary")
+
+    Set accountSeen = CreateObject("Scripting.Dictionary")
+    Set projectSeen = CreateObject("Scripting.Dictionary")
+    Set groupSeen = CreateObject("Scripting.Dictionary")
+
+    m_ColumnKeysByCategory.Add CATEGORY_EACH_ACCOUNT, New Collection
+    m_ColumnKeysByCategory.Add CATEGORY_EACH_PROJECT, New Collection
+    m_ColumnKeysByCategory.Add CATEGORY_EACH_ACCOUNT_SUM, New Collection
+
+    For Each line In tb.Lines
+
+        '------------------------------------------
+        ' ■対象判定：費用・収益のみ
+        '------------------------------------------
+        ' account の大科目で判定する想定
+        ' （例："費用" / "収益"）
+        If Not line.account.FS = "PL" Then
+            GoTo ContinueLine
+        End If
+
+        cate = Trim$(line.SubAccountCate)
+        proj = Trim$(line.SubAccountName)
+
+        If cate <> "" Then
+
+            '------------------------------------------
+            ' 会計区分（公1など）
+            '------------------------------------------
+            If Not accountSeen.Exists(UCase$(cate)) Then
+                accountSeen.Add UCase$(cate), True
+                m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT).Add _
+                    GetAccountGroupLabel(cate) & "|" & cate
+            End If
+
+            '------------------------------------------
+            ' 会計区分グループ（公益／収益／法人）
+            '------------------------------------------
+            grp = GetAccountGroupLabel(cate)
+            If Not groupSeen.Exists(UCase$(grp)) Then
+                groupSeen.Add UCase$(grp), True
+                m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add grp
+            End If
+
+            '------------------------------------------
+            ' 事業（演奏会）
+            '------------------------------------------
+            If proj <> "" Then
+                If Not projectSeen.Exists(UCase$(cate) & "|" & UCase$(proj)) Then
+                    projectSeen.Add UCase$(cate) & "|" & UCase$(proj), True
+                    m_ColumnKeysByCategory(CATEGORY_EACH_PROJECT).Add _
+                        GetAccountGroupLabel(cate) & "|" & cate & "|" & proj
+                End If
+            End If
+
+        End If
+
+ContinueLine:
+    Next
+
+    '------------------------------------------
+    ' フォールバック（データ無し時）
+    '------------------------------------------
+    If m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Count = 0 Then
+        m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add "公益"
+        m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add "収益"
+        m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add "法人"
+    End If
+
+End Sub
+
+Private Function GetAccountGroupLabel(ByVal accountCategory As String) As String
+
+    Dim key As String
+    key = Left$(Trim$(accountCategory), 1)
+
+    Select Case key
+        Case "公"
+            GetAccountGroupLabel = "公益目的事業会計"
+        Case "収"
+            GetAccountGroupLabel = "収益事業会計"
+        Case "法", ""
+            GetAccountGroupLabel = "法人会計"
+        Case Else
+            GetAccountGroupLabel = "法人会計"
+    End Select
+
+End Function
+
+Private Function GetNoteColumns(ByVal mode As String) As Collection
+
+    If m_ColumnKeysByCategory Is Nothing Then
+        Set m_ColumnKeysByCategory = CreateObject("Scripting.Dictionary")
+    End If
+
+    If m_ColumnKeysByCategory.Exists(mode) Then
+        Set GetNoteColumns = m_ColumnKeysByCategory(mode)
+    Else
+        Set GetNoteColumns = New Collection
+    End If
+
+End Function
+
+Private Sub ApplyHeaderStyle(ByVal ws As Worksheet, ByVal rowFrom As Long, ByVal rowTo As Long, ByVal colFrom As Long, ByVal colTo As Long)
+
+    With ws.Range(ws.Cells(rowFrom, colFrom), ws.Cells(rowTo, colTo))
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Interior.Color = rgbLavender
+        .Font.Bold = True
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+        .Borders(xlEdgeTop).Weight = xlMedium
+        .Borders(xlEdgeBottom).Weight = xlMedium
+    End With
+
+End Sub
 
 '==============================================================================
 '       表示可否判定
