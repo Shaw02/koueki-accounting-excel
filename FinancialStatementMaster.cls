@@ -290,7 +290,7 @@ Private Sub ValidateFormulaReferences()
 
     For Each line In m_Lines
 
-        If line.LineType = "FORMULA" Or line.LineType = "CALC" Then
+        If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
 
             Set matches = re.Execute(line.formula)
 

@@ -27,23 +27,39 @@ Private m_Enabled As Boolean              '有効フラグ（出力対象か）
 '   LineType（行種別）
 '
 '   ■概要
-'       財務諸表上での行の役割を定義する
+'       財務諸表および注記における「行の役割」を定義する。
+'       表示専用行／データ行／計算行／特殊レイアウト行を区別する。
 '
+'------------------------------------------------------------------------------
 '   ■定義値
+'
+'   【① 表示専用（非集計）】
+'
 '       TITLE
 '           ・見出し行
 '           ・金額は表示しない
 '           ・集計対象外
 '
+'       TEXT
+'           ・任意テキスト出力行
+'           ・例：「財務諸表に対する注記」など
+'           ・金額は持たない
+'
+'
+'   【② データ行（試算表連動）】
+'
 '       ACCOUNT
 '           ・勘定科目（単体）
-'           ・試算表から直接マッピングされる行
+'           ・試算表から直接マッピングされる
 '           ・集計対象（子→親へ加算）
 '
 '       ACCOUNTS
-'           ・勘定科目グループ（複数のACCOUNTをまとめる用途）
+'           ・勘定科目グループ（複数のACCOUNTをまとめる）
 '           ・ACCOUNTと同様に集計対象
-'           ・表示制御（ゼロ非表示など）で使われる場合あり
+'           ・ゼロ非表示などの制御単位としても使用
+'
+'
+'   【③ 計算行】
 '
 '       FORMULA
 '           ・数式による計算行
@@ -53,13 +69,73 @@ Private m_Enabled As Boolean              '有効フラグ（出力対象か）
 '
 '       CALC
 '           ・補助計算用（FORMULAと同様）
-'           ・内部的な中間計算として使用可能
+'           ・中間計算専用
 '           ・最終出力しない用途でも利用可
 '
+'
+'   【④ 帳票ヘッダー】
+'
+'       HEADER_MAIN
+'           ・貸借対照表／活動計算書のタイトル部を出力
+'
+'
+'   【⑤ 注記ヘッダー（活動計算書）】
+'
+'       HEADER_PL_NOTE1
+'           ・（１）財源区分別内訳表
+'           ・横軸：一般／指定／合計（EACH_FUND 固定）
+'
+'
+'       HEADER_PL_NOTE2
+'           ・（２）会計区分及び事業区分別内訳
+'
+'           ■横軸（m_AccountingCategory により切替）
+'
+'               EACH_ACCOUNT
+'                   ・会計区分単位（公1、公2 等）
+'
+'               EACH_PROJECT
+'                   ・補助科目（演奏会）単位
+'
+'           ■追加列
+'               ・内部取引等消去（現時点は0固定）
+'               ・合計
+'
+'
+'       HEADER_PL_NOTE3
+'           ・（３）事業費・管理費の形態別区分
+'
+'           ■横軸（m_AccountingCategory により切替）
+'
+'               EACH_ACCOUNT_SUM
+'                   ・会計区分（集約単位）で表示
+'                   ・例：公益目的事業会計／収益事業等会計／法人会計
+'                   ・簡易表示用
+'
+'               EACH_ACCOUNT
+'                   ・会計区分単位（簡略表示）
+'
+'               EACH_PROJECT
+'                   ・補助科目（演奏会）単位
+'
+'           ■追加列
+'               ・配賦基準（現時点は表示のみ）
+'               ・合計
+'
+'
+'------------------------------------------------------------------------------
 '   ■注意事項
-'       ・TITLE は AggregateTo を持たない前提
-'       ・FORMULA / CALC は formula 必須
+'
+'       ・TITLE / TEXT は AggregateTo を持たない前提
+'
 '       ・ACCOUNT / ACCOUNTS は試算表と紐づく前提
+'
+'       ・FORMULA / CALC は formula 必須
+'
+'       ・HEADER_* 系はレイアウト専用行であり、
+'         金額計算・集計処理の対象外とする
+'
+'       ・HEADER_PL_NOTE2 / NOTE3 は横軸可変（列数が動的）となる
 '
 '------------------------------------------------------------------------------
 
@@ -95,7 +171,7 @@ Public Sub Initialize( _
     ByVal accountingCategory As String, _
     ByVal LineLabel As String, _
     ByVal LineLabelAligh As XlHAlign, _
-    ByVal LineType As String, _
+    ByVal lineType As String, _
     ByVal formula As String, _
     ByVal AggregateTo As String, _
     ByVal enabled As Boolean)
@@ -112,7 +188,7 @@ Public Sub Initialize( _
 
     m_LineLabel = LineLabel
     m_LineLabelAligh = LineLabelAligh
-    m_LineType = UCase$(Trim$(LineType))
+    m_LineType = UCase$(Trim$(lineType))
     m_Formula = Trim$(formula)
 
     'AggregateTo はPropertyでバリデーション
@@ -145,7 +221,7 @@ Public Property Get LineLabel() As String: LineLabel = m_LineLabel: End Property
 Public Property Get LineLabelAligh() As XlHAlign: LineLabelAligh = m_LineLabelAligh: End Property
 
 '行種別を取得する（TITLE / ACCOUNT / FORMULA / CALC 等）
-Public Property Get LineType() As String: LineType = m_LineType: End Property
+Public Property Get lineType() As String: lineType = m_LineType: End Property
 
 '計算式を取得する（FORMULA / CALC用）
 Public Property Get formula() As String: formula = m_Formula: End Property

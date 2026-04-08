@@ -13,13 +13,17 @@ Option Explicit
 '*      定数定義                        *
 '****************************************
 Private Const MaxColumn As Long = 5                             '出力する最大列（E列まで）
-Private Const START_ROW As Long = 5                             'ヘッダー開始行
+Private Const START_ROW As Long = 2                             'ヘッダー開始行
 Private Const MASTER_SHEET_NAME As String = "財務諸表マスタ"    'マスタシート名
+Private Const CATEGORY_EACH_ACCOUNT As String = "EACH_ACCOUNT"
+Private Const CATEGORY_EACH_PROJECT As String = "EACH_PROJECT"
+Private Const CATEGORY_EACH_FUND As String = "EACH_FUND"
 
 '****************************************
 '*      メンバー変数                    *
 '****************************************
 Private m_Master As FinancialStatementMaster                    '財務諸表マスタクラス
+Private m_ColumnKeysByCategory As Object
 
 '==============================================================================
 '       初期化処理
@@ -328,7 +332,15 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
             Set ws = ThisWorkbook.Worksheets(line.TargetSheet)
     
             Dim y As Long
+            Dim y_inc As Long
             y = CLng(nextRowBySheet(ws.Name))
+            
+            'ヘッダー出力？
+            y_inc = TryOutputSpecialLine(ws, y, line)
+            If y_inc <> 0 Then
+                nextRowBySheet(ws.Name) = y + y_inc
+                GoTo ContinueLineLoop
+            End If
             
             '科目名出力
             ws.Cells(y, 2) = line.LineLabel
@@ -340,7 +352,7 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
             If Not ShouldSkipOutputLine(line, vThis, vLast) Then
                 
                 'タイトル行は金額を表示しない
-                If line.LineType = "TITLE" Then
+                If line.lineType = "TITLE" Then
                     ws.Cells(y, 3).value = ""
                     ws.Cells(y, 4).value = ""
                     ws.Cells(y, 5).value = ""
@@ -365,6 +377,7 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
                 nextRowBySheet(ws.Name) = y + 1
             End If
         End If
+ContinueLineLoop:
     Next
 
 End Sub
@@ -397,14 +410,97 @@ Private Sub InitializeOutputSheets(ByVal nextRowBySheet As Object)
                 '既存データクリア
                 Call ClearSheet(ws, START_ROW)
                 
-                'ヘッダー設定
-                Call SetupSheetHeader(ws, line.statementID)
-                
             End If
         End If
     Next
 
 End Sub
+
+'==============================================================================
+'       ヘッダー設定
+'------------------------------------------------------------------------------
+'   Contents:
+'       ・列見出し（科目／当期／前期／増減）
+'       ・数値フォーマット
+'       ・罫線／背景色
+'
+'==============================================================================
+Private Function TryOutputSpecialLine(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
+
+    Select Case UCase$(Trim$(line.lineType))
+        Case "HEADER_MAIN"
+            TryOutputSpecialLine = OutputHeaderMain(ws, y, line)
+        Case "HEADER_PL_NOTE1"
+            TryOutputSpecialLine = OutputNotePLFundHeader(ws, y, line)
+        Case "HEADER_PL_NOTE2"
+            TryOutputSpecialLine = OutputNotePLAccountProjectHeader(ws, y, line)
+        Case "HEADER_PL_NOTE3"
+            TryOutputSpecialLine = OutputNotePLNatureHeader(ws, y, line)
+        Case "TEXT"
+            ws.Cells(y, 2).value = line.LineLabel
+            TryOutputSpecialLine = 1
+        Case Else
+            TryOutputSpecialLine = 0
+    End Select
+
+End Function
+
+'==============================================================================
+'       貸借対照表 ＆ 活動計算書    共通ヘッダー
+'------------------------------------------------------------------------------
+Private Function OutputHeaderMain(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
+
+    With ws
+
+        '========================
+        ' 1行目：タイトル
+        '========================
+        .Cells(y, 2).value = thisYear & "年度 " & line.LineLabel
+        .Range(.Cells(y, 2), .Cells(y, MaxColumn)).Merge
+    
+        With .Cells(y, 2).Font
+            .Name = "Meiryo UI"
+            .Size = 20
+            .Bold = True                 '太字
+            .Underline = xlUnderlineStyleSingle   '下線
+        End With
+    
+        .Cells(y, 2).HorizontalAlignment = xlCenter
+    
+        '========================
+        ' 2行目：期間
+        '========================
+        If UCase$(Trim$(line.statementID)) = "BS" Then
+            .Cells(y + 1, 2).value = str_end_date
+        Else
+            .Cells(y + 1, 2).value = str_this_period
+        End If
+    
+        .Range(.Cells(y + 1, 2), .Cells(y + 1, MaxColumn)).Merge
+    
+        With .Cells(y + 1, 2).Font
+            .Name = "Meiryo UI"
+            .Size = 11
+        End With
+    
+        .Cells(y + 1, 2).HorizontalAlignment = xlCenter
+    
+        '========================
+        ' 3行目：単位
+        '========================
+        .Cells(y + 2, MaxColumn).value = "（単位：円）"
+        .Cells(y + 2, MaxColumn).HorizontalAlignment = xlRight
+    
+        '========================
+        ' 4行目：ヘッダ
+        '========================
+        Call SetupSheetHeader(ws, line.statementID, y + 3, MaxColumn)
+
+    End With
+
+    OutputHeaderMain = 4
+
+End Function
 
 '==============================================================================
 '       シートヘッダー設定
@@ -415,31 +511,259 @@ End Sub
 '       ・罫線／背景色
 '
 '==============================================================================
-Private Sub SetupSheetHeader(ByVal ws As Worksheet, ByVal statementID As String)
+Private Sub SetupSheetHeader(ByVal ws As Worksheet, ByVal statementID As String, Optional ByVal headerRow As Long = START_ROW, Optional ByVal maxCol As Long = MaxColumn)
 
-    '数値フォーマット（△表示）
-    ws.Range("C:E").NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
-    ws.Range("C:E").HorizontalAlignment = xlRight
+    With ws
 
-    'ヘッダー項目
-    ws.Cells(START_ROW, 2) = "科目"
-    ws.Cells(START_ROW, 3) = "当期"
-    ws.Cells(START_ROW, 4) = "前期"
-    ws.Cells(START_ROW, 5) = "増減"
+        '数値フォーマット（△表示）
+        .Range("C:E").NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
+        .Range("C:E").HorizontalAlignment = xlRight
+    
+        'ヘッダー項目
+        .Cells(headerRow, 2) = "科目"
+        .Cells(headerRow, 3) = "当期"
+        .Cells(headerRow, 4) = "前期"
+        .Cells(headerRow, 5) = "増減"
+    
+        'ヘッダー装飾
+        With .Range(.Cells(headerRow, 2), .Cells(headerRow, maxCol))
+            .HorizontalAlignment = xlCenter
+            .VerticalAlignment = xlCenter
+            .Interior.Color = rgbLavender
+            .Font.Bold = True
+            .Borders.LineStyle = xlContinuous
+            .Borders.Weight = xlThin
+            .Borders(xlEdgeTop).Weight = xlMedium
+            .Borders(xlEdgeBottom).Weight = xlMedium
+        End With
 
-    'ヘッダー装飾
-    With ws.Range(ws.Cells(START_ROW, 2), ws.Cells(START_ROW, MaxColumn))
-        .HorizontalAlignment = xlCenter
-        .VerticalAlignment = xlCenter
-        .Interior.Color = rgbLavender
-        .Font.Bold = True
-        .Borders.LineStyle = xlContinuous
-        .Borders.Weight = xlThin
-        .Borders(xlEdgeTop).Weight = xlMedium
-        .Borders(xlEdgeBottom).Weight = xlMedium
     End With
 
 End Sub
+
+'==============================================================================
+'       活動計算書の注記    （1）活動計算書財源区分別内訳
+'------------------------------------------------------------------------------
+Private Function OutputNotePLFundHeader(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
+
+    Const x_size As Long = 5
+
+    Dim y_inc As Long
+    y_inc = 0
+    
+    With ws
+    
+        '========================
+        ' １行目：  注記タイトル
+        '========================
+        .Cells(y, 2).value = line.LineLabel
+    
+        With .Cells(y, 2).Font
+            .Name = "Meiryo UI"
+            .Bold = True                 '太字
+        End With
+        
+        '========================
+        ' ２行目：  単位
+        '========================
+        .Cells(y + y_inc, x_size).value = "（単位：円）"
+        .Cells(y + y_inc, x_size).HorizontalAlignment = xlRight
+        y_inc = y_inc + 1
+        
+        '========================
+        ' ３行目：  ヘッダ（財源区分）
+        '========================
+        .Cells(y + y_inc, 2).value = "科目"
+        .Cells(y + y_inc, 3).value = "一般"
+        .Cells(y + y_inc, 4).value = "指定"
+        .Cells(y + y_inc, 5).value = "合計"
+
+        'ヘッダー装飾
+        With .Range(.Cells(y + y_inc, 2), .Cells(y + y_inc, x_size))
+            .HorizontalAlignment = xlCenter
+            .VerticalAlignment = xlCenter
+            .Interior.Color = rgbLavender
+            .Font.Bold = True
+            .Borders.LineStyle = xlContinuous
+            .Borders.Weight = xlThin
+            .Borders(xlEdgeTop).Weight = xlMedium
+            .Borders(xlEdgeBottom).Weight = xlMedium
+        End With
+    
+        y_inc = y_inc + 1
+    
+    End With
+    
+    OutputNotePLFundHeader = y_inc
+
+End Function
+
+'==============================================================================
+'       活動計算書の注記    （2）活動計算書会計区分及び事業区分別内訳
+'------------------------------------------------------------------------------
+Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
+
+    Dim y_inc As Long
+    Dim y_header As Long
+    
+    y_inc = 0
+
+    '表示数
+    Dim x_size As Long
+    x_size = 7              ' To Do 後で動的生成に置き換え
+
+    With ws
+
+        '========================
+        ' １行目：  注記タイトル
+        '========================
+        .Cells(y, 2).value = line.LineLabel
+        
+        With .Cells(y, 2).Font
+            .Name = "Meiryo UI"
+            .Bold = True                 '太字
+        End With
+
+        y_inc = y_inc + 1
+        
+        '========================
+        ' ２行目：  単位
+        '========================
+        .Cells(y + y_inc, x_size).value = "（単位：円）"
+        .Cells(y + y_inc, x_size).HorizontalAlignment = xlRight
+        y_inc = y_inc + 1
+        
+        y_header = y_inc
+        '========================
+        ' ３行目：  会計
+        '========================
+        .Cells(y + y_inc, 2).value = "科目"
+        .Cells(y + y_inc, 3).value = "公益目的事業会計"
+        ' to do 公益目的事業会計に属す、会計区分 or 補助科目の数の長さで、セルをマージ
+        .Cells(y + y_inc, 4).value = "収益事業等会計"
+        ' to do 収益事業等会計に属す、会計区分 or 補助科目の数の長さで、セルをマージ
+        .Cells(y + y_inc, 5).value = "法人会計"
+        .Cells(y + y_inc, 6).value = "内部取引等消去"
+        .Cells(y + y_inc, 7).value = "合計"
+        y_inc = y_inc + 1
+
+        '========================
+        ' ４行目：  会計区分        ※  抽出された、試算表に出現する会計区分（公1、公2、公共、収1、法人、等）を、横軸に出力
+        '========================
+    
+    
+        '========================
+        ' ５行目：  補助科目単位    ※  抽出された、試算表に出現する補助科目を、横軸に出力
+        '========================
+        ' ここは、line.accountingCategory ="EACH_PROJECT" の場合に作成
+    
+    
+    
+    
+        'ヘッダー装飾
+        With .Range(.Cells(y + y_header, 2), .Cells(y + y_header, x_size))
+            .HorizontalAlignment = xlCenter
+            .VerticalAlignment = xlCenter
+            .Interior.Color = rgbLavender
+            .Font.Bold = True
+            .Borders.LineStyle = xlContinuous
+            .Borders.Weight = xlThin
+            .Borders(xlEdgeTop).Weight = xlMedium
+            .Borders(xlEdgeBottom).Weight = xlMedium
+        End With
+
+        ' To Do 科目、法人会計、内部取引等消去、合計は、３～５行目のセルをマージ
+
+    
+    End With
+       
+    OutputNotePLAccountProjectHeader = y_inc
+
+End Function
+
+'==============================================================================
+'       活動計算書の注記    （3）事業費及び管理費の形態別区分
+'------------------------------------------------------------------------------
+Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
+    
+    Dim y_inc As Long
+    Dim y_header As Long
+    
+    y_inc = 0
+
+    '表示数
+    Dim x_size As Long
+    x_size = 7              ' To Do 後で動的生成に置き換え
+
+    With ws
+
+        '========================
+        ' １行目：  注記タイトル
+        '========================
+        .Cells(y, 2).value = line.LineLabel
+        
+        With .Cells(y, 2).Font
+            .Name = "Meiryo UI"
+            .Bold = True                 '太字
+        End With
+        
+        y_inc = y_inc + 1
+        
+        '========================
+        ' ２行目：  単位
+        '========================
+        .Cells(y + y_inc, x_size).value = "（単位：円）"
+        .Cells(y + y_inc, x_size).HorizontalAlignment = xlRight
+        y_inc = y_inc + 1
+        
+        y_header = y_inc
+        '========================
+        ' ３行目：  会計
+        '========================
+        .Cells(y + y_inc, 2).value = "科目"
+        .Cells(y + y_inc, 3).value = "公益目的事業会計"
+        ' to do 公益目的事業会計に属す、会計区分 or 補助科目の数の長さで、セルをマージ
+        .Cells(y + y_inc, 4).value = "収益事業等会計"
+        ' to do 収益事業等会計に属す、会計区分 or 補助科目の数の長さで、セルをマージ
+        .Cells(y + y_inc, 5).value = "法人会計"
+        .Cells(y + y_inc, 6).value = "合計"
+        .Cells(y + y_inc, 7).value = "配賦基準"
+        y_inc = y_inc + 1
+
+        '========================
+        ' ４行目：  会計区分        ※  抽出された、試算表に出現する会計区分（公1、公2、公共、収1、法人、等）を、横軸に出力
+        '========================
+        ' ここは、line.accountingCategory ="EACH_PROJECT" or "EACH_ACCOUNT" の場合に作成
+    
+    
+        '========================
+        ' ５行目：  補助科目単位    ※  抽出された、試算表に出現する補助科目を、横軸に出力
+        '========================
+        ' ここは、line.accountingCategory ="EACH_PROJECT" の場合に作成
+
+
+
+
+
+        'ヘッダー装飾
+        With .Range(.Cells(y + y_header, 2), .Cells(y + y_header, x_size))
+            .HorizontalAlignment = xlCenter
+            .VerticalAlignment = xlCenter
+            .Interior.Color = rgbLavender
+            .Font.Bold = True
+            .Borders.LineStyle = xlContinuous
+            .Borders.Weight = xlThin
+            .Borders(xlEdgeTop).Weight = xlMedium
+            .Borders(xlEdgeBottom).Weight = xlMedium
+        End With
+        
+        ' To Do 科目、法人会計、合計、配賦基準は、３～５行目のセルをマージ
+
+    End With
+    
+    OutputNotePLNatureHeader = y_inc
+
+End Function
 
 '==============================================================================
 '       表示可否判定
@@ -452,13 +776,20 @@ End Sub
 '==============================================================================
 Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency) As Boolean
 
-    If line.LineType = "TITLE" Or line.LineType = "ACCOUNTS" Then
+    If line.lineType = "TITLE" _
+        Or line.lineType = "ACCOUNTS" _
+        Or line.lineType = "HEADER_MAIN" _
+        Or line.lineType = "TEXT" _
+        Or line.lineType = "NOTE_PL_FUND" _
+        Or line.lineType = "NOTE_PL_ACCOUNT_PROJECT" _
+        Or line.lineType = "NOTE_PL_NATURE" Then
+        
         ShouldSkipOutputLine = False
         Exit Function
     End If
 
     'ゼロ行非表示
-    If (line.LineType = "ACCOUNT" Or line.LineType = "ACCOUNTS") And vThis = 0 And vLast = 0 Then
+    If (line.lineType = "ACCOUNT" Or line.lineType = "ACCOUNTS") And vThis = 0 And vLast = 0 Then
         ShouldSkipOutputLine = True
         Exit Function
     End If
@@ -507,7 +838,7 @@ Private Sub ResolveFormulaAmounts(ByVal values As Object)
 
     For Each line In m_Master.Lines
         If line.enabled Then
-            If line.LineType = "FORMULA" Or line.LineType = "CALC" Then
+            If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
                 'キー生成（lineID|category）
                 key = BuildKey(line.lineID, line.accountingCategory)
                 '数式評価
@@ -536,7 +867,7 @@ Private Sub RollupAggregateTo(ByVal amountMap As Object, ByVal includeFormula As
 
     For Each line In m_Master.Lines
         If line.enabled Then
-            childType = UCase$(Trim$(line.LineType))
+            childType = UCase$(Trim$(line.lineType))
 
             'タイトル行は対象外、かつ親が定義されている場合のみ
             If childType <> "TITLE" And Trim$(line.AggregateTo) <> "" Then
