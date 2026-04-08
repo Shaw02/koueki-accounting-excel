@@ -96,7 +96,7 @@ Public Sub LoadFromWorksheet(ByVal ws As Worksheet)
 
     Call Clear
 
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).row
 
     For y = MASTER_START_ROW To lastRow
         If Trim$(CStr(ws.Cells(y, 1).value)) <> "" Then

@@ -19,6 +19,12 @@ Private Const CATEGORY_EACH_ACCOUNT_SUM As String = "EACH_ACCOUNT_SUM"
 Private Const CATEGORY_EACH_ACCOUNT As String = "EACH_ACCOUNT"
 Private Const CATEGORY_EACH_PROJECT As String = "EACH_PROJECT"
 Private Const CATEGORY_EACH_FUND As String = "EACH_FUND"
+Private Const GROUP_PUBLIC As Long = 1
+Private Const GROUP_REVENUE As Long = 2
+Private Const GROUP_CORPORATE As Long = 3
+Private Const GROUP_PUBLIC_LABEL As String = "公益目的事業会計"
+Private Const GROUP_REVENUE_LABEL As String = "収益事業会計"
+Private Const GROUP_CORPORATE_LABEL As String = "法人会計"
 
 '****************************************
 '*      メンバー変数                    *
@@ -610,8 +616,14 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
     Dim c As Long
     Dim i As Long
     Dim parts() As String
-    Dim groupStart As Long
-    Dim currentGroup As String
+    
+    Dim grp As String
+    Dim targetGroups As Variant
+    
+    Dim it As Variant
+    
+    '表示項目
+    targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
 
     mode = UCase$(Trim$(line.accountingCategory))
     If mode <> CATEGORY_EACH_PROJECT Then mode = CATEGORY_EACH_ACCOUNT
@@ -649,41 +661,107 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
         If headerDepth > 1 Then .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
 
         c = 3
-        currentGroup = ""
-        groupStart = c
+        Dim groupCols As Collection
+        Dim col As Variant
+        Dim hasData As Boolean
+        Dim startCol As Long
 
-        For i = 1 To columns.Count
-            parts = Split(CStr(columns(i)), "|", 3)
-
-            If mode = CATEGORY_EACH_PROJECT Then
-                .Cells(headerRow + 2, c).value = parts(2)
+        For Each it In targetGroups
+            grp = CStr(it)
+            
+            Set groupCols = New Collection
+            
+            '------------------------------------------
+            ' このグループの列抽出
+            '------------------------------------------
+            For i = 1 To columns.Count
+                parts = Split(CStr(columns(i)), "|")
+                If parts(0) = grp Then
+                    groupCols.Add columns(i)
+                End If
+            Next i
+            
+            startCol = c
+            
+            '------------------------------------------
+            ' データあり
+            '------------------------------------------
+            If groupCols.Count > 0 Then
+                
+                For Each col In groupCols
+                    parts = Split(CStr(col), "|")
+                    
+                    'グループ
+                    .Cells(headerRow, c).value = parts(0)
+                    
+                    '区分
+                    .Cells(headerRow + 1, c).value = parts(1)
+                    
+                    '★補助科目名表示
+                    If headerDepth = 3 Then
+                        If UBound(parts) >= 3 Then
+                            .Cells(headerRow + 2, c).value = parts(3)
+                        Else
+                            .Cells(headerRow + 2, c).value = parts(2)
+                        End If
+                    End If
+                    
+                    c = c + 1
+                Next
+                
+           
+            '------------------------------------------
+            ' ★データなし（ここが今回の本丸）
+            '------------------------------------------
+            Else
+                
+                'グループだけ1列出す
+                .Cells(headerRow, c).value = grp
+            
+                '★ここが重要：縦方向マージ
+                If headerDepth > 1 Then
+                    .Range(.Cells(headerRow, c), _
+                           .Cells(headerRow + headerDepth - 1, c)).Merge
+                End If
+                
+                c = c + 1
+            
             End If
+            
+        Next it
 
-            .Cells(headerRow + 1, c).value = parts(1)
-            .Cells(headerRow, c).value = parts(0)
-
-            If currentGroup = "" Then
-                currentGroup = parts(0)
-                groupStart = c
-            ElseIf currentGroup <> parts(0) Then
-                .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
-                currentGroup = parts(0)
-                groupStart = c
-            End If
-
-            c = c + 1
-        Next i
-
-        If columns.Count > 0 Then
-            .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
-        End If
-
+        '------------------------------------------
+        ' 末尾列
+        '------------------------------------------
         .Cells(headerRow, c).value = "内部取引等消去"
+        If headerDepth > 1 Then
+            .Range(.Cells(headerRow, c), .Cells(headerRow + headerDepth - 1, c)).Merge
+        End If
+        
         .Cells(headerRow, c + 1).value = "合計"
-        If headerDepth > 1 Then .Range(.Cells(headerRow, c), .Cells(headerRow + headerDepth - 1, c + 1)).Merge
-
-        Call ApplyHeaderStyle(ws, headerRow, headerRow + headerDepth - 1, 2, c)
+        If headerDepth > 1 Then
+            .Range(.Cells(headerRow, c + 1), .Cells(headerRow + headerDepth - 1, c + 1)).Merge
+        End If
+        
+        '==========================================
+        ' ★ここ修正：横マージは最後にまとめてやる
+        '==========================================
+        Application.DisplayAlerts = False
+        
+        '① グループ行（1段目）
+        Call MergeSameCategoryCells(ws, headerRow, 3, c - 1)
+        
+        '② 会計区分行（2段目）
+        If headerDepth >= 2 Then
+            Call MergeSameCategoryCells(ws, headerRow + 1, 3, c - 1)
+        End If
+        
+        Application.DisplayAlerts = True
+        
+        Call ApplyHeaderStyle(ws, headerRow, headerRow + headerDepth - 1, 2, c + 1)
+        
         y_inc = y_inc + headerDepth
+
     End With
 
     OutputNotePLAccountProjectHeader = y_inc
@@ -704,8 +782,15 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
     Dim c As Long
     Dim i As Long
     Dim parts() As String
-    Dim groupStart As Long
-    Dim currentGroup As String
+    
+    Dim grp As Variant
+    Dim targetGroups As Variant
+    Dim groupCols As Collection
+    Dim col As Variant
+    Dim startCol As Long
+
+    '★固定グループ
+    targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
 
     mode = UCase$(Trim$(line.accountingCategory))
     If mode <> CATEGORY_EACH_ACCOUNT_SUM And mode <> CATEGORY_EACH_ACCOUNT And mode <> CATEGORY_EACH_PROJECT Then
@@ -719,27 +804,24 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
     With ws
 
         '========================
-        ' １行目：  注記タイトル
+        ' タイトル
         '========================
         .Cells(y + y_inc, 2).value = line.LineLabel
-        With .Cells(y + y_inc, 2).Font
-            .Name = "Meiryo UI"
-            .Bold = True
-        End With
-        
+        .Cells(y + y_inc, 2).Font.Bold = True
         y_inc = y_inc + 1
         
         '========================
-        ' ２行目：  単位
+        ' 単位
         '========================
-        .Cells(y + y_inc, 3 + columns.Count + 2).value = "（単位：円）"
-        .Cells(y + y_inc, 3 + columns.Count + 2).HorizontalAlignment = xlRight
+        .Cells(y + y_inc, 10).value = "（単位：円）"
+        .Cells(y + y_inc, 10).HorizontalAlignment = xlRight
         y_inc = y_inc + 1
         
         '========================
-        ' ３行目：  会計
+        ' ヘッダー
         '========================
         headerRow = y + y_inc
+        
         Select Case mode
             Case CATEGORY_EACH_PROJECT: headerDepth = 3
             Case CATEGORY_EACH_ACCOUNT: headerDepth = 2
@@ -747,51 +829,155 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
         End Select
 
         .Cells(headerRow, 2).value = "科目"
-        If headerDepth > 1 Then .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
-
-        c = 3
-        currentGroup = ""
-        groupStart = c
-
-        For i = 1 To columns.Count
-            parts = Split(CStr(columns(i)), "|", 3)
-            .Cells(headerRow, c).value = parts(0)
-
-            If headerDepth >= 2 Then .Cells(headerRow + 1, c).value = IIf(UBound(parts) >= 1, parts(1), "")
-            If headerDepth = 3 Then .Cells(headerRow + 2, c).value = IIf(UBound(parts) >= 2, parts(2), "")
-
-            If headerDepth >= 2 Then
-                If currentGroup = "" Then
-                    currentGroup = parts(0)
-                    groupStart = c
-                ElseIf currentGroup <> parts(0) Then
-                    .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
-                    currentGroup = parts(0)
-                    groupStart = c
-                End If
-            End If
-
-            c = c + 1
-        Next i
-
-        If headerDepth >= 2 And columns.Count > 0 Then
-            .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
+        If headerDepth > 1 Then
+            .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
         End If
 
+        c = 3
+
+        '------------------------------------------
+        ' ★グループ単位で処理
+        '------------------------------------------
+        For Each grp In targetGroups
+            
+            Set groupCols = New Collection
+            
+            'このグループの列抽出
+            For i = 1 To columns.Count
+                parts = Split(CStr(columns(i)), "|")
+                If parts(0) = grp Then
+                    groupCols.Add columns(i)
+                End If
+            Next i
+            
+            startCol = c
+            
+            '------------------------------------------
+            ' データあり
+            '------------------------------------------
+            If groupCols.Count > 0 Then
+                
+                For Each col In groupCols
+                    
+                    parts = Split(CStr(col), "|")
+                    
+                    'グループ
+                    .Cells(headerRow, c).value = parts(0)
+
+                    '区分
+                    If headerDepth >= 2 Then
+                        .Cells(headerRow + 1, c).value = IIf(UBound(parts) >= 1, parts(1), "")
+                    End If
+                    
+                    '★補助科目名
+                    If headerDepth = 3 Then
+                        If UBound(parts) >= 3 Then
+                            .Cells(headerRow + 2, c).value = parts(3)
+                        ElseIf UBound(parts) >= 2 Then
+                            .Cells(headerRow + 2, c).value = parts(2)
+                        End If
+                    End If
+                    
+                    c = c + 1
+                Next
+                
+            
+            '------------------------------------------
+            ' ★データなし（←ここ重要）
+            '------------------------------------------
+            Else
+                
+                .Cells(headerRow, c).value = grp
+                
+                '★縦マージ
+                If headerDepth > 1 Then
+                    With .Range(.Cells(headerRow, c), _
+                                .Cells(headerRow + headerDepth - 1, c))
+                        .Merge
+                        .HorizontalAlignment = xlCenter
+                        .VerticalAlignment = xlCenter
+                    End With
+                End If
+                
+                c = c + 1
+                
+            End If
+            
+        Next grp
+
+        '------------------------------------------
+        ' 末尾列
+        '------------------------------------------
         .Cells(headerRow, c).value = "合計"
         .Cells(headerRow, c + 1).value = "配賦基準"
+        
         If headerDepth > 1 Then
             .Range(.Cells(headerRow, c), .Cells(headerRow + headerDepth - 1, c)).Merge
             .Range(.Cells(headerRow, c + 1), .Cells(headerRow + headerDepth - 1, c + 1)).Merge
         End If
-
+        
+        '==========================================
+        ' ★ここ修正：横マージは最後にまとめてやる
+        '==========================================
+        Application.DisplayAlerts = False
+        
+        '① グループ行
+        Call MergeSameCategoryCells(ws, headerRow, 3, c - 1)
+        
+        '② 会計区分行
+        If headerDepth >= 2 Then
+            Call MergeSameCategoryCells(ws, headerRow + 1, 3, c - 1)
+        End If
+        
+        Application.DisplayAlerts = True
+        
         Call ApplyHeaderStyle(ws, headerRow, headerRow + headerDepth - 1, 2, c + 1)
+        
         y_inc = y_inc + headerDepth
+    
     End With
 
     OutputNotePLNatureHeader = y_inc
 
 End Function
+
+Private Sub MergeSameCategoryCells(ByVal ws As Worksheet, ByVal row As Long, ByVal colStart As Long, ByVal colEnd As Long)
+
+    Dim c As Long
+    Dim startCol As Long
+    Dim currentVal As String
+    Dim nextVal As String
+    
+    startCol = colStart
+    currentVal = CStr(ws.Cells(row, colStart).value)
+    
+    For c = colStart + 1 To colEnd + 1
+        
+        If c <= colEnd Then
+            
+            nextVal = CStr(ws.Cells(row, c).value)
+            
+            '★ここ修正（空白はマージしない）
+            If nextVal = currentVal And currentVal <> "" Then
+                '継続
+            Else
+                If c - startCol > 1 Then
+                    ws.Range(ws.Cells(row, startCol), ws.Cells(row, c - 1)).Merge
+                End If
+                
+                startCol = c
+                currentVal = nextVal
+            End If
+            
+        Else
+            If c - startCol > 1 And currentVal <> "" Then
+                ws.Range(ws.Cells(row, startCol), ws.Cells(row, c - 1)).Merge
+            End If
+        End If
+        
+    Next c
+
+End Sub
 
 '==============================================================================
 '       補助科目・会計区分の列キー生成
@@ -809,6 +995,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
     Dim projectSeen As Object
     Dim groupSeen As Object
     Dim line As TrialBalanceLine
+    Dim code As String
     Dim cate As String
     Dim proj As String
     Dim grp As String
@@ -828,19 +1015,18 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
         '------------------------------------------
         ' ■対象判定：費用・収益のみ
         '------------------------------------------
-        ' account の大科目で判定する想定
-        ' （例："費用" / "収益"）
-        If Not line.account.FS = "PL" Then
+        If (Not line.account.FS = "PL") Or line.IsZero Then
             GoTo ContinueLine
         End If
 
+        code = Trim$(line.SubAccountCode)   '★追加：補助科目コード
         cate = Trim$(line.SubAccountCate)
         proj = Trim$(line.SubAccountName)
 
         If cate <> "" Then
 
             '------------------------------------------
-            ' 会計区分（公1など）
+            ' 会計区分
             '------------------------------------------
             If Not accountSeen.Exists(UCase$(cate)) Then
                 accountSeen.Add UCase$(cate), True
@@ -849,7 +1035,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
             End If
 
             '------------------------------------------
-            ' 会計区分グループ（公益／収益／法人）
+            ' グループ
             '------------------------------------------
             grp = GetAccountGroupLabel(cate)
             If Not groupSeen.Exists(UCase$(grp)) Then
@@ -858,13 +1044,18 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
             End If
 
             '------------------------------------------
-            ' 事業（演奏会）
+            ' 事業（★ここ改修）
             '------------------------------------------
             If proj <> "" Then
-                If Not projectSeen.Exists(UCase$(cate) & "|" & UCase$(proj)) Then
-                    projectSeen.Add UCase$(cate) & "|" & UCase$(proj), True
+                Dim projectKey As String
+                projectKey = UCase$(cate) & "|" & UCase$(code)
+
+                If Not projectSeen.Exists(projectKey) Then
+                    projectSeen.Add projectKey, True
+
+                    ' ★コードを第3要素に追加
                     m_ColumnKeysByCategory(CATEGORY_EACH_PROJECT).Add _
-                        GetAccountGroupLabel(cate) & "|" & cate & "|" & proj
+                        GetAccountGroupLabel(cate) & "|" & cate & "|" & code & "|" & proj
                 End If
             End If
 
@@ -873,14 +1064,8 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
 ContinueLine:
     Next
 
-    '------------------------------------------
-    ' フォールバック（データ無し時）
-    '------------------------------------------
-    If m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Count = 0 Then
-        m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add "公益"
-        m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add "収益"
-        m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add "法人"
-    End If
+    Call EnsureMandatoryAccountGroupColumns(groupSeen, m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM))
+    Call SortColumnKeysByCategory
 
 End Sub
 
@@ -891,14 +1076,218 @@ Private Function GetAccountGroupLabel(ByVal accountCategory As String) As String
 
     Select Case key
         Case "公"
-            GetAccountGroupLabel = "公益目的事業会計"
+            GetAccountGroupLabel = GROUP_PUBLIC_LABEL
         Case "収"
-            GetAccountGroupLabel = "収益事業会計"
+            GetAccountGroupLabel = GROUP_REVENUE_LABEL
         Case "法", ""
-            GetAccountGroupLabel = "法人会計"
+            GetAccountGroupLabel = GROUP_CORPORATE_LABEL
         Case Else
-            GetAccountGroupLabel = "法人会計"
+            GetAccountGroupLabel = GROUP_CORPORATE_LABEL
     End Select
+
+End Function
+
+Private Sub EnsureMandatoryAccountGroupColumns(ByVal groupSeen As Object, ByVal target As Collection)
+
+    Call AddAccountGroupIfMissing(groupSeen, target, GROUP_PUBLIC_LABEL)
+    Call AddAccountGroupIfMissing(groupSeen, target, GROUP_REVENUE_LABEL)
+    Call AddAccountGroupIfMissing(groupSeen, target, GROUP_CORPORATE_LABEL)
+
+End Sub
+
+Private Sub AddAccountGroupIfMissing(ByVal groupSeen As Object, ByVal target As Collection, ByVal groupLabel As String)
+
+    If Not groupSeen.Exists(UCase$(groupLabel)) Then
+        groupSeen.Add UCase$(groupLabel), True
+        target.Add groupLabel
+    End If
+
+End Sub
+
+Private Sub SortColumnKeysByCategory()
+
+    Dim sorted As Collection
+
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM), CATEGORY_EACH_ACCOUNT_SUM)
+    Set m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM) = sorted
+
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT), CATEGORY_EACH_ACCOUNT)
+    Set m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT) = sorted
+
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_EACH_PROJECT), CATEGORY_EACH_PROJECT)
+    Set m_ColumnKeysByCategory(CATEGORY_EACH_PROJECT) = sorted
+
+End Sub
+
+Private Function SortColumnKeyCollection(ByVal source As Collection, ByVal mode As String) As Collection
+
+    Dim sorted As Collection
+    Dim values() As String
+    Dim i As Long
+    Dim j As Long
+    Dim tmp As String
+
+    Set sorted = New Collection
+
+    If source Is Nothing Then
+        Set SortColumnKeyCollection = sorted
+        Exit Function
+    End If
+
+    If source.Count = 0 Then
+        Set SortColumnKeyCollection = sorted
+        Exit Function
+    End If
+
+    ReDim values(1 To source.Count)
+    For i = 1 To source.Count
+        values(i) = CStr(source(i))
+    Next
+
+    For i = 1 To UBound(values) - 1
+        For j = i + 1 To UBound(values)
+            If ShouldSwapColumnKey(values(i), values(j), mode) Then
+                tmp = values(i)
+                values(i) = values(j)
+                values(j) = tmp
+            End If
+        Next
+    Next
+
+    For i = 1 To UBound(values)
+        sorted.Add values(i)
+    Next
+
+    Set SortColumnKeyCollection = sorted
+
+End Function
+
+Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As String, ByVal mode As String) As Boolean
+
+    Dim leftParts() As String
+    Dim rightParts() As String
+    Dim cmp As Long
+
+    leftParts = Split(leftKey, "|")
+    rightParts = Split(rightKey, "|")
+
+    '------------------------------------------
+    ' グループ比較
+    '------------------------------------------
+    cmp = CompareGroupLabel(leftParts(0), rightParts(0))
+    If cmp <> 0 Then
+        ShouldSwapColumnKey = (cmp > 0)
+        Exit Function
+    End If
+
+    If mode = CATEGORY_EACH_ACCOUNT_SUM Then
+        ShouldSwapColumnKey = False
+        Exit Function
+    End If
+
+    '------------------------------------------
+    ' 会計区分比較
+    '------------------------------------------
+    cmp = CompareAccountCategoryByGroup(GetPartValue(leftParts, 1), GetPartValue(rightParts, 1), leftParts(0))
+    If cmp <> 0 Then
+        ShouldSwapColumnKey = (cmp > 0)
+        Exit Function
+    End If
+
+    '------------------------------------------
+    ' ★補助科目ソート（コード優先）
+    '------------------------------------------
+    If mode = CATEGORY_EACH_PROJECT Then
+        ShouldSwapColumnKey = (UCase$(GetPartValue(leftParts, 2)) > UCase$(GetPartValue(rightParts, 2)))
+    Else
+        ShouldSwapColumnKey = False
+    End If
+
+End Function
+
+Private Function GetPartValue(ByRef parts() As String, ByVal index As Long) As String
+
+    If index <= UBound(parts) Then
+        GetPartValue = parts(index)
+    Else
+        GetPartValue = ""
+    End If
+
+End Function
+
+Private Function CompareGroupLabel(ByVal leftLabel As String, ByVal rightLabel As String) As Long
+
+    CompareGroupLabel = GroupPriorityFromLabel(leftLabel) - GroupPriorityFromLabel(rightLabel)
+
+End Function
+
+Private Function GroupPriorityFromLabel(ByVal groupLabel As String) As Long
+
+    Select Case UCase$(Trim$(groupLabel))
+        Case UCase$(GROUP_PUBLIC_LABEL)
+            GroupPriorityFromLabel = GROUP_PUBLIC
+        Case UCase$(GROUP_REVENUE_LABEL)
+            GroupPriorityFromLabel = GROUP_REVENUE
+        Case Else
+            GroupPriorityFromLabel = GROUP_CORPORATE
+    End Select
+
+End Function
+
+Private Function CompareAccountCategoryByGroup(ByVal leftCategory As String, ByVal rightCategory As String, ByVal groupLabel As String) As Long
+
+    Dim leftShared As Boolean
+    Dim rightShared As Boolean
+    Dim leftNumber As Long
+    Dim rightNumber As Long
+
+    leftShared = (InStr(leftCategory, "共") > 0)
+    rightShared = (InStr(rightCategory, "共") > 0)
+
+    If leftShared Xor rightShared Then
+        If leftShared Then
+            CompareAccountCategoryByGroup = 1
+        Else
+            CompareAccountCategoryByGroup = -1
+        End If
+        Exit Function
+    End If
+
+    leftNumber = ExtractCategoryNumber(leftCategory)
+    rightNumber = ExtractCategoryNumber(rightCategory)
+
+    If leftNumber <> rightNumber Then
+        CompareAccountCategoryByGroup = leftNumber - rightNumber
+    Else
+        CompareAccountCategoryByGroup = StrComp(UCase$(leftCategory), UCase$(rightCategory), vbTextCompare)
+    End If
+
+End Function
+
+Private Function ExtractCategoryNumber(ByVal categoryName As String) As Long
+
+    Dim i As Long
+    Dim ch As String
+    Dim digits As String
+
+    If InStr(categoryName, "共") > 0 Then
+        ExtractCategoryNumber = 999
+        Exit Function
+    End If
+
+    digits = ""
+    For i = 1 To Len(categoryName)
+        ch = Mid$(categoryName, i, 1)
+        If ch >= "0" And ch <= "9" Then
+            digits = digits & ch
+        End If
+    Next
+
+    If digits = "" Then
+        ExtractCategoryNumber = 0
+    Else
+        ExtractCategoryNumber = CLng(digits)
+    End If
 
 End Function
 
