@@ -10,27 +10,33 @@ Attribute VB_Exposed = False
 Option Explicit
 
 '****************************************
-'*      ’è”’è‹`                        *
+'*      å®šæ•°å®šç¾©                        *
 '****************************************
-Private Const MaxColumn As Long = 5                             'o—Í‚·‚éÅ‘å—ñiE—ñ‚Ü‚Åj
-Private Const START_ROW As Long = 2                             'ƒwƒbƒ_[ŠJns
-Private Const MASTER_SHEET_NAME As String = "à–±”•\ƒ}ƒXƒ^"    'ƒ}ƒXƒ^ƒV[ƒg–¼
+Private Const MaxColumn As Long = 5                             'å‡ºåŠ›ã™ã‚‹æœ€å¤§åˆ—ï¼ˆEåˆ—ã¾ã§ï¼‰
+Private Const START_ROW As Long = 2                             'ãƒ˜ãƒƒãƒ€ãƒ¼é–‹å§‹è¡Œ
+Private Const MASTER_SHEET_NAME As String = "è²¡å‹™è«¸è¡¨ãƒã‚¹ã‚¿"    'ãƒã‚¹ã‚¿ã‚·ãƒ¼ãƒˆå
 Private Const CATEGORY_EACH_ACCOUNT_SUM As String = "EACH_ACCOUNT_SUM"
 Private Const CATEGORY_EACH_ACCOUNT As String = "EACH_ACCOUNT"
 Private Const CATEGORY_EACH_PROJECT As String = "EACH_PROJECT"
 Private Const CATEGORY_EACH_FUND As String = "EACH_FUND"
+Private Const GROUP_PUBLIC As Long = 1
+Private Const GROUP_REVENUE As Long = 2
+Private Const GROUP_CORPORATE As Long = 3
+Private Const GROUP_PUBLIC_LABEL As String = "å…¬ç›Šç›®çš„äº‹æ¥­ä¼šè¨ˆ"
+Private Const GROUP_REVENUE_LABEL As String = "åç›Šäº‹æ¥­ä¼šè¨ˆ"
+Private Const GROUP_CORPORATE_LABEL As String = "æ³•äººä¼šè¨ˆ"
 
 '****************************************
-'*      ƒƒ“ƒo[•Ï”                    *
+'*      ãƒ¡ãƒ³ãƒãƒ¼å¤‰æ•°                    *
 '****************************************
-Private m_Master As FinancialStatementMaster                    'à–±”•\ƒ}ƒXƒ^ƒNƒ‰ƒX
+Private m_Master As FinancialStatementMaster                    'è²¡å‹™è«¸è¡¨ãƒã‚¹ã‚¿ã‚¯ãƒ©ã‚¹
 Private m_ColumnKeysByCategory As Object
 
 '==============================================================================
-'       ‰Šú‰»ˆ—
+'       åˆæœŸåŒ–å‡¦ç†
 '------------------------------------------------------------------------------
 '   Contents:
-'       ƒNƒ‰ƒX¶¬‚Éà–±”•\ƒ}ƒXƒ^ƒNƒ‰ƒX‚ğ‰Šú‰»‚·‚é
+'       ã‚¯ãƒ©ã‚¹ç”Ÿæˆæ™‚ã«è²¡å‹™è«¸è¡¨ãƒã‚¹ã‚¿ã‚¯ãƒ©ã‚¹ã‚’åˆæœŸåŒ–ã™ã‚‹
 '
 '==============================================================================
 Private Sub Class_Initialize()
@@ -39,18 +45,18 @@ Private Sub Class_Initialize()
 End Sub
 
 '==============================================================================
-'       ƒL[¶¬
+'       ã‚­ãƒ¼ç”Ÿæˆ
 '------------------------------------------------------------------------------
 '   Contents:
-'       lineID ‚Æ ‰ïŒv‹æ•ª(category) ‚ğŒ³‚ÉDictionary—pƒL[‚ğ¶¬‚·‚é
-'       category‚ª‹ó‚Ìê‡‚Í "*"i‘S‘Ìj‚Æ‚µ‚Äˆµ‚¤
+'       lineID ã¨ ä¼šè¨ˆåŒºåˆ†(category) ã‚’å…ƒã«Dictionaryç”¨ã‚­ãƒ¼ã‚’ç”Ÿæˆã™ã‚‹
+'       categoryãŒç©ºã®å ´åˆã¯ "*"ï¼ˆå…¨ä½“ï¼‰ã¨ã—ã¦æ‰±ã†
 '
 '   Input:
-'       lineID     à–±”•\sID
-'       category   ‰ïŒv‹æ•ª
+'       lineID     è²¡å‹™è«¸è¡¨è¡ŒID
+'       category   ä¼šè¨ˆåŒºåˆ†
 '
 '   Output:
-'       DictionaryƒL[•¶š—ñ
+'       Dictionaryã‚­ãƒ¼æ–‡å­—åˆ—
 '
 '==============================================================================
 Private Function BuildKey(ByVal lineID As String, ByVal category As String) As String
@@ -59,18 +65,18 @@ Private Function BuildKey(ByVal lineID As String, ByVal category As String) As S
 End Function
 
 '==============================================================================
-'       à–±”•\‚Ì¶¬`o—Í
+'       è²¡å‹™è«¸è¡¨ã®ç”Ÿæˆï½å‡ºåŠ›
 '------------------------------------------------------------------------------
 '   Contents:
-'       Eƒ}ƒXƒ^“Ç
-'       EZ•\¨à–±”•\—pƒf[ƒ^•ÏŠ·
-'       Eƒ‘Yƒf[ƒ^’Ç‰Á
-'       EWŒvˆ—i2’iŠKj
-'       EŒvZ®‰ğŒˆ
-'       EExcel‚Öo—Í
+'       ãƒ»ãƒã‚¹ã‚¿èª­è¾¼
+'       ãƒ»è©¦ç®—è¡¨â†’è²¡å‹™è«¸è¡¨ç”¨ãƒ‡ãƒ¼ã‚¿å¤‰æ›
+'       ãƒ»ç´”è³‡ç”£ãƒ‡ãƒ¼ã‚¿è¿½åŠ 
+'       ãƒ»é›†è¨ˆå‡¦ç†ï¼ˆ2æ®µéšï¼‰
+'       ãƒ»è¨ˆç®—å¼è§£æ±º
+'       ãƒ»Excelã¸å‡ºåŠ›
 '
 '   Input:
-'       tbEngine        Z•\ƒNƒ‰ƒX
+'       tbEngine        è©¦ç®—è¡¨ã‚¯ãƒ©ã‚¹
 '
 '==============================================================================
 Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
@@ -82,46 +88,46 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
     Dim wsMaster As Worksheet
     Set wsMaster = ThisWorkbook.Worksheets(MASTER_SHEET_NAME)
     
-    'ƒ}ƒXƒ^“Ç
+    'ãƒã‚¹ã‚¿èª­è¾¼
     Call m_Master.LoadFromWorksheet(wsMaster)
 
-    '‰ïŒv‹æ•ªE•â•‰È–Ú’Šo
+    'ä¼šè¨ˆåŒºåˆ†ãƒ»è£œåŠ©ç§‘ç›®æŠ½å‡º
     Call BuildColumnKeysByCategory(tbEngine.SubTrialBalance)
     
-    'Z•\¨à–±”•\ƒ}ƒbƒv¶¬
+    'è©¦ç®—è¡¨â†’è²¡å‹™è«¸è¡¨ãƒãƒƒãƒ—ç”Ÿæˆ
     Set thisAmounts = BuildStatementAmountMap(tbEngine.SubTrialBalance)
     Set lastAmounts = BuildStatementAmountMap(tbEngine.LastSubTrialBalance)
     
-    'ƒ‘Yƒf[ƒ^’Ç‰Á
+    'ç´”è³‡ç”£ãƒ‡ãƒ¼ã‚¿è¿½åŠ 
     Call AddNetAssetAmounts(thisAmounts, tbEngine, False)
     Call AddNetAssetAmounts(lastAmounts, tbEngine, True)
 
-    '‡@ Š¨’è‰È–Ú‚ÌWŒv
+    'â‘  å‹˜å®šç§‘ç›®ã®é›†è¨ˆ
     Call RollupAggregateTo(thisAmounts, False)
     Call RollupAggregateTo(lastAmounts, False)
 
-    '‡A ŒvZ®‚Ì‰ğŒˆ
+    'â‘¡ è¨ˆç®—å¼ã®è§£æ±º
     Call ResolveFormulaAmounts(thisAmounts)
     Call ResolveFormulaAmounts(lastAmounts)
 
-    '‡B ŒvZ®‚ğŠÜ‚ß‚½WŒv
+    'â‘¢ è¨ˆç®—å¼ã‚’å«ã‚ãŸé›†è¨ˆ
     Call RollupAggregateTo(thisAmounts, True)
     Call RollupAggregateTo(lastAmounts, True)
         
-    'o—Í
+    'å‡ºåŠ›
     Call OutputAll(thisAmounts, lastAmounts)
 
 End Sub
 
 '==============================================================================
-'       Z•\ ¨ à–±”•\‹àŠzƒ}ƒbƒv¶¬
+'       è©¦ç®—è¡¨ â†’ è²¡å‹™è«¸è¡¨é‡‘é¡ãƒãƒƒãƒ—ç”Ÿæˆ
 '------------------------------------------------------------------------------
 '   Contents:
-'       Z•\‚ÌŠes‚ğà–±”•\ƒ}ƒXƒ^‚ÌFS_ID‚Öƒ}ƒbƒsƒ“ƒO‚µA
-'       Dictionary(lineID|category ¨ ‹àŠz)‚ğ¶¬‚·‚é
+'       è©¦ç®—è¡¨ã®å„è¡Œã‚’è²¡å‹™è«¸è¡¨ãƒã‚¹ã‚¿ã®FS_IDã¸ãƒãƒƒãƒ”ãƒ³ã‚°ã—ã€
+'       Dictionary(lineID|category â†’ é‡‘é¡)ã‚’ç”Ÿæˆã™ã‚‹
 '
 '   Input:
-'       tb      Z•\
+'       tb      è©¦ç®—è¡¨
 '
 '   Output:
 '       Dictionary
@@ -144,14 +150,14 @@ Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
         amount = line.amount()
         mapped = False
 
-        'Š¨’è‰È–Ú‚É•R‚Ã‚­FS_ID‚ğ•ª‰ğ
+        'å‹˜å®šç§‘ç›®ã«ç´ã¥ãFS_IDã‚’åˆ†è§£
         If Trim$(line.account.fsLineIDs) <> "" Then
             lineIDs = Split(line.account.fsLineIDs, ";")
             For i = LBound(lineIDs) To UBound(lineIDs)
                 lineID = UCase$(Trim$(CStr(lineIDs(i))))
                 If lineID <> "" Then
                     
-                    'ƒ}ƒXƒ^‘¶İƒ`ƒFƒbƒN
+                    'ãƒã‚¹ã‚¿å­˜åœ¨ãƒã‚§ãƒƒã‚¯
                     If Not ExistsLineID(lineID) Then
                         Err.Raise vbObjectError + 7001, _
                             "BuildStatementAmountMap", _
@@ -161,9 +167,9 @@ Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
                     mapped = True
                     If amount <> 0 Then
                         accountingCategory = UCase$(Trim$(line.SubAccountCate))
-                        '‘S‘Ì(*)‚Ö‚Ì‰ÁZ
+                        'å…¨ä½“(*)ã¸ã®åŠ ç®—
                         Call AddAmountToMap(result, lineID, "*", amount)
-                        '‹æ•ª•Ê‰ÁZ
+                        'åŒºåˆ†åˆ¥åŠ ç®—
                         If accountingCategory <> "" Then
                             Call AddAmountToMap(result, lineID, accountingCategory, amount)
                         End If
@@ -172,7 +178,7 @@ Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
             Next i
         End If
 
-        '–¢ƒ}ƒbƒsƒ“ƒOƒGƒ‰[
+        'æœªãƒãƒƒãƒ”ãƒ³ã‚°ã‚¨ãƒ©ãƒ¼
         If Not mapped Then
             Err.Raise vbObjectError + 7002, _
                 "BuildStatementAmountMap", _
@@ -185,10 +191,10 @@ Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
 End Function
 
 '==============================================================================
-'       FS_ID‘¶İƒ`ƒFƒbƒN
+'       FS_IDå­˜åœ¨ãƒã‚§ãƒƒã‚¯
 '------------------------------------------------------------------------------
 '   Contents:
-'       w’è‚³‚ê‚½lineID‚ªƒ}ƒXƒ^‚É‘¶İ‚·‚é‚©Šm”F‚·‚é
+'       æŒ‡å®šã•ã‚ŒãŸlineIDãŒãƒã‚¹ã‚¿ã«å­˜åœ¨ã™ã‚‹ã‹ç¢ºèªã™ã‚‹
 '
 '==============================================================================
 Private Function ExistsLineID(ByVal lineID As String) As Boolean
@@ -210,10 +216,10 @@ Private Function ExistsLineID(ByVal lineID As String) As Boolean
 End Function
 
 '==============================================================================
-'       ‹àŠz‰ÁZˆ—
+'       é‡‘é¡åŠ ç®—å‡¦ç†
 '------------------------------------------------------------------------------
 '   Contents:
-'       Dictionary‚É‘Î‚µ‚ÄƒL[’PˆÊ‚Å‹àŠz‚ğ‰ÁZ‚·‚é
+'       Dictionaryã«å¯¾ã—ã¦ã‚­ãƒ¼å˜ä½ã§é‡‘é¡ã‚’åŠ ç®—ã™ã‚‹
 '
 '==============================================================================
 Private Sub AddAmountToMap( _
@@ -235,20 +241,20 @@ Private Sub AddAmountToMap( _
 End Sub
 
 '==============================================================================
-'       ƒ‘YiŠúñEŠú––E‘Œ¸j‚Ìƒ}ƒbƒv’Ç‰Á
+'       ç´”è³‡ç”£ï¼ˆæœŸé¦–ãƒ»æœŸæœ«ãƒ»å¢—æ¸›ï¼‰ã®ãƒãƒƒãƒ—è¿½åŠ 
 '------------------------------------------------------------------------------
 '   Contents:
-'       E‘İØ‘ÎÆ•\—piŠú––j
-'       E’‹L—piŠúñE‘Œ¸j
-'       ‚Ì—¼•û‚Åg‚¦‚é‚æ‚¤‚ÉAƒ‘Y‚ğƒtƒ‹ƒZƒbƒg‚Å“Š“ü‚·‚é
+'       ãƒ»è²¸å€Ÿå¯¾ç…§è¡¨ç”¨ï¼ˆæœŸæœ«ï¼‰
+'       ãƒ»æ³¨è¨˜ç”¨ï¼ˆæœŸé¦–ãƒ»å¢—æ¸›ï¼‰
+'       ã®ä¸¡æ–¹ã§ä½¿ãˆã‚‹ã‚ˆã†ã«ã€ç´”è³‡ç”£ã‚’ãƒ•ãƒ«ã‚»ãƒƒãƒˆã§æŠ•å…¥ã™ã‚‹
 '
-'       TrialBalanceEngine ‚ª•Û‚·‚éƒ‘Yî•ñ‚ğA
-'       à–±”•\ƒ}ƒXƒ^‚Ìw’èID‚Ö’¼Úƒ}ƒbƒsƒ“ƒO‚·‚é
+'       TrialBalanceEngine ãŒä¿æŒã™ã‚‹ç´”è³‡ç”£æƒ…å ±ã‚’ã€
+'       è²¡å‹™è«¸è¡¨ãƒã‚¹ã‚¿ã®æŒ‡å®šIDã¸ç›´æ¥ãƒãƒƒãƒ”ãƒ³ã‚°ã™ã‚‹
 '
 '   Input:
-'       accountMap     o—Í—pDictionaryilineID|category ¨ ‹àŠzj
-'       tbEngine       Z•\ƒGƒ“ƒWƒ“
-'       isLastYear     ‘O”Nƒf[ƒ^‚©‚Ç‚¤‚©
+'       accountMap     å‡ºåŠ›ç”¨Dictionaryï¼ˆlineID|category â†’ é‡‘é¡ï¼‰
+'       tbEngine       è©¦ç®—è¡¨ã‚¨ãƒ³ã‚¸ãƒ³
+'       isLastYear     å‰å¹´ãƒ‡ãƒ¼ã‚¿ã‹ã©ã†ã‹
 '
 '==============================================================================
 Private Sub AddNetAssetAmounts( _
@@ -259,14 +265,14 @@ Private Sub AddNetAssetAmounts( _
     If isLastYear Then
 
         '==============================
-        ' ˆê”Êƒ‘Y
+        ' ä¸€èˆ¬ç´”è³‡ç”£
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_GENERAL_BEGIN", "*", tbEngine.LastGeneralNetBegin)
         Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "*", tbEngine.LastGeneralNetEnd)
         Call AddAmountToMap(accountMap, "BS_NET_GENERAL_DIFF", "*", tbEngine.LastGeneralNetChange)
 
         '==============================
-        ' w’èƒ‘Y
+        ' æŒ‡å®šç´”è³‡ç”£
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_DESIG_BEGIN", "*", tbEngine.LastDesignatedNetBegin)
         Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "*", tbEngine.LastDesignatedNetEnd)
@@ -275,14 +281,14 @@ Private Sub AddNetAssetAmounts( _
     Else
 
         '==============================
-        ' ˆê”Êƒ‘Y
+        ' ä¸€èˆ¬ç´”è³‡ç”£
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_GENERAL_BEGIN", "*", tbEngine.GeneralNetAssetBegin)
         Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "*", tbEngine.GeneralNetAssetEnd)
         Call AddAmountToMap(accountMap, "BS_NET_GENERAL_DIFF", "*", tbEngine.GeneralNetAssetChange)
 
         '==============================
-        ' w’èƒ‘Y
+        ' æŒ‡å®šç´”è³‡ç”£
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_DESIG_BEGIN", "*", tbEngine.DesignatedNetAssetBegin)
         Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "*", tbEngine.DesignatedNetAssetEnd)
@@ -293,17 +299,17 @@ Private Sub AddNetAssetAmounts( _
 End Sub
 
 '==============================================================================
-'       à–±”•\o—Í
+'       è²¡å‹™è«¸è¡¨å‡ºåŠ›
 '------------------------------------------------------------------------------
 '   Contents:
-'       à–±”•\ƒ}ƒXƒ^‚Ì’è‹`‡‚É]‚¢AŠeƒV[ƒg‚Öo—Í‚·‚é
-'       E“–Šú^‘OŠú^‘Œ¸‚ğZo
-'       E•\¦‰Â”Û”»’è
-'       EŒrü^ƒ[ƒuƒ‰‘•ü
+'       è²¡å‹™è«¸è¡¨ãƒã‚¹ã‚¿ã®å®šç¾©é †ã«å¾“ã„ã€å„ã‚·ãƒ¼ãƒˆã¸å‡ºåŠ›ã™ã‚‹
+'       ãƒ»å½“æœŸï¼å‰æœŸï¼å¢—æ¸›ã‚’ç®—å‡º
+'       ãƒ»è¡¨ç¤ºå¯å¦åˆ¤å®š
+'       ãƒ»ç½«ç·šï¼ã‚¼ãƒ–ãƒ©è£…é£¾
 '
 '   Input:
-'       thisAmounts    “–Šú‹àŠzƒ}ƒbƒv
-'       lastAmounts    ‘OŠú‹àŠzƒ}ƒbƒv
+'       thisAmounts    å½“æœŸé‡‘é¡ãƒãƒƒãƒ—
+'       lastAmounts    å‰æœŸé‡‘é¡ãƒãƒƒãƒ—
 '
 '==============================================================================
 Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
@@ -314,25 +320,25 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
     Dim vLast As Currency
     Dim vDiff As Currency
 
-    'ƒV[ƒg–ˆ‚Ìo—ÍsŠÇ—iSheetName ¨ Ÿsj
+    'ã‚·ãƒ¼ãƒˆæ¯ã®å‡ºåŠ›è¡Œç®¡ç†ï¼ˆSheetName â†’ æ¬¡è¡Œï¼‰
     Dim nextRowBySheet As Object
     Set nextRowBySheet = CreateObject("Scripting.Dictionary")
 
-    'ƒV[ƒg‰Šú‰»
+    'ã‚·ãƒ¼ãƒˆåˆæœŸåŒ–
     Call InitializeOutputSheets(nextRowBySheet)
 
-    'ƒ}ƒXƒ^‡‚Éo—Í
+    'ãƒã‚¹ã‚¿é †ã«å‡ºåŠ›
     For Each line In m_Master.Lines
     
         If line.enabled Then
     
-            '‹àŠzæ“¾
+            'é‡‘é¡å–å¾—
             vThis = GetAmountByLine(thisAmounts, line)
             vLast = GetAmountByLine(lastAmounts, line)
             vDiff = vThis - vLast
             
             '------------------------------------------
-            ' ƒV[ƒgo—Í
+            ' ã‚·ãƒ¼ãƒˆå‡ºåŠ›
             '------------------------------------------
             Dim ws As Worksheet
             Set ws = ThisWorkbook.Worksheets(line.TargetSheet)
@@ -341,23 +347,23 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
             Dim y_inc As Long
             y = CLng(nextRowBySheet(ws.Name))
             
-            'ƒwƒbƒ_[o—ÍH
+            'ãƒ˜ãƒƒãƒ€ãƒ¼å‡ºåŠ›ï¼Ÿ
             y_inc = TryOutputSpecialLine(ws, y, line)
             If y_inc <> 0 Then
                 nextRowBySheet(ws.Name) = y + y_inc
                 GoTo ContinueLineLoop
             End If
             
-            '‰È–Ú–¼o—Í
+            'ç§‘ç›®åå‡ºåŠ›
             ws.Cells(y, 2) = line.LineLabel
             ws.Cells(y, 2).HorizontalAlignment = line.LineLabelAligh
     
             '------------------------------------------
-            ' •\¦§Œä
+            ' è¡¨ç¤ºåˆ¶å¾¡
             '------------------------------------------
             If Not ShouldSkipOutputLine(line, vThis, vLast) Then
                 
-                'ƒ^ƒCƒgƒ‹s‚Í‹àŠz‚ğ•\¦‚µ‚È‚¢
+                'ã‚¿ã‚¤ãƒˆãƒ«è¡Œã¯é‡‘é¡ã‚’è¡¨ç¤ºã—ãªã„
                 If line.lineType = "TITLE" Then
                     ws.Cells(y, 3).value = ""
                     ws.Cells(y, 4).value = ""
@@ -369,17 +375,17 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
                 End If
                                     
                 '------------------------------------------
-                ' Œ©‚½–Ú’²®
+                ' è¦‹ãŸç›®èª¿æ•´
                 '------------------------------------------
-                '‰¡Œrüi’ •ëŒ`®j
+                'æ¨ªç½«ç·šï¼ˆå¸³ç°¿å½¢å¼ï¼‰
                 ws.Range(ws.Cells(y, 2), ws.Cells(y, MaxColumn)).Borders(xlEdgeBottom).LineStyle = xlContinuous
     
-                'ƒ[ƒuƒ‰i‹ô”sj
+                'ã‚¼ãƒ–ãƒ©ï¼ˆå¶æ•°è¡Œï¼‰
                 If y Mod 2 = 0 Then
                     ws.Range(ws.Cells(y, 2), ws.Cells(y, MaxColumn)).Interior.Color = rgbAliceBlue
                 End If
 
-                'Ÿs‚Ö
+                'æ¬¡è¡Œã¸
                 nextRowBySheet(ws.Name) = y + 1
             End If
         End If
@@ -389,12 +395,12 @@ ContinueLineLoop:
 End Sub
 
 '==============================================================================
-'       o—ÍƒV[ƒg‰Šú‰»
+'       å‡ºåŠ›ã‚·ãƒ¼ãƒˆåˆæœŸåŒ–
 '------------------------------------------------------------------------------
 '   Contents:
-'       E‘ÎÛƒV[ƒg‚ÌƒNƒŠƒA
-'       Eƒwƒbƒ_[İ’è
-'       EƒV[ƒg–ˆ‚Ìo—ÍŠJns‚ğ‰Šú‰»
+'       ãƒ»å¯¾è±¡ã‚·ãƒ¼ãƒˆã®ã‚¯ãƒªã‚¢
+'       ãƒ»ãƒ˜ãƒƒãƒ€ãƒ¼è¨­å®š
+'       ãƒ»ã‚·ãƒ¼ãƒˆæ¯ã®å‡ºåŠ›é–‹å§‹è¡Œã‚’åˆæœŸåŒ–
 '
 '==============================================================================
 Private Sub InitializeOutputSheets(ByVal nextRowBySheet As Object)
@@ -405,15 +411,15 @@ Private Sub InitializeOutputSheets(ByVal nextRowBySheet As Object)
     For Each line In m_Master.Lines
         If line.enabled Then
             
-            'ƒV[ƒg’PˆÊ‚Åˆê“x‚¾‚¯‰Šú‰»
+            'ã‚·ãƒ¼ãƒˆå˜ä½ã§ä¸€åº¦ã ã‘åˆæœŸåŒ–
             If Not nextRowBySheet.Exists(line.TargetSheet) Then
             
                 Set ws = ThisWorkbook.Worksheets(line.TargetSheet)
                 
-                'o—ÍŠJnsİ’è
+                'å‡ºåŠ›é–‹å§‹è¡Œè¨­å®š
                 nextRowBySheet.Add line.TargetSheet, START_ROW + 1
                 
-                'Šù‘¶ƒf[ƒ^ƒNƒŠƒA
+                'æ—¢å­˜ãƒ‡ãƒ¼ã‚¿ã‚¯ãƒªã‚¢
                 Call ClearSheet(ws, START_ROW)
                 
             End If
@@ -423,12 +429,12 @@ Private Sub InitializeOutputSheets(ByVal nextRowBySheet As Object)
 End Sub
 
 '==============================================================================
-'       ƒwƒbƒ_[İ’è
+'       ãƒ˜ãƒƒãƒ€ãƒ¼è¨­å®š
 '------------------------------------------------------------------------------
 '   Contents:
-'       E—ñŒ©o‚µi‰È–Ú^“–Šú^‘OŠú^‘Œ¸j
-'       E”’lƒtƒH[ƒ}ƒbƒg
-'       EŒrü^”wŒiF
+'       ãƒ»åˆ—è¦‹å‡ºã—ï¼ˆç§‘ç›®ï¼å½“æœŸï¼å‰æœŸï¼å¢—æ¸›ï¼‰
+'       ãƒ»æ•°å€¤ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆ
+'       ãƒ»ç½«ç·šï¼èƒŒæ™¯è‰²
 '
 '==============================================================================
 Private Function TryOutputSpecialLine(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
@@ -452,29 +458,29 @@ Private Function TryOutputSpecialLine(ByVal ws As Worksheet, ByVal y As Long, By
 End Function
 
 '==============================================================================
-'       ‘İØ‘ÎÆ•\ • Šˆ“®ŒvZ‘    ‹¤’Êƒwƒbƒ_[
+'       è²¸å€Ÿå¯¾ç…§è¡¨ ï¼† æ´»å‹•è¨ˆç®—æ›¸    å…±é€šãƒ˜ãƒƒãƒ€ãƒ¼
 '------------------------------------------------------------------------------
 Private Function OutputHeaderMain(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
 
     With ws
 
         '========================
-        ' 1s–ÚFƒ^ƒCƒgƒ‹
+        ' 1è¡Œç›®ï¼šã‚¿ã‚¤ãƒˆãƒ«
         '========================
-        .Cells(y, 2).value = thisYear & "”N“x " & line.LineLabel
+        .Cells(y, 2).value = thisYear & "å¹´åº¦ " & line.LineLabel
         .Range(.Cells(y, 2), .Cells(y, MaxColumn)).Merge
     
         With .Cells(y, 2).Font
             .Name = "Meiryo UI"
             .Size = 20
-            .Bold = True                 '‘¾š
-            .Underline = xlUnderlineStyleSingle   '‰ºü
+            .Bold = True                 'å¤ªå­—
+            .Underline = xlUnderlineStyleSingle   'ä¸‹ç·š
         End With
     
         .Cells(y, 2).HorizontalAlignment = xlCenter
     
         '========================
-        ' 2s–ÚFŠúŠÔ
+        ' 2è¡Œç›®ï¼šæœŸé–“
         '========================
         If UCase$(Trim$(line.statementID)) = "BS" Then
             .Cells(y + 1, 2).value = str_end_date
@@ -492,13 +498,13 @@ Private Function OutputHeaderMain(ByVal ws As Worksheet, ByVal y As Long, ByVal 
         .Cells(y + 1, 2).HorizontalAlignment = xlCenter
     
         '========================
-        ' 3s–ÚF’PˆÊ
+        ' 3è¡Œç›®ï¼šå˜ä½
         '========================
-        .Cells(y + 2, MaxColumn).value = "i’PˆÊF‰~j"
+        .Cells(y + 2, MaxColumn).value = "ï¼ˆå˜ä½ï¼šå††ï¼‰"
         .Cells(y + 2, MaxColumn).HorizontalAlignment = xlRight
     
         '========================
-        ' 4s–ÚFƒwƒbƒ_
+        ' 4è¡Œç›®ï¼šãƒ˜ãƒƒãƒ€
         '========================
         Call SetupSheetHeader(ws, line.statementID, y + 3, MaxColumn)
 
@@ -509,29 +515,29 @@ Private Function OutputHeaderMain(ByVal ws As Worksheet, ByVal y As Long, ByVal 
 End Function
 
 '==============================================================================
-'       ƒV[ƒgƒwƒbƒ_[İ’è
+'       ã‚·ãƒ¼ãƒˆãƒ˜ãƒƒãƒ€ãƒ¼è¨­å®š
 '------------------------------------------------------------------------------
 '   Contents:
-'       E—ñŒ©o‚µi‰È–Ú^“–Šú^‘OŠú^‘Œ¸j
-'       E”’lƒtƒH[ƒ}ƒbƒg
-'       EŒrü^”wŒiF
+'       ãƒ»åˆ—è¦‹å‡ºã—ï¼ˆç§‘ç›®ï¼å½“æœŸï¼å‰æœŸï¼å¢—æ¸›ï¼‰
+'       ãƒ»æ•°å€¤ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆ
+'       ãƒ»ç½«ç·šï¼èƒŒæ™¯è‰²
 '
 '==============================================================================
 Private Sub SetupSheetHeader(ByVal ws As Worksheet, ByVal statementID As String, Optional ByVal headerRow As Long = START_ROW, Optional ByVal maxCol As Long = MaxColumn)
 
     With ws
 
-        '”’lƒtƒH[ƒ}ƒbƒgi¢•\¦j
-        .Range("C:E").NumberFormat = "_ * #,##0_ ;_ * ¢#,##0_ ;_ * ""-""??_ ;_ @_ "
+        'æ•°å€¤ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆï¼ˆâ–³è¡¨ç¤ºï¼‰
+        .Range("C:E").NumberFormat = "_ * #,##0_ ;_ * â–³#,##0_ ;_ * ""-""??_ ;_ @_ "
         .Range("C:E").HorizontalAlignment = xlRight
     
-        'ƒwƒbƒ_[€–Ú
-        .Cells(headerRow, 2) = "‰È–Ú"
-        .Cells(headerRow, 3) = "“–Šú"
-        .Cells(headerRow, 4) = "‘OŠú"
-        .Cells(headerRow, 5) = "‘Œ¸"
+        'ãƒ˜ãƒƒãƒ€ãƒ¼é …ç›®
+        .Cells(headerRow, 2) = "ç§‘ç›®"
+        .Cells(headerRow, 3) = "å½“æœŸ"
+        .Cells(headerRow, 4) = "å‰æœŸ"
+        .Cells(headerRow, 5) = "å¢—æ¸›"
     
-        'ƒwƒbƒ_[‘•ü
+        'ãƒ˜ãƒƒãƒ€ãƒ¼è£…é£¾
         With .Range(.Cells(headerRow, 2), .Cells(headerRow, maxCol))
             .HorizontalAlignment = xlCenter
             .VerticalAlignment = xlCenter
@@ -548,7 +554,7 @@ Private Sub SetupSheetHeader(ByVal ws As Worksheet, ByVal statementID As String,
 End Sub
 
 '==============================================================================
-'       Šˆ“®ŒvZ‘‚Ì’‹L    i1jŠˆ“®ŒvZ‘àŒ¹‹æ•ª•Ê“à–ó
+'       æ´»å‹•è¨ˆç®—æ›¸ã®æ³¨è¨˜    ï¼ˆ1ï¼‰æ´»å‹•è¨ˆç®—æ›¸è²¡æºåŒºåˆ†åˆ¥å†…è¨³
 '------------------------------------------------------------------------------
 Private Function OutputNotePLFundHeader(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
 
@@ -562,7 +568,7 @@ Private Function OutputNotePLFundHeader(ByVal ws As Worksheet, ByVal y As Long, 
     With ws
     
         '========================
-        ' ‚Ps–ÚF  ’‹Lƒ^ƒCƒgƒ‹
+        ' ï¼‘è¡Œç›®ï¼š  æ³¨è¨˜ã‚¿ã‚¤ãƒˆãƒ«
         '========================
         .Cells(y + y_inc, 2).value = line.LineLabel
         With .Cells(y + y_inc, 2).Font
@@ -571,22 +577,22 @@ Private Function OutputNotePLFundHeader(ByVal ws As Worksheet, ByVal y As Long, 
         End With
         
         '========================
-        ' ‚Qs–ÚF  ’PˆÊ
+        ' ï¼’è¡Œç›®ï¼š  å˜ä½
         '========================
-        .Cells(y + y_inc, x_size).value = "i’PˆÊF‰~j"
+        .Cells(y + y_inc, x_size).value = "ï¼ˆå˜ä½ï¼šå††ï¼‰"
         .Cells(y + y_inc, x_size).HorizontalAlignment = xlRight
         y_inc = y_inc + 1
         
         '========================
-        ' ‚Rs–ÚF  ƒwƒbƒ_iàŒ¹‹æ•ªj
+        ' ï¼“è¡Œç›®ï¼š  ãƒ˜ãƒƒãƒ€ï¼ˆè²¡æºåŒºåˆ†ï¼‰
         '========================
         headerRow = y + y_inc
-        .Cells(y + y_inc, 2).value = "‰È–Ú"
-        .Cells(y + y_inc, 3).value = "ˆê”Ê"
-        .Cells(y + y_inc, 4).value = "w’è"
-        .Cells(y + y_inc, 5).value = "‡Œv"
+        .Cells(y + y_inc, 2).value = "ç§‘ç›®"
+        .Cells(y + y_inc, 3).value = "ä¸€èˆ¬"
+        .Cells(y + y_inc, 4).value = "æŒ‡å®š"
+        .Cells(y + y_inc, 5).value = "åˆè¨ˆ"
 
-        'ƒwƒbƒ_[‘•ü
+        'ãƒ˜ãƒƒãƒ€ãƒ¼è£…é£¾
         Call ApplyHeaderStyle(ws, headerRow, headerRow, 2, x_size)
         
         y_inc = y_inc + 1
@@ -598,7 +604,7 @@ Private Function OutputNotePLFundHeader(ByVal ws As Worksheet, ByVal y As Long, 
 End Function
 
 '==============================================================================
-'       Šˆ“®ŒvZ‘‚Ì’‹L    i2jŠˆ“®ŒvZ‘‰ïŒv‹æ•ª‹y‚Ñ–‹Æ‹æ•ª•Ê“à–ó
+'       æ´»å‹•è¨ˆç®—æ›¸ã®æ³¨è¨˜    ï¼ˆ2ï¼‰æ´»å‹•è¨ˆç®—æ›¸ä¼šè¨ˆåŒºåˆ†åŠã³äº‹æ¥­åŒºåˆ†åˆ¥å†…è¨³
 '------------------------------------------------------------------------------
 Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
 
@@ -623,7 +629,7 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
     With ws
 
         '========================
-        ' ‚Ps–ÚF  ’‹Lƒ^ƒCƒgƒ‹
+        ' ï¼‘è¡Œç›®ï¼š  æ³¨è¨˜ã‚¿ã‚¤ãƒˆãƒ«
         '========================
         .Cells(y + y_inc, 2).value = line.LineLabel
         With .Cells(y + y_inc, 2).Font
@@ -633,19 +639,19 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
         y_inc = y_inc + 1
         
         '========================
-        ' ‚Qs–ÚF  ’PˆÊ
+        ' ï¼’è¡Œç›®ï¼š  å˜ä½
         '========================
-        .Cells(y + y_inc, 3 + columns.Count + 1).value = "i’PˆÊF‰~j"
+        .Cells(y + y_inc, 3 + columns.Count + 1).value = "ï¼ˆå˜ä½ï¼šå††ï¼‰"
         .Cells(y + y_inc, 3 + columns.Count + 1).HorizontalAlignment = xlRight
         y_inc = y_inc + 1
         
         '========================
-        ' ‚Rs–ÚF  ‰ïŒv
+        ' ï¼“è¡Œç›®ï¼š  ä¼šè¨ˆ
         '========================
         headerRow = y + y_inc
         headerDepth = IIf(mode = CATEGORY_EACH_PROJECT, 3, 2)
 
-        .Cells(headerRow, 2).value = "‰È–Ú"
+        .Cells(headerRow, 2).value = "ç§‘ç›®"
         If headerDepth > 1 Then .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
 
         c = 3
@@ -678,8 +684,8 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
             .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
         End If
 
-        .Cells(headerRow, c).value = "“à•”æˆø“™Á‹"
-        .Cells(headerRow, c + 1).value = "‡Œv"
+        .Cells(headerRow, c).value = "å†…éƒ¨å–å¼•ç­‰æ¶ˆå»"
+        .Cells(headerRow, c + 1).value = "åˆè¨ˆ"
         If headerDepth > 1 Then .Range(.Cells(headerRow, c), .Cells(headerRow + headerDepth - 1, c + 1)).Merge
 
         Call ApplyHeaderStyle(ws, headerRow, headerRow + headerDepth - 1, 2, c)
@@ -692,7 +698,7 @@ End Function
 
 
 '==============================================================================
-'       Šˆ“®ŒvZ‘‚Ì’‹L    i3j–‹Æ”ï‹y‚ÑŠÇ—”ï‚ÌŒ`‘Ô•Ê‹æ•ª
+'       æ´»å‹•è¨ˆç®—æ›¸ã®æ³¨è¨˜    ï¼ˆ3ï¼‰äº‹æ¥­è²»åŠã³ç®¡ç†è²»ã®å½¢æ…‹åˆ¥åŒºåˆ†
 '------------------------------------------------------------------------------
 Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
     
@@ -719,7 +725,7 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
     With ws
 
         '========================
-        ' ‚Ps–ÚF  ’‹Lƒ^ƒCƒgƒ‹
+        ' ï¼‘è¡Œç›®ï¼š  æ³¨è¨˜ã‚¿ã‚¤ãƒˆãƒ«
         '========================
         .Cells(y + y_inc, 2).value = line.LineLabel
         With .Cells(y + y_inc, 2).Font
@@ -730,14 +736,14 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
         y_inc = y_inc + 1
         
         '========================
-        ' ‚Qs–ÚF  ’PˆÊ
+        ' ï¼’è¡Œç›®ï¼š  å˜ä½
         '========================
-        .Cells(y + y_inc, 3 + columns.Count + 2).value = "i’PˆÊF‰~j"
+        .Cells(y + y_inc, 3 + columns.Count + 2).value = "ï¼ˆå˜ä½ï¼šå††ï¼‰"
         .Cells(y + y_inc, 3 + columns.Count + 2).HorizontalAlignment = xlRight
         y_inc = y_inc + 1
         
         '========================
-        ' ‚Rs–ÚF  ‰ïŒv
+        ' ï¼“è¡Œç›®ï¼š  ä¼šè¨ˆ
         '========================
         headerRow = y + y_inc
         Select Case mode
@@ -746,7 +752,7 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
             Case Else: headerDepth = 1
         End Select
 
-        .Cells(headerRow, 2).value = "‰È–Ú"
+        .Cells(headerRow, 2).value = "ç§‘ç›®"
         If headerDepth > 1 Then .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
 
         c = 3
@@ -778,8 +784,8 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
             .Range(.Cells(headerRow, groupStart), .Cells(headerRow, c - 1)).Merge
         End If
 
-        .Cells(headerRow, c).value = "‡Œv"
-        .Cells(headerRow, c + 1).value = "”z•ŠŠî€"
+        .Cells(headerRow, c).value = "åˆè¨ˆ"
+        .Cells(headerRow, c + 1).value = "é…è³¦åŸºæº–"
         If headerDepth > 1 Then
             .Range(.Cells(headerRow, c), .Cells(headerRow + headerDepth - 1, c)).Merge
             .Range(.Cells(headerRow, c + 1), .Cells(headerRow + headerDepth - 1, c + 1)).Merge
@@ -794,13 +800,13 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
 End Function
 
 '==============================================================================
-'       •â•‰È–ÚE‰ïŒv‹æ•ª‚Ì—ñƒL[¶¬
+'       è£œåŠ©ç§‘ç›®ãƒ»ä¼šè¨ˆåŒºåˆ†ã®åˆ—ã‚­ãƒ¼ç”Ÿæˆ
 '------------------------------------------------------------------------------
 '   Contents:
-'       Z•\‚©‚ç‰ïŒv‹æ•ªE•â•‰È–Úi–‹Æj‚ğ’Šo‚µA
-'       ’‹L—p‚Ì‰¡²ƒL[‚ğ¶¬‚·‚é
+'       è©¦ç®—è¡¨ã‹ã‚‰ä¼šè¨ˆåŒºåˆ†ãƒ»è£œåŠ©ç§‘ç›®ï¼ˆäº‹æ¥­ï¼‰ã‚’æŠ½å‡ºã—ã€
+'       æ³¨è¨˜ç”¨ã®æ¨ªè»¸ã‚­ãƒ¼ã‚’ç”Ÿæˆã™ã‚‹
 '
-'       ¦”ï—pEû‰v‚Ì‚İ‘ÎÛ‚Æ‚·‚é
+'       â€»è²»ç”¨ãƒ»åç›Šã®ã¿å¯¾è±¡ã¨ã™ã‚‹
 '
 '==============================================================================
 Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
@@ -826,10 +832,10 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
     For Each line In tb.Lines
 
         '------------------------------------------
-        ' ¡‘ÎÛ”»’èF”ï—pEû‰v‚Ì‚İ
+        ' â– å¯¾è±¡åˆ¤å®šï¼šè²»ç”¨ãƒ»åç›Šã®ã¿
         '------------------------------------------
-        ' account ‚Ì‘å‰È–Ú‚Å”»’è‚·‚é‘z’è
-        ' i—áF"”ï—p" / "û‰v"j
+        ' account ã®å¤§ç§‘ç›®ã§åˆ¤å®šã™ã‚‹æƒ³å®š
+        ' ï¼ˆä¾‹ï¼š"è²»ç”¨" / "åç›Š"ï¼‰
         If Not line.account.FS = "PL" Then
             GoTo ContinueLine
         End If
@@ -840,7 +846,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
         If cate <> "" Then
 
             '------------------------------------------
-            ' ‰ïŒv‹æ•ªiŒö1‚È‚Çj
+            ' ä¼šè¨ˆåŒºåˆ†ï¼ˆå…¬1ãªã©ï¼‰
             '------------------------------------------
             If Not accountSeen.Exists(UCase$(cate)) Then
                 accountSeen.Add UCase$(cate), True
@@ -849,7 +855,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
             End If
 
             '------------------------------------------
-            ' ‰ïŒv‹æ•ªƒOƒ‹[ƒviŒö‰v^û‰v^–@lj
+            ' ä¼šè¨ˆåŒºåˆ†ã‚°ãƒ«ãƒ¼ãƒ—ï¼ˆå…¬ç›Šï¼åç›Šï¼æ³•äººï¼‰
             '------------------------------------------
             grp = GetAccountGroupLabel(cate)
             If Not groupSeen.Exists(UCase$(grp)) Then
@@ -858,7 +864,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
             End If
 
             '------------------------------------------
-            ' –‹Æi‰‰‘t‰ïj
+            ' äº‹æ¥­ï¼ˆæ¼”å¥ä¼šï¼‰
             '------------------------------------------
             If proj <> "" Then
                 If Not projectSeen.Exists(UCase$(cate) & "|" & UCase$(proj)) Then
@@ -873,14 +879,8 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
 ContinueLine:
     Next
 
-    '------------------------------------------
-    ' ƒtƒH[ƒ‹ƒoƒbƒNiƒf[ƒ^–³‚µj
-    '------------------------------------------
-    If m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Count = 0 Then
-        m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add "Œö‰v"
-        m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add "û‰v"
-        m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add "–@l"
-    End If
+    Call EnsureMandatoryAccountGroupColumns(groupSeen, m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM))
+    Call SortColumnKeysByCategory
 
 End Sub
 
@@ -890,15 +890,210 @@ Private Function GetAccountGroupLabel(ByVal accountCategory As String) As String
     key = Left$(Trim$(accountCategory), 1)
 
     Select Case key
-        Case "Œö"
-            GetAccountGroupLabel = "Œö‰v–Ú“I–‹Æ‰ïŒv"
-        Case "û"
-            GetAccountGroupLabel = "û‰v–‹Æ‰ïŒv"
-        Case "–@", ""
-            GetAccountGroupLabel = "–@l‰ïŒv"
+        Case "å…¬"
+            GetAccountGroupLabel = GROUP_PUBLIC_LABEL
+        Case "å"
+            GetAccountGroupLabel = GROUP_REVENUE_LABEL
+        Case "æ³•", ""
+            GetAccountGroupLabel = GROUP_CORPORATE_LABEL
         Case Else
-            GetAccountGroupLabel = "–@l‰ïŒv"
+            GetAccountGroupLabel = GROUP_CORPORATE_LABEL
     End Select
+
+End Function
+
+Private Sub EnsureMandatoryAccountGroupColumns(ByVal groupSeen As Object, ByVal target As Collection)
+
+    Call AddAccountGroupIfMissing(groupSeen, target, GROUP_PUBLIC_LABEL)
+    Call AddAccountGroupIfMissing(groupSeen, target, GROUP_REVENUE_LABEL)
+    Call AddAccountGroupIfMissing(groupSeen, target, GROUP_CORPORATE_LABEL)
+
+End Sub
+
+Private Sub AddAccountGroupIfMissing(ByVal groupSeen As Object, ByVal target As Collection, ByVal groupLabel As String)
+
+    If Not groupSeen.Exists(UCase$(groupLabel)) Then
+        groupSeen.Add UCase$(groupLabel), True
+        target.Add groupLabel
+    End If
+
+End Sub
+
+Private Sub SortColumnKeysByCategory()
+
+    Dim sorted As Collection
+
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM), CATEGORY_EACH_ACCOUNT_SUM)
+    Set m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM) = sorted
+
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT), CATEGORY_EACH_ACCOUNT)
+    Set m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT) = sorted
+
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_EACH_PROJECT), CATEGORY_EACH_PROJECT)
+    Set m_ColumnKeysByCategory(CATEGORY_EACH_PROJECT) = sorted
+
+End Sub
+
+Private Function SortColumnKeyCollection(ByVal source As Collection, ByVal mode As String) As Collection
+
+    Dim sorted As Collection
+    Dim values() As String
+    Dim i As Long
+    Dim j As Long
+    Dim tmp As String
+
+    Set sorted = New Collection
+
+    If source Is Nothing Then
+        Set SortColumnKeyCollection = sorted
+        Exit Function
+    End If
+
+    If source.Count = 0 Then
+        Set SortColumnKeyCollection = sorted
+        Exit Function
+    End If
+
+    ReDim values(1 To source.Count)
+    For i = 1 To source.Count
+        values(i) = CStr(source(i))
+    Next
+
+    For i = 1 To UBound(values) - 1
+        For j = i + 1 To UBound(values)
+            If ShouldSwapColumnKey(values(i), values(j), mode) Then
+                tmp = values(i)
+                values(i) = values(j)
+                values(j) = tmp
+            End If
+        Next
+    Next
+
+    For i = 1 To UBound(values)
+        sorted.Add values(i)
+    Next
+
+    Set SortColumnKeyCollection = sorted
+
+End Function
+
+Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As String, ByVal mode As String) As Boolean
+
+    Dim leftParts() As String
+    Dim rightParts() As String
+    Dim cmp As Long
+
+    leftParts = Split(leftKey, "|")
+    rightParts = Split(rightKey, "|")
+
+    cmp = CompareGroupLabel(leftParts(0), rightParts(0))
+    If cmp <> 0 Then
+        ShouldSwapColumnKey = (cmp > 0)
+        Exit Function
+    End If
+
+    If mode = CATEGORY_EACH_ACCOUNT_SUM Then
+        ShouldSwapColumnKey = False
+        Exit Function
+    End If
+
+    cmp = CompareAccountCategoryByGroup(GetPartValue(leftParts, 1), GetPartValue(rightParts, 1), leftParts(0))
+    If cmp <> 0 Then
+        ShouldSwapColumnKey = (cmp > 0)
+        Exit Function
+    End If
+
+    If mode = CATEGORY_EACH_PROJECT Then
+        ShouldSwapColumnKey = (UCase$(GetPartValue(leftParts, 2)) > UCase$(GetPartValue(rightParts, 2)))
+    Else
+        ShouldSwapColumnKey = False
+    End If
+
+End Function
+
+Private Function GetPartValue(ByRef parts() As String, ByVal index As Long) As String
+
+    If index <= UBound(parts) Then
+        GetPartValue = parts(index)
+    Else
+        GetPartValue = ""
+    End If
+
+End Function
+
+Private Function CompareGroupLabel(ByVal leftLabel As String, ByVal rightLabel As String) As Long
+
+    CompareGroupLabel = GroupPriorityFromLabel(leftLabel) - GroupPriorityFromLabel(rightLabel)
+
+End Function
+
+Private Function GroupPriorityFromLabel(ByVal groupLabel As String) As Long
+
+    Select Case UCase$(Trim$(groupLabel))
+        Case UCase$(GROUP_PUBLIC_LABEL)
+            GroupPriorityFromLabel = GROUP_PUBLIC
+        Case UCase$(GROUP_REVENUE_LABEL)
+            GroupPriorityFromLabel = GROUP_REVENUE
+        Case Else
+            GroupPriorityFromLabel = GROUP_CORPORATE
+    End Select
+
+End Function
+
+Private Function CompareAccountCategoryByGroup(ByVal leftCategory As String, ByVal rightCategory As String, ByVal groupLabel As String) As Long
+
+    Dim leftShared As Boolean
+    Dim rightShared As Boolean
+    Dim leftNumber As Long
+    Dim rightNumber As Long
+
+    leftShared = (InStr(leftCategory, "å…±") > 0)
+    rightShared = (InStr(rightCategory, "å…±") > 0)
+
+    If leftShared Xor rightShared Then
+        If leftShared Then
+            CompareAccountCategoryByGroup = 1
+        Else
+            CompareAccountCategoryByGroup = -1
+        End If
+        Exit Function
+    End If
+
+    leftNumber = ExtractCategoryNumber(leftCategory)
+    rightNumber = ExtractCategoryNumber(rightCategory)
+
+    If leftNumber <> rightNumber Then
+        CompareAccountCategoryByGroup = leftNumber - rightNumber
+    Else
+        CompareAccountCategoryByGroup = StrComp(UCase$(leftCategory), UCase$(rightCategory), vbTextCompare)
+    End If
+
+End Function
+
+Private Function ExtractCategoryNumber(ByVal categoryName As String) As Long
+
+    Dim i As Long
+    Dim ch As String
+    Dim digits As String
+
+    If InStr(categoryName, "å…±") > 0 Then
+        ExtractCategoryNumber = 999
+        Exit Function
+    End If
+
+    digits = ""
+    For i = 1 To Len(categoryName)
+        ch = Mid$(categoryName, i, 1)
+        If ch >= "0" And ch <= "9" Then
+            digits = digits & ch
+        End If
+    Next
+
+    If digits = "" Then
+        ExtractCategoryNumber = 0
+    Else
+        ExtractCategoryNumber = CLng(digits)
+    End If
 
 End Function
 
@@ -932,12 +1127,12 @@ Private Sub ApplyHeaderStyle(ByVal ws As Worksheet, ByVal rowFrom As Long, ByVal
 End Sub
 
 '==============================================================================
-'       •\¦‰Â”Û”»’è
+'       è¡¨ç¤ºå¯å¦åˆ¤å®š
 '------------------------------------------------------------------------------
 '   Contents:
-'       s‚ğo—Í‚·‚é‚©”»’è‚·‚é
-'       ETITLE ‚Íí‚É•\¦
-'       EACCOUNTŒn‚Í‘OŠúE“–Šú‚Æ‚à0‚È‚ç”ñ•\¦
+'       è¡Œã‚’å‡ºåŠ›ã™ã‚‹ã‹åˆ¤å®šã™ã‚‹
+'       ãƒ»TITLE ã¯å¸¸ã«è¡¨ç¤º
+'       ãƒ»ACCOUNTç³»ã¯å‰æœŸãƒ»å½“æœŸã¨ã‚‚0ãªã‚‰éè¡¨ç¤º
 '
 '==============================================================================
 Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency) As Boolean
@@ -954,22 +1149,22 @@ Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine
         Exit Function
     End If
 
-    'ƒ[ƒs”ñ•\¦
+    'ã‚¼ãƒ­è¡Œéè¡¨ç¤º
     If (line.lineType = "ACCOUNT" Or line.lineType = "ACCOUNTS") And vThis = 0 And vLast = 0 Then
         ShouldSkipOutputLine = True
         Exit Function
     End If
        
-    ShouldSkipOutputLine = False  'ƒfƒtƒHƒ‹ƒg‚Í•\¦
+    ShouldSkipOutputLine = False  'ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã¯è¡¨ç¤º
     
 End Function
 
 '==============================================================================
-'       ‹àŠzæ“¾
+'       é‡‘é¡å–å¾—
 '------------------------------------------------------------------------------
 '   Contents:
-'       lineID + category ‚É‘Î‰‚·‚é‹àŠz‚ğDictionary‚©‚çæ“¾‚·‚é
-'       ‘¶İ‚µ‚È‚¢ê‡‚Í0‚ğ•Ô‚·
+'       lineID + category ã«å¯¾å¿œã™ã‚‹é‡‘é¡ã‚’Dictionaryã‹ã‚‰å–å¾—ã™ã‚‹
+'       å­˜åœ¨ã—ãªã„å ´åˆã¯0ã‚’è¿”ã™
 '
 '==============================================================================
 Private Function GetAmountByLine(ByVal amountMap As Object, ByVal line As FinancialStatementMasterLine) As Currency
@@ -987,14 +1182,14 @@ End Function
 
 
 '==============================================================================
-'       ŒvZ®s‚Ì‹àŠz‰ğŒˆ
+'       è¨ˆç®—å¼è¡Œã®é‡‘é¡è§£æ±º
 '------------------------------------------------------------------------------
 '   Contents:
-'       LineType = FORMULA / CALC ‚Ìs‚É‚Â‚¢‚ÄA
-'       ’è‹`‚³‚ê‚½”®‚ğ•]‰¿‚µADictionary‚ÖŠi”[‚·‚é
+'       LineType = FORMULA / CALC ã®è¡Œã«ã¤ã„ã¦ã€
+'       å®šç¾©ã•ã‚ŒãŸæ•°å¼ã‚’è©•ä¾¡ã—ã€Dictionaryã¸æ ¼ç´ã™ã‚‹
 '
-'       ¦‘O’ñF
-'           E–‘O‚ÉACCOUNTŒn‚ÌWŒv‚ªŠ®—¹‚µ‚Ä‚¢‚é‚±‚Æ
+'       â€»å‰æï¼š
+'           ãƒ»äº‹å‰ã«ACCOUNTç³»ã®é›†è¨ˆãŒå®Œäº†ã—ã¦ã„ã‚‹ã“ã¨
 '
 '==============================================================================
 Private Sub ResolveFormulaAmounts(ByVal values As Object)
@@ -1005,9 +1200,9 @@ Private Sub ResolveFormulaAmounts(ByVal values As Object)
     For Each line In m_Master.Lines
         If line.enabled Then
             If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
-                'ƒL[¶¬ilineID|categoryj
+                'ã‚­ãƒ¼ç”Ÿæˆï¼ˆlineID|categoryï¼‰
                 key = BuildKey(line.lineID, line.accountingCategory)
-                '”®•]‰¿
+                'æ•°å¼è©•ä¾¡
                 values(key) = ResolveFormula(line.formula, values)
             End If
         End If
@@ -1016,14 +1211,14 @@ Private Sub ResolveFormulaAmounts(ByVal values As Object)
 End Sub
 
 '==============================================================================
-'       WŒvˆ—iRollupj
+'       é›†è¨ˆå‡¦ç†ï¼ˆRollupï¼‰
 '------------------------------------------------------------------------------
 '   Contents:
-'       AggregateTo ‚ÉŠî‚Ã‚«Aq¨e‚Ö‹àŠz‚ğ‰ÁZ‚·‚é
+'       AggregateTo ã«åŸºã¥ãã€å­â†’è¦ªã¸é‡‘é¡ã‚’åŠ ç®—ã™ã‚‹
 '
-'       includeFormula ‚É‚æ‚è‘ÎÛ‚ğØ‘ÖF
-'           False : ACCOUNTŒn‚Ì‚İWŒvi‘æ1’iŠKj
-'           True  : FORMULA/CALC‚àŠÜ‚ß‚éi‘æ2’iŠKj
+'       includeFormula ã«ã‚ˆã‚Šå¯¾è±¡ã‚’åˆ‡æ›¿ï¼š
+'           False : ACCOUNTç³»ã®ã¿é›†è¨ˆï¼ˆç¬¬1æ®µéšï¼‰
+'           True  : FORMULA/CALCã‚‚å«ã‚ã‚‹ï¼ˆç¬¬2æ®µéšï¼‰
 '
 '==============================================================================
 Private Sub RollupAggregateTo(ByVal amountMap As Object, ByVal includeFormula As Boolean)
@@ -1035,11 +1230,11 @@ Private Sub RollupAggregateTo(ByVal amountMap As Object, ByVal includeFormula As
         If line.enabled Then
             childType = UCase$(Trim$(line.lineType))
 
-            'ƒ^ƒCƒgƒ‹s‚Í‘ÎÛŠOA‚©‚Âe‚ª’è‹`‚³‚ê‚Ä‚¢‚éê‡‚Ì‚İ
+            'ã‚¿ã‚¤ãƒˆãƒ«è¡Œã¯å¯¾è±¡å¤–ã€ã‹ã¤è¦ªãŒå®šç¾©ã•ã‚Œã¦ã„ã‚‹å ´åˆã®ã¿
             If childType <> "TITLE" And Trim$(line.AggregateTo) <> "" Then
                 
                 '------------------------------------------
-                ' ‘ÎÛ”»’èi2’iŠKWŒvj
+                ' å¯¾è±¡åˆ¤å®šï¼ˆ2æ®µéšé›†è¨ˆï¼‰
                 '------------------------------------------
                 If (includeFormula And (childType = "FORMULA" Or childType = "CALC")) _
                     Or ((Not includeFormula) And (childType = "ACCOUNT" Or childType = "ACCOUNTS")) Then
@@ -1052,13 +1247,13 @@ Private Sub RollupAggregateTo(ByVal amountMap As Object, ByVal includeFormula As
 End Sub
 
 '==============================================================================
-'       1s•ª‚ÌWŒvˆ—
+'       1è¡Œåˆ†ã®é›†è¨ˆå‡¦ç†
 '------------------------------------------------------------------------------
 '   Contents:
-'       qs‚Ì‹àŠz‚ğæ“¾‚µAAggregateTo ‚Åw’è‚³‚ê‚½es‚Ö‰ÁZ‚·‚é
+'       å­è¡Œã®é‡‘é¡ã‚’å–å¾—ã—ã€AggregateTo ã§æŒ‡å®šã•ã‚ŒãŸè¦ªè¡Œã¸åŠ ç®—ã™ã‚‹
 '
-'       Eq‚ª‘¶İ‚µ‚È‚¢ê‡‚Í0‚Æ‚µ‚Äˆµ‚¤
-'       Ee‚ª–¢‰Šú‰»‚Ìê‡‚Í0‚Å‰Šú‰»
+'       ãƒ»å­ãŒå­˜åœ¨ã—ãªã„å ´åˆã¯0ã¨ã—ã¦æ‰±ã†
+'       ãƒ»è¦ªãŒæœªåˆæœŸåŒ–ã®å ´åˆã¯0ã§åˆæœŸåŒ–
 '
 '==============================================================================
 Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal amountMap As Object)
@@ -1069,7 +1264,7 @@ Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal 
     Dim childAmount As Currency
 
     '------------------------------------------
-    ' q‚Ì‹àŠzæ“¾
+    ' å­ã®é‡‘é¡å–å¾—
     '------------------------------------------
     childKey = BuildKey(child.lineID, child.accountingCategory)
     If amountMap.Exists(childKey) Then
@@ -1078,19 +1273,19 @@ Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal 
         childAmount = 0
     End If
 
-    'e–¢’è‹`‚È‚çI—¹
+    'è¦ªæœªå®šç¾©ãªã‚‰çµ‚äº†
     If Trim$(child.AggregateTo) = "" Then
         Exit Sub
     End If
 
     '------------------------------------------
-    ' esæ“¾
+    ' è¦ªè¡Œå–å¾—
     '------------------------------------------
     Set parentLine = GetAggregateParentLine(child.AggregateTo, child.accountingCategory)
     parentKey = BuildKey(parentLine.lineID, parentLine.accountingCategory)
 
     '------------------------------------------
-    ' e‚Ö‰ÁZ
+    ' è¦ªã¸åŠ ç®—
     '------------------------------------------
     If Not amountMap.Exists(parentKey) Then
         amountMap.Add parentKey, CCur(0)
@@ -1101,16 +1296,16 @@ Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal 
 End Sub
 
 '==============================================================================
-'       WŒvæiesjæ“¾
+'       é›†è¨ˆå…ˆï¼ˆè¦ªè¡Œï¼‰å–å¾—
 '------------------------------------------------------------------------------
 '   Contents:
-'       AggregateTo ‚Åw’è‚³‚ê‚½es‚ğæ“¾‚·‚é
+'       AggregateTo ã§æŒ‡å®šã•ã‚ŒãŸè¦ªè¡Œã‚’å–å¾—ã™ã‚‹
 '
-'       —Dæ‡ˆÊF
-'           ‡@ “¯ˆêcategory
-'           ‡A "*"i‘S‘Ìj
+'       å„ªå…ˆé †ä½ï¼š
+'           â‘  åŒä¸€category
+'           â‘¡ "*"ï¼ˆå…¨ä½“ï¼‰
 '
-'       ¦‘¶İ‚µ‚È‚¢ê‡‚ÍƒGƒ‰[
+'       â€»å­˜åœ¨ã—ãªã„å ´åˆã¯ã‚¨ãƒ©ãƒ¼
 '
 '==============================================================================
 Private Function GetAggregateParentLine(ByVal parentLineID As String, ByVal category As String) As FinancialStatementMasterLine
@@ -1118,26 +1313,26 @@ Private Function GetAggregateParentLine(ByVal parentLineID As String, ByVal cate
     Dim normalizedParent As String
     normalizedParent = UCase$(Trim$(parentLineID))
 
-    '–¢w’èƒ`ƒFƒbƒN
+    'æœªæŒ‡å®šãƒã‚§ãƒƒã‚¯
     If normalizedParent = "" Then
         Err.Raise vbObjectError + 7102, _
             "GetAggregateParentLine", _
             "AggregateTo target is blank."
     End If
 
-    '‡@ categoryˆê’v
+    'â‘  categoryä¸€è‡´
     If m_Master.Exists(normalizedParent, category) Then
         Set GetAggregateParentLine = m_Master.GetLine(normalizedParent, category)
         Exit Function
     End If
 
-    '‡A ‘S‘Ì("*")
+    'â‘¡ å…¨ä½“("*")
     If m_Master.Exists(normalizedParent, "*") Then
         Set GetAggregateParentLine = m_Master.GetLine(normalizedParent, "*")
         Exit Function
     End If
 
-    '‘¶İ‚µ‚È‚¢ê‡ƒGƒ‰[
+    'å­˜åœ¨ã—ãªã„å ´åˆã‚¨ãƒ©ãƒ¼
     Err.Raise vbObjectError + 7103, _
         "GetAggregateParentLine", _
         "AggregateTo target does not exist: " & normalizedParent & "|" & UCase$(Trim$(category))
@@ -1145,25 +1340,25 @@ Private Function GetAggregateParentLine(ByVal parentLineID As String, ByVal cate
 End Function
 
 '==============================================================================
-'       ”®•]‰¿ˆ—iƒRƒAƒƒWƒbƒNj
+'       æ•°å¼è©•ä¾¡å‡¦ç†ï¼ˆã‚³ã‚¢ãƒ­ã‚¸ãƒƒã‚¯ï¼‰
 '------------------------------------------------------------------------------
 '   Contents:
-'       ”®“à‚Ì [FS_ID|category] ‚ğÀÛ‚Ì‹àŠz‚É’uŠ·‚µA
-'       Evaluate ‚ÅŒvZ‚·‚é
+'       æ•°å¼å†…ã® [FS_ID|category] ã‚’å®Ÿéš›ã®é‡‘é¡ã«ç½®æ›ã—ã€
+'       Evaluate ã§è¨ˆç®—ã™ã‚‹
 '
-'       ‘Î‰Œ`®F
+'       å¯¾å¿œå½¢å¼ï¼š
 '           [PL_BIZ]
-'           [PL_BIZ|Œö1]
+'           [PL_BIZ|å…¬1]
 '
-'       ‰ğŒˆƒƒWƒbƒNF
-'           ‡@ Š®‘Sˆê’vilineID|categoryj
-'           ‡A "*" ‚Ìê‡‚Í“¯ˆêlineID‚Ì‡Z
-'           ‡B Œ©‚Â‚©‚ç‚È‚¢ê‡‚ÍƒGƒ‰[
+'       è§£æ±ºãƒ­ã‚¸ãƒƒã‚¯ï¼š
+'           â‘  å®Œå…¨ä¸€è‡´ï¼ˆlineID|categoryï¼‰
+'           â‘¡ "*" ã®å ´åˆã¯åŒä¸€lineIDã®åˆç®—
+'           â‘¢ è¦‹ã¤ã‹ã‚‰ãªã„å ´åˆã¯ã‚¨ãƒ©ãƒ¼
 '
 '==============================================================================
 Private Function ResolveFormula(ByVal formula As String, ByVal values As Object) As Currency
 
-    '‹ó‚È‚ç0
+    'ç©ºãªã‚‰0
     If Trim$(formula) = "" Then
         ResolveFormula = 0
         Exit Function
@@ -1173,7 +1368,7 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
     expr = formula
 
     '------------------------------------------
-    ' ƒg[ƒNƒ“’Šoi[xxx]j
+    ' ãƒˆãƒ¼ã‚¯ãƒ³æŠ½å‡ºï¼ˆ[xxx]ï¼‰
     '------------------------------------------
     Dim re As Object
     Set re = CreateObject("VBScript.RegExp")
@@ -1196,7 +1391,7 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
         Dim category As String
         
         '------------------------------------------
-        ' [PL_BIZ|Œö1] or [PL_BIZ]
+        ' [PL_BIZ|å…¬1] or [PL_BIZ]
         '------------------------------------------
         If InStr(token, "|") > 0 Then
             lineID = UCase$(Trim$(Split(token, "|")(0)))
@@ -1209,7 +1404,7 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
         If category = "" Then category = "*"
 
         '------------------------------------------
-        ' ƒ}ƒXƒ^‘¶İƒ`ƒFƒbƒN
+        ' ãƒã‚¹ã‚¿å­˜åœ¨ãƒã‚§ãƒƒã‚¯
         '------------------------------------------
         If category = "*" Then
             If Not ExistsLineID(lineID) Then
@@ -1231,13 +1426,13 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
         Dim val As Currency
         
         '------------------------------------------
-        ' ‡@ Š®‘Sˆê’v
+        ' â‘  å®Œå…¨ä¸€è‡´
         '------------------------------------------
         If values.Exists(key) Then
             val = values(key)
         
         '------------------------------------------
-        ' ‡A "*"i‡Zj
+        ' â‘¡ "*"ï¼ˆåˆç®—ï¼‰
         '------------------------------------------
         ElseIf category = "*" Then
             
@@ -1251,23 +1446,23 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
             Next
         
         '------------------------------------------
-        ' ‡B ƒGƒ‰[
+        ' â‘¢ ã‚¨ãƒ©ãƒ¼
         '------------------------------------------
         Else
             Err.Raise vbObjectError + 3001, _
                       "ResolveFormula", _
-                      "ƒL[‚ª‘¶İ‚µ‚Ü‚¹‚ñ: [" & token & "]"
+                      "ã‚­ãƒ¼ãŒå­˜åœ¨ã—ã¾ã›ã‚“: [" & token & "]"
         End If
         
-        '”®•¶š—ñ‚É’uŠ·
+        'æ•°å¼æ–‡å­—åˆ—ã«ç½®æ›
         expr = Replace(expr, "[" & token & "]", CStr(val))
         
     Next
 
-    'ƒXƒy[ƒXœ‹
+    'ã‚¹ãƒšãƒ¼ã‚¹é™¤å»
     expr = Replace(expr, " ", "")
     
-    'ÅI•]‰¿
+    'æœ€çµ‚è©•ä¾¡
     ResolveFormula = CCur(Application.Evaluate(expr))
 
 End Function
