@@ -5,6 +5,15 @@ Option Explicit
 '       定数定義
 '-------------------------------------------------------
 
+Public thisYear As Long
+Public startDate As Date
+Public endDate As Date
+
+Public str_this_period As String
+Public str_end_date As String
+
+Public Const SETTING_SHEET_NAME As String = "設定＆使い方"
+
 '勘定科目コード定義
 Public Const idNetAssets_End = 31000    '一般正味財産期末残高
 Public Const idNetAssets_Begin = 31100  '一般正味財産期首残高
@@ -21,10 +30,34 @@ Public Const iThisX = 6             '当年度
 Public Const iLastX = 7             '前年度
 
 '==============================================================================
+'   事業年度、期間、最終日の取得
+'==============================================================================
+Public Sub SetThisPeriod()
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets(SETTING_SHEET_NAME)
+
+    With ws
+        thisYear = .Cells(12, 3)
+        startDate = .Cells(14, 3)
+        endDate = .Cells(14, 5)
+    End With
+
+    '財務諸表表示用の会計期間
+    str_this_period = "（会計期間：" & _
+                      Format(startDate, "yyyy年m月d日") & "から" & _
+                      Format(endDate, "yyyy年m月d日") & "まで）"
+    
+    '貸借対照表表示用の会計期間
+    str_end_date = "（" & Format(endDate, "yyyy年m月d日") & "現在）"
+
+End Sub
+
+'==============================================================================
 '   期初日付を取得
 '==============================================================================
 Public Function GetFiscalYearStart() As Date
-    GetFiscalYearStart = ThisWorkbook.Worksheets("設定＆使い方").Cells(14, 3).value
+    GetFiscalYearStart = ThisWorkbook.Worksheets(SETTING_SHEET_NAME).Cells(14, 3).value
 End Function
 
 '==============================================================================
@@ -359,6 +392,7 @@ Sub main()
 
     Dim it As Variant           'for each 用
     
+   Call SetThisPeriod
    
     '==================================================
     'Phase [1]  前期実績 ＆ 仕訳帳 ⇒ 総勘定元帳への転記
