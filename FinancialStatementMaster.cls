@@ -34,35 +34,16 @@ End Property
 '   Contents:
 '       財務諸表マスタにおける内部キーを生成する。
 '
-'       ■設計要件
-'       ・lineID単独では重複が発生するため使用不可
-'       ・同一lineIDでも、会計区分（公1、公2等）ごとに別行として扱う必要がある
-'       ・そのため「lineID + accountingCategory」を一意キーとする
-'
-'       ■例
-'           PL_BIZ | 公1
-'           PL_BIZ | 公2
-'
-'       ■備考
-'           accountingCategoryが空の場合は "*" として扱う
-'
 '==============================================================================
-Private Function BuildKey(ByVal lineID As String, ByVal category As String) As String
-
-    Dim cat As String
-    
-    cat = UCase$(Trim$(category))
-    If cat = "" Then cat = "*"
-    
-    BuildKey = UCase$(Trim$(lineID)) & "|" & cat
-
+Private Function BuildKey(ByVal lineID As String) As String
+    BuildKey = UCase$(Trim$(lineID))
 End Function
 
 '==============================================================================
 '   存在確認
 '==============================================================================
 Public Function Exists(ByVal lineID As String, Optional ByVal category As String = "*") As Boolean
-    Exists = m_LineMap.Exists(BuildKey(lineID, category))
+    Exists = m_LineMap.Exists(BuildKey(lineID))
 End Function
 
 '==============================================================================
@@ -74,7 +55,7 @@ Public Function GetLine( _
     As FinancialStatementMasterLine
 
     Dim key As String
-    key = BuildKey(lineID, category)
+    key = BuildKey(lineID)
 
     If Not m_LineMap.Exists(key) Then
         Err.Raise vbObjectError + 6201, _
@@ -113,7 +94,6 @@ End Sub
 '   行追加（ワークシート1行 → クラス）
 '==============================================================================
 Private Sub AppendLineFromRow(ByVal ws As Worksheet, ByVal y As Long)
-
     Dim line As FinancialStatementMasterLine
     Set line = New FinancialStatementMasterLine
 
@@ -124,14 +104,16 @@ Private Sub AppendLineFromRow(ByVal ws As Worksheet, ByVal y As Long)
         CStr(ws.Cells(y, 4).value), _
         CStr(ws.Cells(y, 5).value), _
         CStr(ws.Cells(y, 6).value), _
-        ws.Cells(y, 6).HorizontalAlignment, _
         CStr(ws.Cells(y, 7).value), _
+        CStr(ws.Cells(y, 8).value), _
+        ws.Cells(y, 8).HorizontalAlignment, _
         CStr(ws.Cells(y, 9).value), _
-        CStr(ws.Cells(y, 9).value), _
-        ParseBoolean(ws.Cells(y, 10).value, True))
-    
-    Call AddLine(line)
+        CStr(ws.Cells(y, 10).value), _
+        CStr(ws.Cells(y, 11).value), _
+        ParseBoolean(ws.Cells(y, 12).value, True))
 
+    Call AddLine(line)
+    
 End Sub
 
 '==============================================================================
@@ -153,7 +135,7 @@ End Sub
 Public Sub AddLine(ByVal line As FinancialStatementMasterLine)
 
     Dim key As String
-    key = BuildKey(line.lineID, line.accountingCategory)
+    key = BuildKey(line.lineID)
 
     If m_LineMap.Exists(key) Then
         Err.Raise vbObjectError + 6202, _
@@ -230,27 +212,18 @@ End Sub
 '
 '==============================================================================
 Private Sub ValidateAggregateToExists()
-
     Dim line As FinancialStatementMasterLine
 
     For Each line In m_Lines
-
         If Trim$(line.aggregateTo) <> "" Then
-
-            If Not Me.Exists(line.aggregateTo, line.accountingCategory) _
-               And Not Me.Exists(line.aggregateTo, "*") Then
-
+            If Not Me.Exists(line.aggregateTo) Then
                 Err.Raise vbObjectError + 9002, _
                     "FinancialStatementMaster.ValidateAggregateToExists", _
                     "AggregateTo未定義: " & line.lineID & " → " & line.aggregateTo
             End If
-
         End If
-
     Next
-
 End Sub
-
 '==============================================================================
 '       Formula参照チェック
 '------------------------------------------------------------------------------
@@ -276,7 +249,6 @@ End Sub
 '
 '==============================================================================
 Private Sub ValidateFormulaReferences()
-
     Dim re As Object
     Set re = CreateObject("VBScript.RegExp")
 
@@ -288,50 +260,30 @@ Private Sub ValidateFormulaReferences()
     Dim line As FinancialStatementMasterLine
     Dim matches As Object
     Dim m As Object
+    Dim token As String
+    Dim lineID As String
 
     For Each line In m_Lines
-
         If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
-
             Set matches = re.Execute(line.formula)
-
             For Each m In matches
-
-                Dim token As String
-                token = m.SubMatches(0)
-
-                Dim lineID As String
-                Dim category As String
-
+                token = UCase$(Trim$(CStr(m.SubMatches(0))))
                 If InStr(token, "|") > 0 Then
-                    lineID = UCase$(Split(token, "|")(0))
-                    category = UCase$(Split(token, "|")(1))
+                    lineID = UCase$(Trim$(Split(token, "|")(0)))
                 Else
-                    lineID = UCase$(token)
-                    category = "*"
+                    lineID = token
                 End If
 
-                If category = "*" Then
-                    If Not Me.Exists(lineID) Then
-                        Err.Raise vbObjectError + 9003, _
-                            "FinancialStatementMaster.ValidateFormulaReferences", _
-                            "Formula参照不正: [" & token & "]"
-                    End If
-                Else
-                    If Not Me.Exists(lineID, category) Then
-                        Err.Raise vbObjectError + 9004, _
-                            "FinancialStatementMaster.ValidateFormulaReferences", _
-                            "Formula参照不正: [" & token & "]"
-                    End If
+                If Not Me.Exists(lineID) Then
+                    Err.Raise vbObjectError + 9003, _
+                        "FinancialStatementMaster.ValidateFormulaReferences", _
+                        "Formula参照不正: [" & token & "]"
                 End If
-
             Next
-
         End If
-
     Next
-
 End Sub
+
 
 '==============================================================================
 '       循環参照チェック（AggregateTo）
@@ -350,19 +302,16 @@ End Sub
 '
 '==============================================================================
 Private Sub ValidateCircularReference()
-
     Dim visited As Object
-    Set visited = CreateObject("Scripting.Dictionary")
-
     Dim stack As Object
-    Set stack = CreateObject("Scripting.Dictionary")
-
     Dim line As FinancialStatementMasterLine
+
+    Set visited = CreateObject("Scripting.Dictionary")
+    Set stack = CreateObject("Scripting.Dictionary")
 
     For Each line In m_Lines
         Call ValidateCircularReference_DFS(line, visited, stack)
     Next
-
 End Sub
 
 '==============================================================================
@@ -383,51 +332,25 @@ Private Sub ValidateCircularReference_DFS( _
     ByVal stack As Object)
 
     Dim key As String
-    key = BuildKey(line.lineID, line.accountingCategory)
+    key = BuildKey(line.lineID)
 
-    '------------------------------------------
-    ' スタックに存在 → 循環
-    '------------------------------------------
     If stack.Exists(key) Then
         Err.Raise vbObjectError + 9005, _
             "FinancialStatementMaster.ValidateCircularReference", _
             "循環参照が検出されました: " & key
     End If
 
-    '------------------------------------------
-    ' 既訪問ならスキップ
-    '------------------------------------------
     If visited.Exists(key) Then Exit Sub
 
     visited.Add key, True
     stack.Add key, True
 
-    '------------------------------------------
-    ' 親へ遷移
-    '------------------------------------------
     If Trim$(line.aggregateTo) <> "" Then
-
         Dim parent As FinancialStatementMasterLine
-
-        'GetLineはエラーを投げる仕様なのでここではそのまま使う
-        If Me.Exists(line.aggregateTo, line.accountingCategory) Then
-            Set parent = Me.GetLine(line.aggregateTo, line.accountingCategory)
-        ElseIf Me.Exists(line.aggregateTo, "*") Then
-            Set parent = Me.GetLine(line.aggregateTo, "*")
-        Else
-            'ここは別チェックで拾っているが保険
-            Err.Raise vbObjectError + 9006, _
-                "FinancialStatementMaster.ValidateCircularReference", _
-                "親が存在しません: " & line.aggregateTo
-        End If
-
+        Set parent = Me.GetLine(line.aggregateTo)
         Call ValidateCircularReference_DFS(parent, visited, stack)
-
     End If
 
-    '------------------------------------------
-    ' スタックから除外
-    '------------------------------------------
     stack.Remove key
-
 End Sub
+

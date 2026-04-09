@@ -136,106 +136,161 @@ End Sub
 Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
 
     Dim result As Object
-    Dim aggregateMap As Object
     Set result = CreateObject("Scripting.Dictionary")
-    Set aggregateMap = BuildAggregateIDMap()
 
-    Dim line As TrialBalanceLine
-    Dim aggregateIDs As Variant
-    Dim aggregateID As String
-    Dim targetLines As Collection
-    Dim targetLine As FinancialStatementMasterLine
-    Dim accountingCategory As String
+    Dim tbLine As TrialBalanceLine
+    Dim masterLine As FinancialStatementMasterLine
     Dim amount As Currency
-    Dim i As Long
-    Dim mapped As Boolean
-    
-    For Each line In tb.lines
-        amount = line.amount()
-        mapped = False
+    Dim detailKey As String
+    Dim filterTokens As Variant
+    Dim filterToken As Variant
 
-        '勘定科目マスタに紐づく集計キーを分解
-        If Trim$(line.account.fsLineIDs) <> "" Then
-            aggregateIDs = Split(line.account.fsLineIDs, ";")
-            For i = LBound(aggregateIDs) To UBound(aggregateIDs)
-                aggregateID = UCase$(Trim$(CStr(aggregateIDs(i))))
-                If aggregateID <> "" Then
+    For Each tbLine In tb.lines
+        amount = tbLine.amount()
 
-                    If Not aggregateMap.Exists(aggregateID) Then
-                        Err.Raise vbObjectError + 7001, _
-                            "BuildStatementAmountMap", _
-                            "Undefined AggregateID mapping in account master: " & aggregateID
-                    End If
+        For Each masterLine In m_Master.lines
+            If masterLine.enabled Then
+                If masterLine.lineType = "ACCOUNT" Or masterLine.lineType = "ACCOUNTS" Then
+                    If IsAggregateMatch(masterLine, tbLine) And IsFilterMatch(masterLine, tbLine) Then
+                        Call AddAmountToMap(result, masterLine.lineID, "*", amount)
 
-                    mapped = True
-                    If amount <> 0 Then
-                        accountingCategory = UCase$(Trim$(line.SubAccountCate))
-                        Set targetLines = aggregateMap(aggregateID)
-
-                        For Each targetLine In targetLines
-                            '全体(*)への加算
-                            Call AddAmountToMap(result, targetLine.lineID, "*", amount)
-
-                            '区分別加算
-                            If accountingCategory <> "" Then
-                                Call AddAmountToMap(result, targetLine.lineID, accountingCategory, amount)
+                        If UCase$(Trim$(masterLine.filterValue)) = "EACH" Then
+                            detailKey = GetFilterKey(masterLine.filterField, tbLine)
+                            If detailKey <> "" And detailKey <> "*" Then
+                                Call AddAmountToMap(result, masterLine.lineID, detailKey, amount)
                             End If
-                        Next targetLine
+                        ElseIf UCase$(Trim$(masterLine.filterValue)) <> "*" And UCase$(Trim$(masterLine.filterValue)) <> "" Then
+                            filterTokens = Split(masterLine.filterValue, ",")
+                            For Each filterToken In filterTokens
+                                detailKey = UCase$(Trim$(CStr(filterToken)))
+                                If detailKey <> "" Then
+                                    Call AddAmountToMap(result, masterLine.lineID, detailKey, amount)
+                                End If
+                            Next filterToken
+                        End If
                     End If
                 End If
-            Next i
-        End If
-
-        '未マッピングエラー
-        If Not mapped Then
-            Err.Raise vbObjectError + 7002, _
-                "BuildStatementAmountMap", _
-                "TrialBalanceLine is not mapped to AggregateID. AccountCode=" & CStr(line.AccountCode)
-        End If
-    Next
+            End If
+        Next masterLine
+    Next tbLine
 
     Set BuildStatementAmountMap = result
 
 End Function
 
-'==============================================================================
-'       AggregateID -> 財務諸表行 一覧マップを作成
-'==============================================================================
-Private Function BuildAggregateIDMap() As Object
+Private Function IsAggregateMatch(ByVal masterLine As FinancialStatementMasterLine, ByVal tbLine As TrialBalanceLine) As Boolean
 
-    Dim result As Object
-    Set result = CreateObject("Scripting.Dictionary")
+    Dim fieldName As String
+    fieldName = UCase$(Trim$(masterLine.aggregateField))
+    If fieldName = "" Then fieldName = "ID"
 
-    Dim line As FinancialStatementMasterLine
-    Dim lineType As String
-    Dim ids As Variant
-    Dim id As Variant
-    Dim aggregateID As String
-    Dim lines As Collection
-
-    For Each line In m_Master.lines
-        lineType = UCase$(Trim$(line.lineType))
-
-        If lineType = "ACCOUNT" Or lineType = "ACCOUNTS" Then
-            ids = Split(line.aggregateID, ",")
-
-            For Each id In ids
-                aggregateID = UCase$(Trim$(CStr(id)))
-                If aggregateID <> "" Then
-                    If Not result.Exists(aggregateID) Then
-                        Set lines = New Collection
-                        result.Add aggregateID, lines
-                    End If
-                    Set lines = result(aggregateID)
-                    lines.Add line
-                End If
-            Next id
-        End If
-    Next
-
-    Set BuildAggregateIDMap = result
+    Select Case fieldName
+        Case "ID"
+            IsAggregateMatch = CsvContains(tbLine.account.fsLineIDs, masterLine.aggregateValue, ";")
+        Case "区分"
+            IsAggregateMatch = CsvContains(tbLine.account.SubCategory, masterLine.aggregateValue, ",")
+        Case Else
+            IsAggregateMatch = False
+    End Select
 
 End Function
+
+Private Function IsFilterMatch(ByVal masterLine As FinancialStatementMasterLine, ByVal tbLine As TrialBalanceLine) As Boolean
+
+    Dim filterValue As String
+    filterValue = UCase$(Trim$(masterLine.filterValue))
+
+    If filterValue = "" Or filterValue = "*" Or filterValue = "EACH" Then
+        IsFilterMatch = True
+        Exit Function
+    End If
+
+    Dim actual As String
+    actual = GetFilterKey(masterLine.filterField, tbLine)
+
+    If actual = "" Then
+        IsFilterMatch = False
+    Else
+        IsFilterMatch = CsvContains(actual, filterValue, ",")
+    End If
+
+End Function
+
+Private Function GetFilterKey(ByVal filterField As String, ByVal tbLine As TrialBalanceLine) As String
+
+    Dim key As String
+    Select Case UCase$(Trim$(filterField))
+        Case "純資産区分"
+            If tbLine.NetAssetType = natDesignated Then
+                key = "指定"
+            Else
+                key = "一般"
+            End If
+
+        Case "目的区分"
+            key = GetPurposeCategory(tbLine.subAccountCate)
+
+        Case "会計区分"
+            key = UCase$(Trim$(tbLine.subAccountCate))
+            If key = "" Then key = "共通"
+
+        Case "補助区分"
+            key = CStr(tbLine.SubAccountCode)
+
+        Case Else
+            key = "*"
+    End Select
+
+    GetFilterKey = UCase$(Trim$(key))
+
+End Function
+
+Private Function GetPurposeCategory(ByVal subAccountCate As String) As String
+
+    Dim s As String
+    s = UCase$(Trim$(subAccountCate))
+
+    If Left$(s, 1) = "公" Then
+        GetPurposeCategory = "公益目的事業会計"
+    ElseIf Left$(s, 1) = "収" Then
+        GetPurposeCategory = "収益事業等会計"
+    Else
+        GetPurposeCategory = "法人会計"
+    End If
+
+End Function
+
+Private Function CsvContains(ByVal sourceValue As String, ByVal expectedValues As String, ByVal sourceDelimiter As String) As Boolean
+
+    Dim srcItems As Variant
+    Dim expItems As Variant
+    Dim src As Variant
+    Dim exp As Variant
+    Dim srcToken As String
+    Dim expToken As String
+
+    srcItems = Split(UCase$(Trim$(CStr(sourceValue))), sourceDelimiter)
+    expItems = Split(UCase$(Trim$(CStr(expectedValues))), ",")
+
+    For Each src In srcItems
+        srcToken = UCase$(Trim$(CStr(src)))
+        If srcToken <> "" Then
+            For Each exp In expItems
+                expToken = UCase$(Trim$(CStr(exp)))
+                If expToken <> "" Then
+                    If srcToken = expToken Then
+                        CsvContains = True
+                        Exit Function
+                    End If
+                End If
+            Next exp
+        End If
+    Next src
+
+    CsvContains = False
+
+End Function
+
 
 '==============================================================================
 '       FS_ID存在チェック
@@ -315,19 +370,19 @@ Private Sub AddNetAssetAmounts( _
         ' 一般純資産
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_START", "一般", tbEngine.LastGeneralNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET", "一般", tbEngine.LastGeneralNetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "一般", tbEngine.LastGeneralNetEnd)
         
         Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.LastGeneralNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET", "*", tbEngine.LastGeneralNetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "*", tbEngine.LastGeneralNetEnd)
 
         '==============================
         ' 指定純資産
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_START", "指定", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET", "指定", tbEngine.DesignatedNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "指定", tbEngine.DesignatedNetAssetEnd)
         
         Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET", "*", tbEngine.DesignatedNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "*", tbEngine.DesignatedNetAssetEnd)
 
     Else
 
@@ -335,19 +390,19 @@ Private Sub AddNetAssetAmounts( _
         ' 一般純資産
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_START", "一般", tbEngine.GeneralNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET", "一般", tbEngine.GeneralNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "一般", tbEngine.GeneralNetAssetEnd)
 
         Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.GeneralNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET", "*", tbEngine.GeneralNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "*", tbEngine.GeneralNetAssetEnd)
 
         '==============================
         ' 指定純資産
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_START", "指定", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET", "指定", tbEngine.DesignatedNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "指定", tbEngine.DesignatedNetAssetEnd)
 
         Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET", "*", tbEngine.DesignatedNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "*", tbEngine.DesignatedNetAssetEnd)
 
     End If
 
@@ -680,7 +735,7 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
     '表示項目
     targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
 
-    mode = UCase$(Trim$(line.accountingCategory))
+    mode = UCase$(Trim$(line.filterValue))
     If mode <> CATEGORY_EACH_PROJECT Then mode = CATEGORY_EACH_ACCOUNT
 
     Set columns = GetNoteColumns(mode)
@@ -847,7 +902,7 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
     '★固定グループ
     targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
 
-    mode = UCase$(Trim$(line.accountingCategory))
+    mode = UCase$(Trim$(line.filterValue))
     If mode <> CATEGORY_EACH_ACCOUNT_SUM And mode <> CATEGORY_EACH_ACCOUNT And mode <> CATEGORY_EACH_PROJECT Then
         mode = CATEGORY_EACH_ACCOUNT_SUM
     End If
@@ -1075,7 +1130,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
         End If
 
         code = Trim$(line.SubAccountCode)   '★追加：補助科目コード
-        cate = Trim$(line.SubAccountCate)
+        cate = Trim$(line.subAccountCate)
         proj = Trim$(line.SubAccountName)
 
         If cate <> "" Then
@@ -1419,7 +1474,7 @@ End Function
 Private Function GetAmountByLine(ByVal amountMap As Object, ByVal line As FinancialStatementMasterLine) As Currency
 
     Dim key As String
-    key = BuildKey(line.aggregateID, line.accountingCategory)
+    key = BuildKey(line.lineID, line.filterValue)
 
     If amountMap.Exists(key) Then
         GetAmountByLine = CCur(amountMap(key))
@@ -1450,7 +1505,7 @@ Private Sub ResolveFormulaAmounts(ByVal values As Object)
         If line.enabled Then
             If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
                 'キー生成（lineID|category）
-                key = BuildKey(line.lineID, line.accountingCategory)
+                key = BuildKey(line.lineID, line.filterValue)
                 '数式評価
                 values(key) = ResolveFormula(line.formula, values)
             End If
@@ -1515,7 +1570,7 @@ Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal 
     '------------------------------------------
     ' 子の金額取得
     '------------------------------------------
-    childKey = BuildKey(child.lineID, child.accountingCategory)
+    childKey = BuildKey(child.lineID, child.filterValue)
     If amountMap.Exists(childKey) Then
         childAmount = CCur(amountMap(childKey))
     Else
@@ -1530,8 +1585,8 @@ Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal 
     '------------------------------------------
     ' 親行取得
     '------------------------------------------
-    Set parentLine = GetAggregateParentLine(child.aggregateTo, child.accountingCategory)
-    parentKey = BuildKey(parentLine.lineID, parentLine.accountingCategory)
+    Set parentLine = GetAggregateParentLine(child.aggregateTo, child.filterValue)
+    parentKey = BuildKey(parentLine.lineID, parentLine.filterValue)
 
     '------------------------------------------
     ' 親へ加算
