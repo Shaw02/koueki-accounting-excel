@@ -15,10 +15,6 @@ Option Explicit
 Private Const MaxColumn As Long = 5                             '出力する最大列（E列まで）
 Private Const START_ROW As Long = 2                             'ヘッダー開始行
 Private Const MASTER_SHEET_NAME As String = "財務諸表マスタ"    'マスタシート名
-Private Const CATEGORY_EACH_ACCOUNT_SUM As String = "EACH_ACCOUNT_SUM"
-Private Const CATEGORY_EACH_ACCOUNT As String = "EACH_ACCOUNT"
-Private Const CATEGORY_EACH_PROJECT As String = "EACH_PROJECT"
-Private Const CATEGORY_EACH_FUND As String = "EACH_FUND"
 Private Const GROUP_PUBLIC As Long = 1
 Private Const GROUP_REVENUE As Long = 2
 Private Const GROUP_CORPORATE As Long = 3
@@ -378,11 +374,11 @@ Private Sub AddNetAssetAmounts( _
         '==============================
         ' 指定純資産
         '==============================
-        Call AddAmountToMap(accountMap, "BS_NET_START", "指定", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "指定", tbEngine.DesignatedNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_START", "指定", tbEngine.LastDesignatedNetBegin)
+        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "指定", tbEngine.LastDesignatedNetEnd)
         
-        Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "*", tbEngine.DesignatedNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.LastDesignatedNetBegin)
+        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "*", tbEngine.LastDesignatedNetEnd)
 
     Else
 
@@ -735,8 +731,7 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
     '表示項目
     targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
 
-    mode = UCase$(Trim$(line.filterValue))
-    If mode <> CATEGORY_EACH_PROJECT Then mode = CATEGORY_EACH_ACCOUNT
+    mode = GetHeaderCategoryModeFromFilterField(line.filterField, "会計区分")
 
     Set columns = GetNoteColumns(mode)
 
@@ -765,7 +760,7 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
         ' ３行目：  会計
         '========================
         headerRow = y + y_inc
-        headerDepth = IIf(mode = CATEGORY_EACH_PROJECT, 3, 2)
+        headerDepth = IIf(mode = "補助区分", 3, 2)
 
         .Cells(headerRow, 2).value = "科目"
         If headerDepth > 1 Then .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
@@ -902,10 +897,7 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
     '★固定グループ
     targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
 
-    mode = UCase$(Trim$(line.filterValue))
-    If mode <> CATEGORY_EACH_ACCOUNT_SUM And mode <> CATEGORY_EACH_ACCOUNT And mode <> CATEGORY_EACH_PROJECT Then
-        mode = CATEGORY_EACH_ACCOUNT_SUM
-    End If
+    mode = GetHeaderCategoryModeFromFilterField(line.filterField, "目的区分")
 
     Set columns = GetNoteColumns(mode)
 
@@ -933,8 +925,8 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
         headerRow = y + y_inc
         
         Select Case mode
-            Case CATEGORY_EACH_PROJECT: headerDepth = 3
-            Case CATEGORY_EACH_ACCOUNT: headerDepth = 2
+            Case "補助区分": headerDepth = 3
+            Case "会計区分": headerDepth = 2
             Case Else: headerDepth = 1
         End Select
 
@@ -1089,6 +1081,18 @@ Private Sub MergeSameCategoryCells(ByVal ws As Worksheet, ByVal row As Long, ByV
 
 End Sub
 
+Private Function GetHeaderCategoryModeFromFilterField(ByVal filterField As String, ByVal defaultMode As String) As String
+
+    Select Case Trim$(filterField)
+        Case "純資産区分": GetHeaderCategoryModeFromFilterField = "純資産区分"
+        Case "補助区分": GetHeaderCategoryModeFromFilterField = "補助区分"
+        Case "会計区分": GetHeaderCategoryModeFromFilterField = "会計区分"
+        Case "目的区分": GetHeaderCategoryModeFromFilterField = "目的区分"
+        Case Else: GetHeaderCategoryModeFromFilterField = defaultMode
+    End Select
+
+End Function
+
 '==============================================================================
 '       補助科目・会計区分の列キー生成
 '------------------------------------------------------------------------------
@@ -1116,9 +1120,9 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
     Set projectSeen = CreateObject("Scripting.Dictionary")
     Set groupSeen = CreateObject("Scripting.Dictionary")
 
-    m_ColumnKeysByCategory.Add CATEGORY_EACH_ACCOUNT, New Collection
-    m_ColumnKeysByCategory.Add CATEGORY_EACH_PROJECT, New Collection
-    m_ColumnKeysByCategory.Add CATEGORY_EACH_ACCOUNT_SUM, New Collection
+    m_ColumnKeysByCategory.Add "会計区分", New Collection
+    m_ColumnKeysByCategory.Add "補助区分", New Collection
+    m_ColumnKeysByCategory.Add "目的区分", New Collection
 
     For Each line In tb.lines
 
@@ -1140,7 +1144,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
             '------------------------------------------
             If Not accountSeen.Exists(UCase$(cate)) Then
                 accountSeen.Add UCase$(cate), True
-                m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT).Add _
+                m_ColumnKeysByCategory("会計区分").Add _
                     GetAccountGroupLabel(cate) & "|" & cate
             End If
 
@@ -1150,7 +1154,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
             grp = GetAccountGroupLabel(cate)
             If Not groupSeen.Exists(UCase$(grp)) Then
                 groupSeen.Add UCase$(grp), True
-                m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM).Add grp
+                m_ColumnKeysByCategory("目的区分").Add grp
             End If
 
             '------------------------------------------
@@ -1164,7 +1168,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
                     projectSeen.Add projectKey, True
 
                     ' ★コードを第3要素に追加
-                    m_ColumnKeysByCategory(CATEGORY_EACH_PROJECT).Add _
+                    m_ColumnKeysByCategory("補助区分").Add _
                         GetAccountGroupLabel(cate) & "|" & cate & "|" & code & "|" & proj
                 End If
             End If
@@ -1174,7 +1178,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
 ContinueLine:
     Next
 
-    Call EnsureMandatoryAccountGroupColumns(groupSeen, m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM))
+    Call EnsureMandatoryAccountGroupColumns(groupSeen, m_ColumnKeysByCategory("目的区分"))
     Call SortColumnKeysByCategory
 
 End Sub
@@ -1218,14 +1222,14 @@ Private Sub SortColumnKeysByCategory()
 
     Dim sorted As Collection
 
-    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM), CATEGORY_EACH_ACCOUNT_SUM)
-    Set m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT_SUM) = sorted
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory("目的区分"), "目的区分")
+    Set m_ColumnKeysByCategory("目的区分") = sorted
 
-    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT), CATEGORY_EACH_ACCOUNT)
-    Set m_ColumnKeysByCategory(CATEGORY_EACH_ACCOUNT) = sorted
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory("会計区分"), "会計区分")
+    Set m_ColumnKeysByCategory("会計区分") = sorted
 
-    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_EACH_PROJECT), CATEGORY_EACH_PROJECT)
-    Set m_ColumnKeysByCategory(CATEGORY_EACH_PROJECT) = sorted
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory("補助区分"), "補助区分")
+    Set m_ColumnKeysByCategory("補助区分") = sorted
 
 End Sub
 
@@ -1290,7 +1294,7 @@ Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As 
         Exit Function
     End If
 
-    If mode = CATEGORY_EACH_ACCOUNT_SUM Then
+    If mode = "目的区分" Then
         ShouldSwapColumnKey = False
         Exit Function
     End If
@@ -1307,7 +1311,7 @@ Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As 
     '------------------------------------------
     ' ★補助科目ソート（コード優先）
     '------------------------------------------
-    If mode = CATEGORY_EACH_PROJECT Then
+    If mode = "補助区分" Then
         ShouldSwapColumnKey = (UCase$(GetPartValue(leftParts, 2)) > UCase$(GetPartValue(rightParts, 2)))
     Else
         ShouldSwapColumnKey = False
@@ -1770,4 +1774,5 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
     ResolveFormula = CCur(Application.Evaluate(expr))
 
 End Function
+
 
