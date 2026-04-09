@@ -190,7 +190,7 @@ Public Sub AddJournal(entry As AccountingEntry)
         Set accD = GetOrCreateLedger(m_GeneralLedger, keyD.key, d)
         
         Call accD.AddLine( _
-            d.Row, _
+            d.row, _
             d.ParentRow, _
             entry.entryDate, _
             counterAcc, _
@@ -210,7 +210,7 @@ Public Sub AddJournal(entry As AccountingEntry)
         Set accD = GetOrCreateLedger(m_SubLedger, keyD.key, d)
         
         Call accD.AddLine( _
-            d.Row, _
+            d.row, _
             d.ParentRow, _
             entry.entryDate, _
             counterAcc, _
@@ -249,7 +249,7 @@ Public Sub AddJournal(entry As AccountingEntry)
         Set accC = GetOrCreateLedger(m_GeneralLedger, keyC.key, c)
         
         Call accC.AddLine( _
-            c.Row, _
+            c.row, _
             c.ParentRow, _
             entry.entryDate, _
             counterAcc, _
@@ -269,7 +269,7 @@ Public Sub AddJournal(entry As AccountingEntry)
         Set accC = GetOrCreateLedger(m_SubLedger, keyC.key, c)
         
         Call accC.AddLine( _
-            c.Row, _
+            c.row, _
             c.ParentRow, _
             entry.entryDate, _
             counterAcc, _
@@ -339,7 +339,7 @@ Public Sub OutputSheet()
     y = styGeneralLedger
     With wsGL
     
-         .Columns("A").NumberFormat = "yyyy/mm/dd"
+         .columns("A").NumberFormat = "yyyy/mm/dd"
     
         '数値表示形式（小数点なし）
         .Range("E:F, H:H").NumberFormat = "#,##0;△#,##0;;@"
@@ -361,7 +361,7 @@ Public Sub OutputSheet()
                     .Cells(y, 1) = "科目：" & acc.MajorAccount
                 End If
                 .Cells(y, 1).Font.Underline = True
-                .Cells(y, 1).Font.size = 16
+                .Cells(y, 1).Font.Size = 16
                 .Cells(y, 1).HorizontalAlignment = xlCenter
                 y = y + 1
             
@@ -405,7 +405,7 @@ Public Sub OutputSheet()
                         IIf(line.credit = 0, "-", line.credit), _
                         line.DebitCreditLabel, _
                         line.BalanceAbs, _
-                        IIf(line.Row = 0, "", "=HYPERLINK(""#'①仕訳帳'!A" & line.Row & """,""" & line.Row & """)"))
+                        IIf(line.row = 0, "", "=HYPERLINK(""#'①仕訳帳'!A" & line.row & """,""" & line.row & """)"))
                     .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
                     
                     'ゼブラ
@@ -437,7 +437,7 @@ Public Sub OutputSheet()
     '----------------------------------
     y = styGeneralLedger
     With wsSL
-         .Columns("A").NumberFormat = "yyyy/mm/dd"
+         .columns("A").NumberFormat = "yyyy/mm/dd"
     
         '数値表示形式（小数点なし）
         .Range("E:F, H:H").NumberFormat = "#,##0;△#,##0;;@"
@@ -459,7 +459,7 @@ Public Sub OutputSheet()
                     .Cells(y, 1) = "科目：" & acc.MajorAccount
                 End If
                 .Cells(y, 1).Font.Underline = True
-                .Cells(y, 1).Font.size = 16
+                .Cells(y, 1).Font.Size = 16
                 .Cells(y, 1).HorizontalAlignment = xlCenter
                 y = y + 1
             
@@ -468,7 +468,7 @@ Public Sub OutputSheet()
                 .Range(.Cells(y, 1), .Cells(y, 8)).Merge
                 .Cells(y, 1) = "補助科目：［" & acc.SubAccountCate & "］" & acc.SubAccountName & acc.Class
                 .Cells(y, 1).Font.Underline = True
-                .Cells(y, 1).Font.size = 14
+                .Cells(y, 1).Font.Size = 14
                 .Cells(y, 1).HorizontalAlignment = xlCenter
                 y = y + 2
                 
@@ -514,7 +514,7 @@ Public Sub OutputSheet()
                         IIf(line.credit = 0, "-", line.credit), _
                         line.DebitCreditLabel, _
                         line.BalanceAbs, _
-                        IIf(line.Row = 0, "", "=HYPERLINK(""#'①仕訳帳'!A" & line.Row & """,""" & line.Row & """)"))
+                        IIf(line.row = 0, "", "=HYPERLINK(""#'①仕訳帳'!A" & line.row & """,""" & line.row & """)"))
                     .Range(.Cells(y, 1), .Cells(y, MaxColumn)).Borders.LineStyle = xlContinuous
                                         
                     'ゼブラ

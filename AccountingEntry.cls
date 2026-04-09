@@ -43,6 +43,10 @@ Public Property Get summary() As String
     summary = m_Summary
 End Property
 
+Public Property Get StartRow() As Long
+    StartRow = m_StartRow
+End Property
+
 '==============================================================================
 '   クラスの初期化
 '==============================================================================
@@ -82,6 +86,18 @@ End Sub
 '==============================================================================
 Public Sub AddDebit(ByVal side As entrySide)
 
+    If side Is Nothing Then
+        Err.Raise vbObjectError + 4101, _
+                  "AccountingEntry.AddDebit", _
+                  "借方明細が Nothing です。"
+    End If
+    
+    If side.amount < 0 Then
+        Err.Raise vbObjectError + 4102, _
+                  "AccountingEntry.AddDebit", _
+                  "借方金額が負数です。"
+    End If
+    
     m_TotalDebit = m_TotalDebit + side.amount
     m_Debits.Add side
 
@@ -92,6 +108,18 @@ End Sub
 '==============================================================================
 Public Sub AddCredit(ByVal side As entrySide)
 
+    If side Is Nothing Then
+        Err.Raise vbObjectError + 4103, _
+                  "AccountingEntry.AddCredit", _
+                  "貸方明細が Nothing です。"
+    End If
+    
+    If side.amount < 0 Then
+        Err.Raise vbObjectError + 4104, _
+                  "AccountingEntry.AddCredit", _
+                  "貸方金額が負数です。"
+    End If
+    
     m_TotalCredit = m_TotalCredit + side.amount
     m_Credits.Add side
 

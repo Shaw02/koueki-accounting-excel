@@ -262,9 +262,9 @@ Public Sub ClearSheet(ws As Worksheet, StartRow As Long)
     
     With ws
     
-        lastRowA = .Cells(.Rows.Count, "A").End(xlUp).Row
-        lastRowB = .Cells(.Rows.Count, "B").End(xlUp).Row
-        lastRowC = .Cells(.Rows.Count, "C").End(xlUp).Row
+        lastRowA = .Cells(.Rows.Count, "A").End(xlUp).row
+        lastRowB = .Cells(.Rows.Count, "B").End(xlUp).row
+        lastRowC = .Cells(.Rows.Count, "C").End(xlUp).row
         
         'ç≈ëÂílÇçÃóp
         lastRow = Application.WorksheetFunction.Max(lastRowA, lastRowB, lastRowC)
@@ -296,7 +296,7 @@ Public Function LoadAccountMaster(ws As Worksheet) As AccountMaster
     Dim lastRow As Long
     Dim v As Variant
 
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).row
 
     For y = 2 To lastRow
     

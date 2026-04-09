@@ -185,6 +185,12 @@ Public Sub Initialize( _
         ByVal subName As String, _
         ByVal NetAssetType As NetAssetType)
 
+    If acc Is Nothing Then
+        Err.Raise vbObjectError + 7101, _
+                  "LedgerAccount.Initialize", _
+                  "ä®íËâ»ñ⁄Ç™ñ¢ê›íËÇ≈Ç∑ÅB"
+    End If
+    
     Set m_Account = acc
     m_SubAccountCode = subCode
     m_SubAccountCate = subCate
@@ -250,7 +256,7 @@ End Sub
 '
 '==============================================================================
 Public Sub AddLine( _
-        ByVal Row As Long, _
+        ByVal row As Long, _
         ByVal StartRow As Long, _
         ByVal entryDate As Variant, _
         ByVal counterAccount As account, _
@@ -275,7 +281,7 @@ Public Sub AddLine( _
     ' LedgerLine çÏê¨
     '--------------------------------
     Call line.Initialize( _
-        Row, _
+        row, _
         StartRow, _
         entryDate, _
         counterAccount, _

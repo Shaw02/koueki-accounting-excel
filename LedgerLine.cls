@@ -98,8 +98,8 @@ End Property
 '==============================================================================
 '   çséÊìæ
 '==============================================================================
-Public Property Get Row() As Long
-    Row = m_Row
+Public Property Get row() As Long
+    row = m_Row
 End Property
 
 Public Property Get StartRow() As Long
@@ -180,7 +180,7 @@ End Sub
 '
 '==============================================================================
 Public Sub Initialize( _
-        ByVal Row As Long, _
+        ByVal row As Long, _
         ByVal StartRow As Long, _
         ByVal entryDate As Variant, _
         ByVal counterAccount As account, _
@@ -221,7 +221,7 @@ Public Sub Initialize( _
     m_IsMultiCounter = isMulti
     
     m_StartRow = StartRow
-    m_Row = Row
+    m_Row = row
 
 End Sub
 

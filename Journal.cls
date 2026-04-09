@@ -134,9 +134,9 @@ Public Sub readJournal(master As AccountMaster)
     '----------------------------------
     Set ws = ThisWorkbook.Worksheets("З@ОdЦєТа")
     lastRow = Application.WorksheetFunction.Max( _
-        ws.Cells(ws.Rows.Count, COL_DATE).End(xlUp).Row, _
-        ws.Cells(ws.Rows.Count, COL_DR_MONEY).End(xlUp).Row, _
-        ws.Cells(ws.Rows.Count, COL_CR_MONEY).End(xlUp).Row)
+        ws.Cells(ws.Rows.Count, COL_DATE).End(xlUp).row, _
+        ws.Cells(ws.Rows.Count, COL_DR_MONEY).End(xlUp).row, _
+        ws.Cells(ws.Rows.Count, COL_CR_MONEY).End(xlUp).row)
     
     iTotalCrMoney = 0
     iTotalDrMoney = 0

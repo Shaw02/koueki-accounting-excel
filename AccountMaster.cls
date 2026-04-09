@@ -48,6 +48,12 @@ End Sub
 '------------------------------------------------------------------------------
 Public Sub AddAccount(ByVal acc As account)
 
+    If acc Is Nothing Then
+        Err.Raise vbObjectError + 2003, _
+                  "AccountMaster.AddAccount", _
+                  "勘定科目オブジェクトが Nothing です。"
+    End If
+    
     Dim key As String
     key = CStr(acc.code)
 
@@ -148,7 +154,16 @@ End Property
 '------------------------------------------------------------------------------
 Public Function GetByKey(ByVal key As Variant) As account
 
-    Set GetByKey = m_dict(CStr(key))
+    Dim keyStr As String
+    keyStr = CStr(key)
+    
+    If Not m_dict.Exists(keyStr) Then
+        Err.Raise vbObjectError + 2001, _
+                  "AccountMaster.GetByKey", _
+                  "勘定科目が存在しません: " & keyStr
+    End If
+
+    Set GetByKey = m_dict(keyStr)
 
 End Function
 

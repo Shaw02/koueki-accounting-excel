@@ -273,16 +273,16 @@ Public Sub Read_LastResult(master As AccountMaster)
     
     With ws
     
-        .Columns("B").ColumnWidth = 14
-        .Columns("C").ColumnWidth = 18
-        .Columns("D").ColumnWidth = 10
-        .Columns("E").ColumnWidth = 10
-        .Columns("F").ColumnWidth = 22
-        .Columns("G:K").ColumnWidth = 14
+        .columns("B").ColumnWidth = 14
+        .columns("C").ColumnWidth = 18
+        .columns("D").ColumnWidth = 10
+        .columns("E").ColumnWidth = 10
+        .columns("F").ColumnWidth = 22
+        .columns("G:K").ColumnWidth = 14
         
-        lastRowA = .Cells(.Rows.Count, "A").End(xlUp).Row
-        lastRowB = .Cells(.Rows.Count, "B").End(xlUp).Row
-        lastRowC = .Cells(.Rows.Count, "C").End(xlUp).Row
+        lastRowA = .Cells(.Rows.Count, "A").End(xlUp).row
+        lastRowB = .Cells(.Rows.Count, "B").End(xlUp).row
+        lastRowC = .Cells(.Rows.Count, "C").End(xlUp).row
         
         '最大値を採用
         lastRow = Application.WorksheetFunction.Max(lastRowA, lastRowB, lastRowC)
@@ -662,12 +662,12 @@ Public Sub OutputSheet()
         '==============================
         ' 列幅（帳票感）
         '==============================
-        .Columns("B").ColumnWidth = 14
-        .Columns("C").ColumnWidth = 18
-        .Columns("D").ColumnWidth = 10
-        .Columns("E").ColumnWidth = 10
-        .Columns("F").ColumnWidth = 22
-        .Columns("G:K").ColumnWidth = 14
+        .columns("B").ColumnWidth = 14
+        .columns("C").ColumnWidth = 18
+        .columns("D").ColumnWidth = 10
+        .columns("E").ColumnWidth = 10
+        .columns("F").ColumnWidth = 22
+        .columns("G:K").ColumnWidth = 14
 
         '==============================
         ' 数値書式
