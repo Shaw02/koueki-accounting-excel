@@ -24,7 +24,7 @@ Private m_FS            As String               'FS区分 （BS/PL）
 Private m_FSEnum        As AccountFSKind        '
 Private m_Category      As String               '区分   （資産／負債／純資産／収益／費用）
 Private m_CategoryEnum  As AccountCategoryKind  '
-Private m_SubCategory   As String               '小区分
+Private m_SubCategory   As String               '小区分（流動資産／固定資産／流動負債／固定負債／経常収益／経常外収益／経常費用／経常外費用）
 Private m_Postable      As Boolean              '仕訳帳 （入力用／集計用）
 Private m_SubAccount    As Boolean              '補助科目は必須？
 Private m_FSLineIDs     As String               '財務諸表ID

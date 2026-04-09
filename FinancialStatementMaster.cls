@@ -24,8 +24,8 @@ Public Sub Clear()
     Set m_LineMap = CreateObject("Scripting.Dictionary")
 End Sub
 
-Public Property Get Lines() As Collection
-    Set Lines = m_Lines
+Public Property Get lines() As Collection
+    Set lines = m_Lines
 End Property
 
 '==============================================================================
@@ -123,11 +123,12 @@ Private Sub AppendLineFromRow(ByVal ws As Worksheet, ByVal y As Long)
         CStr(ws.Cells(y, 3).value), _
         CStr(ws.Cells(y, 4).value), _
         CStr(ws.Cells(y, 5).value), _
-        ws.Cells(y, 5).HorizontalAlignment, _
         CStr(ws.Cells(y, 6).value), _
+        ws.Cells(y, 6).HorizontalAlignment, _
         CStr(ws.Cells(y, 7).value), _
-        CStr(ws.Cells(y, 8).value), _
-        ParseBoolean(ws.Cells(y, 9).value, True))
+        CStr(ws.Cells(y, 9).value), _
+        CStr(ws.Cells(y, 9).value), _
+        ParseBoolean(ws.Cells(y, 10).value, True))
     
     Call AddLine(line)
 
@@ -234,14 +235,14 @@ Private Sub ValidateAggregateToExists()
 
     For Each line In m_Lines
 
-        If Trim$(line.AggregateTo) <> "" Then
+        If Trim$(line.aggregateTo) <> "" Then
 
-            If Not Me.Exists(line.AggregateTo, line.accountingCategory) _
-               And Not Me.Exists(line.AggregateTo, "*") Then
+            If Not Me.Exists(line.aggregateTo, line.accountingCategory) _
+               And Not Me.Exists(line.aggregateTo, "*") Then
 
                 Err.Raise vbObjectError + 9002, _
                     "FinancialStatementMaster.ValidateAggregateToExists", _
-                    "AggregateTo未定義: " & line.lineID & " → " & line.AggregateTo
+                    "AggregateTo未定義: " & line.lineID & " → " & line.aggregateTo
             End If
 
         End If
@@ -404,20 +405,20 @@ Private Sub ValidateCircularReference_DFS( _
     '------------------------------------------
     ' 親へ遷移
     '------------------------------------------
-    If Trim$(line.AggregateTo) <> "" Then
+    If Trim$(line.aggregateTo) <> "" Then
 
         Dim parent As FinancialStatementMasterLine
 
         'GetLineはエラーを投げる仕様なのでここではそのまま使う
-        If Me.Exists(line.AggregateTo, line.accountingCategory) Then
-            Set parent = Me.GetLine(line.AggregateTo, line.accountingCategory)
-        ElseIf Me.Exists(line.AggregateTo, "*") Then
-            Set parent = Me.GetLine(line.AggregateTo, "*")
+        If Me.Exists(line.aggregateTo, line.accountingCategory) Then
+            Set parent = Me.GetLine(line.aggregateTo, line.accountingCategory)
+        ElseIf Me.Exists(line.aggregateTo, "*") Then
+            Set parent = Me.GetLine(line.aggregateTo, "*")
         Else
             'ここは別チェックで拾っているが保険
             Err.Raise vbObjectError + 9006, _
                 "FinancialStatementMaster.ValidateCircularReference", _
-                "親が存在しません: " & line.AggregateTo
+                "親が存在しません: " & line.aggregateTo
         End If
 
         Call ValidateCircularReference_DFS(parent, visited, stack)

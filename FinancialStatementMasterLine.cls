@@ -15,6 +15,7 @@ Option Explicit
 Private m_StatementID As String           '帳票ID（貸借対照表、活動計算書など）
 Private m_TargetSheet As String           '出力先シート名
 Private m_LineID As String                '財務諸表行ID（内部識別子）
+Private m_AggregateID As String           '試算表集計キー（勘定科目マスタとの連携）
 Private m_AccountingCategory As String    '会計区分（公1、公2など）※空の場合は "*"
 Private m_LineLabel As String             '表示用ラベル（科目名）
 Private m_LineLabelAligh As XlHAlign      'ラベルの配置（左寄せなど）
@@ -168,17 +169,19 @@ Public Sub Initialize( _
     ByVal statementID As String, _
     ByVal TargetSheet As String, _
     ByVal lineID As String, _
+    ByVal aggregateID As String, _
     ByVal accountingCategory As String, _
     ByVal LineLabel As String, _
     ByVal LineLabelAligh As XlHAlign, _
     ByVal lineType As String, _
     ByVal formula As String, _
-    ByVal AggregateTo As String, _
+    ByVal aggregateTo As String, _
     ByVal enabled As Boolean)
 
     m_StatementID = Trim$(statementID)
     m_TargetSheet = Trim$(TargetSheet)
     m_LineID = Trim$(lineID)
+    Me.aggregateID = aggregateID
     
     '会計区分は空の場合 "*"（全体）として扱う
     m_AccountingCategory = UCase$(Trim$(accountingCategory))
@@ -192,7 +195,7 @@ Public Sub Initialize( _
     m_Formula = Trim$(formula)
 
     'AggregateTo はPropertyでバリデーション
-    Me.AggregateTo = AggregateTo
+    Me.aggregateTo = aggregateTo
 
     m_Enabled = enabled
 
@@ -211,6 +214,42 @@ Public Property Get TargetSheet() As String: TargetSheet = m_TargetSheet: End Pr
 '財務諸表行IDを取得する
 Public Property Get lineID() As String: lineID = m_LineID: End Property
 
+'試算表集計キーを取得する（後方互換: 空ならLineID）
+Public Property Get aggregateID() As String
+    If m_AggregateID <> "" Then
+        aggregateID = m_AggregateID
+    Else
+        aggregateID = UCase$(Trim$(m_LineID))
+    End If
+End Property
+
+'試算表集計キーを設定する（Trim + UCase + CSV正規化）
+Public Property Let aggregateID(ByVal value As String)
+
+    Dim ids As Variant
+    Dim id As Variant
+    Dim normalized As String
+    Dim token As String
+    Dim seen As Object
+
+    normalized = ""
+    Set seen = CreateObject("Scripting.Dictionary")
+    ids = Split(CStr(value), ",")
+    For Each id In ids
+        token = UCase$(Trim$(CStr(id)))
+        If token <> "" Then
+            If Not seen.Exists(token) Then
+                seen.Add token, True
+                If normalized <> "" Then normalized = normalized & ","
+                normalized = normalized & token
+            End If
+        End If
+    Next id
+
+    m_AggregateID = normalized
+
+End Property
+
 '会計区分を取得する（空の場合は "*"）
 Public Property Get accountingCategory() As String: accountingCategory = m_AccountingCategory: End Property
 
@@ -227,10 +266,10 @@ Public Property Get lineType() As String: lineType = m_LineType: End Property
 Public Property Get formula() As String: formula = m_Formula: End Property
 
 '集計先（親行ID）を取得する
-Public Property Get AggregateTo() As String: AggregateTo = m_AggregateTo: End Property
+Public Property Get aggregateTo() As String: aggregateTo = m_AggregateTo: End Property
 
 '集計先（親行ID）を設定する
-Public Property Let AggregateTo(ByVal value As String)
+Public Property Let aggregateTo(ByVal value As String)
 
     Dim normalized As String
     normalized = UCase$(Trim$(value))
