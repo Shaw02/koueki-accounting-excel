@@ -92,12 +92,12 @@ Private m_Enabled As Boolean              '有効フラグ（出力対象か）
 '       HEADER_PL_NOTE2
 '           ・（２）会計区分及び事業区分別内訳
 '
-'           ■横軸（m_AccountingCategory により切替）
+'           ■横軸（m_FilterField により切替）
 '
-'               EACH_ACCOUNT
+'               CATEGORY_ACCOUNT
 '                   ・会計区分単位（公1、公2 等）
 '
-'               EACH_PROJECT
+'               CATEGORY_PROJECT
 '                   ・補助科目（演奏会）単位
 '
 '           ■追加列
@@ -108,17 +108,17 @@ Private m_Enabled As Boolean              '有効フラグ（出力対象か）
 '       HEADER_PL_NOTE3
 '           ・（３）事業費・管理費の形態別区分
 '
-'           ■横軸（m_AccountingCategory により切替）
+'           ■横軸（m_FilterField により切替）
 '
-'               EACH_ACCOUNT_SUM
+'               CATEGORY_ACCOUNT_SUM
 '                   ・会計区分（集約単位）で表示
 '                   ・例：公益目的事業会計／収益事業等会計／法人会計
 '                   ・簡易表示用
 '
-'               EACH_ACCOUNT
+'               CATEGORY_ACCOUNT
 '                   ・会計区分単位（簡略表示）
 '
-'               EACH_PROJECT
+'               CATEGORY_PROJECT
 '                   ・補助科目（演奏会）単位
 '
 '           ■追加列
@@ -246,7 +246,7 @@ Public Property Get aggregateField() As String: aggregateField = m_AggregateFiel
 
 Public Property Get aggregateValue() As String
     
-    If (m_AggregateField = "" Or m_AggregateField = "ID") And m_AggregateValue = "" Then
+    If (m_AggregateField = "" Or m_AggregateField = Terget_ID) And m_AggregateValue = "" Then
         aggregateValue = m_LineID
     Else
         aggregateValue = m_AggregateValue

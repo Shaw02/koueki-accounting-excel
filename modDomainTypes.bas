@@ -19,3 +19,14 @@ Public Enum AccountCategoryKind
     ackExpense = 5      '費用
 End Enum
 
+'財務諸表マスタ 対象
+Public Const Terget_ID              As String = "ID"
+Public Const Terget_Sub_Class       As String = "CLASS"
+Public Const Terget_Acc_Code        As String = "CODE"
+
+'財務諸表マスタ フィルター区分
+Public Const CATEGORY_ACCOUNT_SUM   As String = "目的区分"
+Public Const CATEGORY_ACCOUNT       As String = "会計区分"
+Public Const CATEGORY_PROJECT       As String = "補助区分"
+Public Const CATEGORY_NET_ASSET     As String = "純資産区分"
+

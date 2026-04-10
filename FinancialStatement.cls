@@ -19,7 +19,7 @@ Private Const GROUP_PUBLIC As Long = 1
 Private Const GROUP_REVENUE As Long = 2
 Private Const GROUP_CORPORATE As Long = 3
 Private Const GROUP_PUBLIC_LABEL As String = "公益目的事業会計"
-Private Const GROUP_REVENUE_LABEL As String = "収益事業会計"
+Private Const GROUP_REVENUE_LABEL As String = "収益事業等会計"
 Private Const GROUP_CORPORATE_LABEL As String = "法人会計"
 
 '****************************************
@@ -41,19 +41,20 @@ Private Sub Class_Initialize()
 End Sub
 
 '==============================================================================
-'       キー生成
+'       キー生成（lineID + category）
 '------------------------------------------------------------------------------
 '   Contents:
-'       lineID と 会計区分(category) を元にDictionary用キーを生成する
-'       categoryが空の場合は "*"（全体）として扱う
+'       財務諸表金額マップで使用するキーを生成する。
 '
-'   Input:
-'       lineID     財務諸表行ID
-'       category   会計区分
+'       ■ 形式
+'           lineID | category
 '
-'   Output:
-'       Dictionaryキー文字列
+'       ■ 仕様
+'           ・category が空の場合は "*" に補正
+'           ・大文字 + Trim により正規化
 '
+'       ■ 注意
+'           ・キー仕様は全体で統一されている前提
 '==============================================================================
 Private Function BuildKey(ByVal lineID As String, ByVal category As String) As String
     If Trim$(category) = "" Then category = "*"
@@ -61,19 +62,22 @@ Private Function BuildKey(ByVal lineID As String, ByVal category As String) As S
 End Function
 
 '==============================================================================
-'       財務諸表の生成～出力
+'       財務諸表生成メイン処理
 '------------------------------------------------------------------------------
 '   Contents:
-'       ・マスタ読込
-'       ・試算表→財務諸表用データ変換
-'       ・純資産データ追加
-'       ・集計処理（2段階）
-'       ・計算式解決
-'       ・Excelへ出力
+'       試算表データをもとに財務諸表を生成し、Excelへ出力する。
 '
-'   Input:
-'       tbEngine        試算表クラス
+'       ■ 処理フロー
+'           ① マスタ読込
+'           ② 試算表 → 金額マップ変換
+'           ③ 純資産補完
+'           ④ 勘定ベース集計
+'           ⑤ 計算式解決
+'           ⑥ 再集計
+'           ⑦ 出力
 '
+'       ■ 設計ポイント
+'           ・2段階集計（実データ → 計算式反映）
 '==============================================================================
 Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
 
@@ -116,18 +120,22 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
 End Sub
 
 '==============================================================================
-'       試算表 → 財務諸表金額マップ生成
+'       試算表 → 財務諸表金額マップ変換
 '------------------------------------------------------------------------------
 '   Contents:
-'       試算表の各行を財務諸表マスタのFS_IDへマッピングし、
-'       Dictionary(lineID|category → 金額)を生成する
+'       試算表データを、財務諸表行単位の金額へ変換する。
 '
-'   Input:
-'       tb      試算表
+'       ■ 出力
+'           Dictionary（lineID|category → 金額）
 '
-'   Output:
-'       Dictionary
+'       ■ 処理概要
+'           ・試算表 × マスタ を突き合わせ
+'           ・Aggregate で抽出
+'           ・Filter で分類
+'           ・AddAmountToMap で蓄積
 '
+'       ■ 分類パターン
+'           "*" / EACH / 固定指定
 '==============================================================================
 Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
 
@@ -144,18 +152,35 @@ Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
     For Each tbLine In tb.lines
         amount = tbLine.amount()
 
+        '------------------------------------------
+        ' 試算表1行 × マスタ全行 を突き合わせる
+        '------------------------------------------
         For Each masterLine In m_Master.lines
             If masterLine.enabled Then
                 If masterLine.lineType = "ACCOUNT" Or masterLine.lineType = "ACCOUNTS" Then
+                    'ACCOUNT / ACCOUNTS：
+                    '実データ（試算表）から直接金額を拾う行のみ対象
                     If IsAggregateMatch(masterLine, tbLine) And IsFilterMatch(masterLine, tbLine) Then
+                        '------------------------------------------
+                        ' マスタ定義に基づき、この試算表行が
+                        ' この財務諸表行に属するか判定
+                        '------------------------------------------
                         Call AddAmountToMap(result, masterLine.lineID, "*", amount)
 
                         If UCase$(Trim$(masterLine.filterValue)) = "EACH" Then
+                            '------------------------------------------
+                            ' EACH指定：
+                            ' 試算表の値ごとに明細分解（補助科目・事業など）
+                            '------------------------------------------
                             detailKey = GetFilterKey(masterLine.filterField, tbLine)
                             If detailKey <> "" And detailKey <> "*" Then
                                 Call AddAmountToMap(result, masterLine.lineID, detailKey, amount)
                             End If
                         ElseIf UCase$(Trim$(masterLine.filterValue)) <> "*" And UCase$(Trim$(masterLine.filterValue)) <> "" Then
+                            '------------------------------------------
+                            ' 固定カテゴリ指定：
+                            ' 例）"一般,指定" のような指定に従って振り分け
+                            '------------------------------------------
                             filterTokens = Split(masterLine.filterValue, ",")
                             For Each filterToken In filterTokens
                                 detailKey = UCase$(Trim$(CStr(filterToken)))
@@ -174,23 +199,93 @@ Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
 
 End Function
 
+'==============================================================================
+'       集計対象判定（Aggregate / WHERE句）
+'------------------------------------------------------------------------------
+'   Contents:
+'       試算表1行（tbLine）が、
+'       財務諸表マスタ行（masterLine）の「集計対象」に該当するか判定する。
+'
+'       ■ この関数の役割
+'           ・どのデータを拾うかを決める（SQLのWHERE句相当）
+'           ・分類（Filter）とは独立した「母集団の決定」
+'
+'       ■ 判定の流れ（重要）
+'           ① aggregateField を正規化（Trim + UCase）
+'           ② 未指定の場合は Terget_ID をデフォルト適用
+'           ③ 定数ごとに対象フィールドを切替
+'           ④ CsvContains により一致判定
+'
+'       ■ 使用定数
+'           Terget_ID         ：財務諸表IDベース
+'           Terget_Sub_Class  ：中区分ベース
+'           Terget_Acc_Code   ：勘定科目コードベース
+'
+'       ■ 設計ポイント
+'           ・マスタ設定のみで抽出条件を変更可能
+'           ・一致ロジックは CsvContains に集約
+'
+'       ■ 注意（重要）
+'           ・aggregateField 未指定時は Terget_ID が適用される
+'           ・区切り文字はフィールドごとに異なる（; / ,）
+'           ・未対応フィールドは False（安全側）
+'
+'==============================================================================
 Private Function IsAggregateMatch(ByVal masterLine As FinancialStatementMasterLine, ByVal tbLine As TrialBalanceLine) As Boolean
 
     Dim fieldName As String
+
     fieldName = UCase$(Trim$(masterLine.aggregateField))
-    If fieldName = "" Then fieldName = "ID"
+    If fieldName = "" Then fieldName = Terget_ID
 
     Select Case fieldName
-        Case "ID"
+
+        Case Terget_ID
             IsAggregateMatch = CsvContains(tbLine.account.fsLineIDs, masterLine.aggregateValue, ";")
-        Case "区分"
+
+        Case Terget_Sub_Class
             IsAggregateMatch = CsvContains(tbLine.account.SubCategory, masterLine.aggregateValue, ",")
+
+        Case Terget_Acc_Code
+            IsAggregateMatch = CsvContains(tbLine.account.code, masterLine.aggregateValue, ",")
+
         Case Else
             IsAggregateMatch = False
+
     End Select
 
 End Function
 
+'==============================================================================
+'       分類対象判定（Filter / GROUP BY前段）
+'------------------------------------------------------------------------------
+'   Contents:
+'       試算表1行（tbLine）が、
+'       財務諸表マスタ行の「分類対象」として扱われるか判定する。
+'
+'       ■ この関数の役割
+'           ・Aggregateで抽出されたデータを
+'             「分類に使うかどうか」を決める
+'
+'       ■ Aggregateとの違い
+'           Aggregate：拾うか（WHERE）
+'           Filter   ：分類するか（GROUP BY対象）
+'
+'       ■ 判定仕様
+'           ・"" / "*" / "EACH" → 常に True
+'           ・それ以外 → 実際の値と一致する場合のみ True
+'
+'       ■ 処理の流れ
+'           ① filterValue 正規化
+'           ② 特殊値（*, EACH）チェック
+'           ③ GetFilterKeyで実値取得
+'           ④ CsvContainsで一致判定
+'
+'       ■ 注意
+'           ・EACH の実際の分解は別処理（ここではTrueのみ返す）
+'           ・GetFilterKey が "" の場合は対象外
+'
+'==============================================================================
 Private Function IsFilterMatch(ByVal masterLine As FinancialStatementMasterLine, ByVal tbLine As TrialBalanceLine) As Boolean
 
     Dim filterValue As String
@@ -212,25 +307,49 @@ Private Function IsFilterMatch(ByVal masterLine As FinancialStatementMasterLine,
 
 End Function
 
+'==============================================================================
+'       分類キー生成（GROUP BYキー）
+'------------------------------------------------------------------------------
+'   Contents:
+'       試算表行（tbLine）から、
+'       財務諸表出力用の分類キーを生成する。
+'
+'       ■ この関数の役割
+'           ・分類単位（accountingCategory）を決定
+'           ・Dictionaryキーの一部になる
+'
+'       ■ 重要な位置づけ
+'           Aggregate → WHERE
+'           Filter    → GROUP BY条件
+'           本関数    → GROUP BYキー生成
+'
+'       ■ 分岐ロジック
+'           filterField に応じて取得値を切替
+'
+'       ■ 注意
+'           ・戻り値は最終的に UCase + Trim で正規化
+'           ・"" は「分類対象外」として扱われる
+'
+'==============================================================================
 Private Function GetFilterKey(ByVal filterField As String, ByVal tbLine As TrialBalanceLine) As String
 
     Dim key As String
     Select Case UCase$(Trim$(filterField))
-        Case "純資産区分"
+        Case CATEGORY_NET_ASSET
             If tbLine.NetAssetType = natDesignated Then
                 key = "指定"
             Else
                 key = "一般"
             End If
 
-        Case "目的区分"
+        Case CATEGORY_ACCOUNT_SUM
             key = GetPurposeCategory(tbLine.subAccountCate)
 
-        Case "会計区分"
+        Case CATEGORY_ACCOUNT
             key = UCase$(Trim$(tbLine.subAccountCate))
             If key = "" Then key = "共通"
 
-        Case "補助区分"
+        Case CATEGORY_PROJECT
             key = CStr(tbLine.SubAccountCode)
 
         Case Else
@@ -241,21 +360,59 @@ Private Function GetFilterKey(ByVal filterField As String, ByVal tbLine As Trial
 
 End Function
 
+'==============================================================================
+'       目的区分判定
+'------------------------------------------------------------------------------
+'   Contents:
+'       補助科目区分の先頭文字から、目的区分（公益／収益／法人）を判定する
+'
+'   Input:
+'       subAccountCate     補助科目区分文字列
+'
+'   Output:
+'       GROUP_PUBLIC_LABEL     公益（先頭が「公」）
+'       GROUP_REVENUE_LABEL    収益（先頭が「収」）
+'       GROUP_CORPORATE_LABEL  法人（上記以外）
+'
+'==============================================================================
 Private Function GetPurposeCategory(ByVal subAccountCate As String) As String
 
     Dim s As String
     s = UCase$(Trim$(subAccountCate))
 
     If Left$(s, 1) = "公" Then
-        GetPurposeCategory = "公益目的事業会計"
+        GetPurposeCategory = GROUP_PUBLIC_LABEL
     ElseIf Left$(s, 1) = "収" Then
-        GetPurposeCategory = "収益事業等会計"
+        GetPurposeCategory = GROUP_REVENUE_LABEL
     Else
-        GetPurposeCategory = "法人会計"
+        GetPurposeCategory = GROUP_CORPORATE_LABEL
     End If
 
 End Function
 
+'==============================================================================
+'       CSV一致判定ユーティリティ
+'------------------------------------------------------------------------------
+'   Contents:
+'       sourceValue（区切り文字付き）と、
+'       expectedValues（カンマ区切り）との一致を判定する。
+'
+'       ■ この関数の役割
+'           ・複数値フィールドの一致判定を共通化
+'           ・Aggregate / Filter の両方で使用
+'
+'       ■ 判定仕様
+'           ・両方を分解して全組み合わせ比較
+'           ・1つでも一致すれば True
+'
+'       ■ 正規化
+'           ・UCase + Trim により比較
+'
+'       ■ 注意
+'           ・部分一致ではなく「完全一致」
+'           ・空文字は無視
+'
+'==============================================================================
 Private Function CsvContains(ByVal sourceValue As String, ByVal expectedValues As String, ByVal sourceDelimiter As String) As Boolean
 
     Dim srcItems As Variant
@@ -314,10 +471,25 @@ Private Function ExistsLineID(ByVal lineID As String) As Boolean
 End Function
 
 '==============================================================================
-'       金額加算処理
+'       金額マップ加算処理（最終集計単位）
 '------------------------------------------------------------------------------
 '   Contents:
-'       Dictionaryに対してキー単位で金額を加算する
+'       Dictionary（lineID|category）に金額を加算する。
+'
+'       ■ この関数の役割
+'           ・全ての集計結果がここに集約される
+'           ・最終的な財務諸表の数値を構成する基盤
+'
+'       ■ 動作
+'           ・キーがなければ新規作成（0初期化）
+'           ・既存なら加算
+'
+'       ■ キー構造
+'           lineID | accountingCategory
+'
+'       ■ 注意（重要）
+'           ・キー生成ロジックはここに固定されている
+'           ・ここが壊れると全体集計が壊れる
 '
 '==============================================================================
 Private Sub AddAmountToMap( _
@@ -326,9 +498,13 @@ Private Sub AddAmountToMap( _
     ByVal accountingCategory As String, _
     ByVal amount As Currency)
 
+    '------------------------------------------
+    ' 一意キー生成（ロジックは BuildKey に集約）
     Dim key As String
     key = UCase$(Trim$(lineID)) & "|" & UCase$(Trim$(accountingCategory))
 
+    '------------------------------------------
+    ' 既存キーなら加算、なければ新規作成
     If Not accountMap.Exists(key) Then
         accountMap.Add key, CCur(0)
     End If
@@ -731,7 +907,7 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
     '表示項目
     targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
 
-    mode = GetHeaderCategoryModeFromFilterField(line.filterField, "会計区分")
+    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
 
     Set columns = GetNoteColumns(mode)
 
@@ -760,7 +936,7 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
         ' ３行目：  会計
         '========================
         headerRow = y + y_inc
-        headerDepth = IIf(mode = "補助区分", 3, 2)
+        headerDepth = IIf(mode = CATEGORY_PROJECT, 3, 2)
 
         .Cells(headerRow, 2).value = "科目"
         If headerDepth > 1 Then .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
@@ -897,7 +1073,7 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
     '★固定グループ
     targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
 
-    mode = GetHeaderCategoryModeFromFilterField(line.filterField, "目的区分")
+    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT_SUM)
 
     Set columns = GetNoteColumns(mode)
 
@@ -925,8 +1101,8 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
         headerRow = y + y_inc
         
         Select Case mode
-            Case "補助区分": headerDepth = 3
-            Case "会計区分": headerDepth = 2
+            Case CATEGORY_PROJECT: headerDepth = 3
+            Case CATEGORY_ACCOUNT: headerDepth = 2
             Case Else: headerDepth = 1
         End Select
 
@@ -1043,6 +1219,23 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
 
 End Function
 
+'==============================================================================
+'       同一カテゴリセルの横方向マージ
+'------------------------------------------------------------------------------
+'   Contents:
+'       指定行のセルを左から走査し、同一値が連続する範囲を横方向にマージする
+'       ただし、空白セルはマージ対象としない
+'
+'   Input:
+'       ws          対象ワークシート
+'       row         対象行
+'       colStart    開始列
+'       colEnd      終了列
+'
+'   Output:
+'       なし（対象範囲のセルを直接マージする）
+'
+'==============================================================================
 Private Sub MergeSameCategoryCells(ByVal ws As Worksheet, ByVal row As Long, ByVal colStart As Long, ByVal colEnd As Long)
 
     Dim c As Long
@@ -1081,13 +1274,38 @@ Private Sub MergeSameCategoryCells(ByVal ws As Worksheet, ByVal row As Long, ByV
 
 End Sub
 
+'==============================================================================
+'       ヘッダー区分モード取得（フィルタ項目ベース）
+'------------------------------------------------------------------------------
+'   Contents:
+'       フィルタ項目（filterField）の値に応じて、
+'       ヘッダーの区分モードを決定する
+'
+'       指定されたフィルタ項目が以下のいずれかに一致する場合、
+'       対応する区分モードをそのまま返す
+'
+'           CATEGORY_NET_ASSET
+'           CATEGORY_PROJECT
+'           CATEGORY_ACCOUNT
+'           CATEGORY_ACCOUNT_SUM
+'
+'       上記以外の場合は、デフォルトモード（defaultMode）を返す
+'
+'   Input:
+'       filterField     フィルタ項目
+'       defaultMode     デフォルト区分モード
+'
+'   Output:
+'       ヘッダー区分モード
+'
+'==============================================================================
 Private Function GetHeaderCategoryModeFromFilterField(ByVal filterField As String, ByVal defaultMode As String) As String
 
     Select Case Trim$(filterField)
-        Case "純資産区分": GetHeaderCategoryModeFromFilterField = "純資産区分"
-        Case "補助区分": GetHeaderCategoryModeFromFilterField = "補助区分"
-        Case "会計区分": GetHeaderCategoryModeFromFilterField = "会計区分"
-        Case "目的区分": GetHeaderCategoryModeFromFilterField = "目的区分"
+        Case CATEGORY_NET_ASSET:    GetHeaderCategoryModeFromFilterField = CATEGORY_NET_ASSET
+        Case CATEGORY_PROJECT:      GetHeaderCategoryModeFromFilterField = CATEGORY_PROJECT
+        Case CATEGORY_ACCOUNT:      GetHeaderCategoryModeFromFilterField = CATEGORY_ACCOUNT
+        Case CATEGORY_ACCOUNT_SUM:  GetHeaderCategoryModeFromFilterField = CATEGORY_ACCOUNT_SUM
         Case Else: GetHeaderCategoryModeFromFilterField = defaultMode
     End Select
 
@@ -1120,9 +1338,9 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
     Set projectSeen = CreateObject("Scripting.Dictionary")
     Set groupSeen = CreateObject("Scripting.Dictionary")
 
-    m_ColumnKeysByCategory.Add "会計区分", New Collection
-    m_ColumnKeysByCategory.Add "補助区分", New Collection
-    m_ColumnKeysByCategory.Add "目的区分", New Collection
+    m_ColumnKeysByCategory.Add CATEGORY_ACCOUNT, New Collection
+    m_ColumnKeysByCategory.Add CATEGORY_PROJECT, New Collection
+    m_ColumnKeysByCategory.Add CATEGORY_ACCOUNT_SUM, New Collection
 
     For Each line In tb.lines
 
@@ -1144,7 +1362,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
             '------------------------------------------
             If Not accountSeen.Exists(UCase$(cate)) Then
                 accountSeen.Add UCase$(cate), True
-                m_ColumnKeysByCategory("会計区分").Add _
+                m_ColumnKeysByCategory(CATEGORY_ACCOUNT).Add _
                     GetAccountGroupLabel(cate) & "|" & cate
             End If
 
@@ -1154,7 +1372,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
             grp = GetAccountGroupLabel(cate)
             If Not groupSeen.Exists(UCase$(grp)) Then
                 groupSeen.Add UCase$(grp), True
-                m_ColumnKeysByCategory("目的区分").Add grp
+                m_ColumnKeysByCategory(CATEGORY_ACCOUNT_SUM).Add grp
             End If
 
             '------------------------------------------
@@ -1168,7 +1386,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
                     projectSeen.Add projectKey, True
 
                     ' ★コードを第3要素に追加
-                    m_ColumnKeysByCategory("補助区分").Add _
+                    m_ColumnKeysByCategory(CATEGORY_PROJECT).Add _
                         GetAccountGroupLabel(cate) & "|" & cate & "|" & code & "|" & proj
                 End If
             End If
@@ -1178,11 +1396,26 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
 ContinueLine:
     Next
 
-    Call EnsureMandatoryAccountGroupColumns(groupSeen, m_ColumnKeysByCategory("目的区分"))
+    Call EnsureMandatoryAccountGroupColumns(groupSeen, m_ColumnKeysByCategory(CATEGORY_ACCOUNT_SUM))
     Call SortColumnKeysByCategory
 
 End Sub
 
+'==============================================================================
+'       勘定グループラベル取得
+'------------------------------------------------------------------------------
+'   Contents:
+'       勘定区分文字列の先頭文字から、グループラベル（公益／収益／法人）を判定する
+'
+'   Input:
+'       accountCategory    勘定区分文字列
+'
+'   Output:
+'       GROUP_PUBLIC_LABEL     公益（先頭が「公」）
+'       GROUP_REVENUE_LABEL    収益（先頭が「収」）
+'       GROUP_CORPORATE_LABEL  法人（上記以外、「法」および空文字含む）
+'
+'==============================================================================
 Private Function GetAccountGroupLabel(ByVal accountCategory As String) As String
 
     Dim key As String
@@ -1201,6 +1434,17 @@ Private Function GetAccountGroupLabel(ByVal accountCategory As String) As String
 
 End Function
 
+'==============================================================================
+'       必須グループ列の補完
+'------------------------------------------------------------------------------
+'   Contents:
+'       グループ列に、必須の3区分（公益／収益／法人）が存在するよう補完する
+'
+'   Input:
+'       groupSeen      既存グループ管理用Dictionary
+'       target         出力対象コレクション
+'
+'==============================================================================
 Private Sub EnsureMandatoryAccountGroupColumns(ByVal groupSeen As Object, ByVal target As Collection)
 
     Call AddAccountGroupIfMissing(groupSeen, target, GROUP_PUBLIC_LABEL)
@@ -1209,6 +1453,18 @@ Private Sub EnsureMandatoryAccountGroupColumns(ByVal groupSeen As Object, ByVal 
 
 End Sub
 
+'==============================================================================
+'       グループ存在チェック＆追加
+'------------------------------------------------------------------------------
+'   Contents:
+'       指定グループが未登録の場合、DictionaryとCollectionへ追加する
+'
+'   Input:
+'       groupSeen      既存グループ管理用Dictionary
+'       target         出力対象コレクション
+'       groupLabel     追加対象グループラベル
+'
+'==============================================================================
 Private Sub AddAccountGroupIfMissing(ByVal groupSeen As Object, ByVal target As Collection, ByVal groupLabel As String)
 
     If Not groupSeen.Exists(UCase$(groupLabel)) Then
@@ -1218,21 +1474,44 @@ Private Sub AddAccountGroupIfMissing(ByVal groupSeen As Object, ByVal target As 
 
 End Sub
 
+'==============================================================================
+'       列キーのカテゴリ別ソート
+'------------------------------------------------------------------------------
+'   Contents:
+'       各カテゴリ（ACCOUNT_SUM / ACCOUNT / PROJECT）ごとに、
+'       列キーコレクションをソートして再設定する
+'
+'==============================================================================
 Private Sub SortColumnKeysByCategory()
 
     Dim sorted As Collection
 
-    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory("目的区分"), "目的区分")
-    Set m_ColumnKeysByCategory("目的区分") = sorted
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_ACCOUNT_SUM), CATEGORY_ACCOUNT_SUM)
+    Set m_ColumnKeysByCategory(CATEGORY_ACCOUNT_SUM) = sorted
 
-    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory("会計区分"), "会計区分")
-    Set m_ColumnKeysByCategory("会計区分") = sorted
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_ACCOUNT), CATEGORY_ACCOUNT)
+    Set m_ColumnKeysByCategory(CATEGORY_ACCOUNT) = sorted
 
-    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory("補助区分"), "補助区分")
-    Set m_ColumnKeysByCategory("補助区分") = sorted
+    Set sorted = SortColumnKeyCollection(m_ColumnKeysByCategory(CATEGORY_PROJECT), CATEGORY_PROJECT)
+    Set m_ColumnKeysByCategory(CATEGORY_PROJECT) = sorted
 
 End Sub
 
+'==============================================================================
+'       列キーコレクションのソート
+'------------------------------------------------------------------------------
+'   Contents:
+'       列キー（"|"区切り文字列）を配列に変換し、
+'       指定モードに応じたルールで並び替えた後、Collectionとして返す
+'
+'   Input:
+'       source      元コレクション
+'       mode        ソートモード
+'
+'   Output:
+'       ソート済コレクション
+'
+'==============================================================================
 Private Function SortColumnKeyCollection(ByVal source As Collection, ByVal mode As String) As Collection
 
     Dim sorted As Collection
@@ -1276,6 +1555,27 @@ Private Function SortColumnKeyCollection(ByVal source As Collection, ByVal mode 
 
 End Function
 
+'==============================================================================
+'       列キー交換判定
+'------------------------------------------------------------------------------
+'   Contents:
+'       2つの列キーを比較し、並び替えが必要か判定する
+'
+'       判定順序：
+'           ① グループ順
+'           ② 会計区分順（ACCOUNT_SUM以外）
+'           ③ 補助科目順（PROJECTのみ）
+'
+'   Input:
+'       leftKey     左側キー
+'       rightKey    右側キー
+'       mode        ソートモード
+'
+'   Output:
+'       True：入れ替え
+'       False：維持
+'
+'==============================================================================
 Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As String, ByVal mode As String) As Boolean
 
     Dim leftParts() As String
@@ -1294,7 +1594,7 @@ Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As 
         Exit Function
     End If
 
-    If mode = "目的区分" Then
+    If mode = CATEGORY_ACCOUNT_SUM Then
         ShouldSwapColumnKey = False
         Exit Function
     End If
@@ -1311,7 +1611,7 @@ Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As 
     '------------------------------------------
     ' ★補助科目ソート（コード優先）
     '------------------------------------------
-    If mode = "補助区分" Then
+    If mode = CATEGORY_PROJECT Then
         ShouldSwapColumnKey = (UCase$(GetPartValue(leftParts, 2)) > UCase$(GetPartValue(rightParts, 2)))
     Else
         ShouldSwapColumnKey = False
@@ -1319,6 +1619,21 @@ Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As 
 
 End Function
 
+'==============================================================================
+'       キー分割値取得
+'------------------------------------------------------------------------------
+'   Contents:
+'       分割済配列から指定インデックスの値を取得する
+'       範囲外の場合は空文字を返す
+'
+'   Input:
+'       parts   分割済配列
+'       index   取得位置
+'
+'   Output:
+'       指定要素または空文字
+'
+'==============================================================================
 Private Function GetPartValue(ByRef parts() As String, ByVal index As Long) As String
 
     If index <= UBound(parts) Then
@@ -1329,12 +1644,39 @@ Private Function GetPartValue(ByRef parts() As String, ByVal index As Long) As S
 
 End Function
 
+'==============================================================================
+'       グループラベル比較
+'------------------------------------------------------------------------------
+'   Contents:
+'       グループラベルを優先順位に変換し、差分を返す
+'
+'   Input:
+'       leftLabel   左ラベル
+'       rightLabel  右ラベル
+'
+'   Output:
+'       比較結果（数値）
+'
+'==============================================================================
 Private Function CompareGroupLabel(ByVal leftLabel As String, ByVal rightLabel As String) As Long
 
     CompareGroupLabel = GroupPriorityFromLabel(leftLabel) - GroupPriorityFromLabel(rightLabel)
 
 End Function
 
+'==============================================================================
+'       グループ優先順位取得
+'------------------------------------------------------------------------------
+'   Contents:
+'       グループラベルを内部優先順位（数値）へ変換する
+'
+'   Input:
+'       groupLabel  グループラベル
+'
+'   Output:
+'       優先順位（数値）
+'
+'==============================================================================
 Private Function GroupPriorityFromLabel(ByVal groupLabel As String) As Long
 
     Select Case UCase$(Trim$(groupLabel))
@@ -1348,6 +1690,26 @@ Private Function GroupPriorityFromLabel(ByVal groupLabel As String) As Long
 
 End Function
 
+'==============================================================================
+'       会計区分比較（グループ内）
+'------------------------------------------------------------------------------
+'   Contents:
+'       同一グループ内での会計区分の並び順を決定する
+'
+'       判定順序：
+'           ① 共通区分（"共"）は後ろ
+'           ② 数値順
+'           ③ 文字列比較
+'
+'   Input:
+'       leftCategory    左区分
+'       rightCategory   右区分
+'       groupLabel      グループラベル
+'
+'   Output:
+'       比較結果（数値）
+'
+'==============================================================================
 Private Function CompareAccountCategoryByGroup(ByVal leftCategory As String, ByVal rightCategory As String, ByVal groupLabel As String) As Long
 
     Dim leftShared As Boolean
@@ -1378,6 +1740,20 @@ Private Function CompareAccountCategoryByGroup(ByVal leftCategory As String, ByV
 
 End Function
 
+'==============================================================================
+'       区分番号抽出
+'------------------------------------------------------------------------------
+'   Contents:
+'       区分名から数値部分を抽出し、ソート用数値として返す
+'       「共」を含む場合は最大値（999）とする
+'
+'   Input:
+'       categoryName    区分名
+'
+'   Output:
+'       数値
+'
+'==============================================================================
 Private Function ExtractCategoryNumber(ByVal categoryName As String) As Long
 
     Dim i As Long
@@ -1405,6 +1781,20 @@ Private Function ExtractCategoryNumber(ByVal categoryName As String) As Long
 
 End Function
 
+'==============================================================================
+'       注記列取得
+'------------------------------------------------------------------------------
+'   Contents:
+'       指定モードに対応する列キーコレクションを取得する
+'       未存在の場合は空コレクションを返す
+'
+'   Input:
+'       mode    カテゴリモード
+'
+'   Output:
+'       列キーコレクション
+'
+'==============================================================================
 Private Function GetNoteColumns(ByVal mode As String) As Collection
 
     If m_ColumnKeysByCategory Is Nothing Then
@@ -1419,6 +1809,20 @@ Private Function GetNoteColumns(ByVal mode As String) As Collection
 
 End Function
 
+'==============================================================================
+'       ヘッダースタイル適用
+'------------------------------------------------------------------------------
+'   Contents:
+'       指定範囲に対して、ヘッダー用の書式（中央揃え・背景色・罫線等）を適用する
+'
+'   Input:
+'       ws          対象ワークシート
+'       rowFrom     開始行
+'       rowTo       終了行
+'       colFrom     開始列
+'       colTo       終了列
+'
+'==============================================================================
 Private Sub ApplyHeaderStyle(ByVal ws As Worksheet, ByVal rowFrom As Long, ByVal rowTo As Long, ByVal colFrom As Long, ByVal colTo As Long)
 
     With ws.Range(ws.Cells(rowFrom, colFrom), ws.Cells(rowTo, colTo))
@@ -1555,13 +1959,31 @@ Private Sub RollupAggregateTo(ByVal amountMap As Object, ByVal includeFormula As
 End Sub
 
 '==============================================================================
-'       1行分の集計処理
+'       親行へのロールアップ処理
 '------------------------------------------------------------------------------
 '   Contents:
-'       子行の金額を取得し、AggregateTo で指定された親行へ加算する
+'       子行（child）の金額を親行へ加算する。
 '
-'       ・子が存在しない場合は0として扱う
-'       ・親が未初期化の場合は0で初期化
+'       処理内容：
+'           ・child の金額を取得
+'           ・parent のキーを生成
+'           ・親へ加算
+'
+'       【前提】
+'       ・child → parent の関係はマスタで定義済
+'       ・amountMap には child の値が既に存在している
+'
+'       【重要】
+'       ・この処理により「ツリー構造の集計」が実現される
+'       ・複数階層でも再帰的に適用可能な設計
+'
+'       【注意】
+'       ・Key構造は BuildKey に依存
+'       ・accountingCategory 単位で独立して集計される
+'
+'   Input:
+'       child       子行（FinancialStatementMasterLine）
+'       amountMap   金額マップ（Dictionary）
 '
 '==============================================================================
 Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal amountMap As Object)
@@ -1774,5 +2196,4 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
     ResolveFormula = CCur(Application.Evaluate(expr))
 
 End Function
-
 
