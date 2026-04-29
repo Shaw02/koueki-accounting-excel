@@ -593,7 +593,7 @@ Private Sub BuildNetAssets()
     '----------------------------------
     ' 補助元帳ベースから生成
     '----------------------------------
-    For Each line In m_TB_Sub.Lines
+    For Each line In m_TB_Sub.lines
 
         '==============================
         ' PLのみ対象
@@ -606,7 +606,7 @@ Private Sub BuildNetAssets()
             '==============================
             Set na = GetOrCreateNetAsset( _
                 line.SubAccountCode, _
-                line.SubAccountCate, _
+                line.subAccountCate, _
                 line.SubAccountName, _
                 line.NetAssetType)
 
@@ -684,7 +684,7 @@ Public Sub OutputSheet()
         '==============================
         ' データ部
         '==============================
-        For Each line In m_TB_General.Lines
+        For Each line In m_TB_General.lines
 
             .Cells(y, 1) = line.AccountCode
             .Cells(y, 2) = line.MajorAccount
@@ -743,13 +743,13 @@ Public Sub OutputSheet()
         '==============================
         ' データ部
         '==============================
-        For Each line In m_TB_Sub.Lines
+        For Each line In m_TB_Sub.lines
 
             .Cells(y, 1) = line.AccountCode
             .Cells(y, 2) = line.MajorAccount
             .Cells(y, 3) = line.MiddleAccount
             .Cells(y, 4) = line.SubAccountCode
-            .Cells(y, 5) = line.SubAccountCate
+            .Cells(y, 5) = line.subAccountCate
             .Cells(y, 6) = line.SubAccountName
             If line.NetAssetType = natDesignated Then
                 .Cells(y, 7) = "指定"
@@ -827,7 +827,7 @@ Public Sub OutputSheet()
                     .Cells(y, 1) = idNetAssets
                     .Cells(y, 2) = "一般正味財産"
                     .Cells(y, 4) = na.SubAccountCode
-                    .Cells(y, 5) = na.SubAccountCate
+                    .Cells(y, 5) = na.subAccountCate
                     .Cells(y, 6) = na.SubAccountName
                     .Cells(y, 7) = "一般"
 
@@ -902,7 +902,7 @@ Public Sub OutputSheet()
                     .Cells(y, 1) = idSpNetAssets
                     .Cells(y, 2) = "指定正味財産"
                     .Cells(y, 4) = na.SubAccountCode
-                    .Cells(y, 5) = na.SubAccountCate
+                    .Cells(y, 5) = na.subAccountCate
                     .Cells(y, 6) = na.SubAccountName
                     .Cells(y, 7) = "指定"
 

@@ -28,8 +28,8 @@ Public Sub Clear()
 
 End Sub
 
-Public Property Get Lines() As Collection
-    Set Lines = m_Lines
+Public Property Get lines() As Collection
+    Set lines = m_Lines
 End Property
 
 '==============================================================================
@@ -83,7 +83,7 @@ End Function
 Public Sub SetLastResult( _
     ByVal account As account, _
     ByVal SubAccountCode As Long, _
-    ByVal SubAccountCate As String, _
+    ByVal subAccountCate As String, _
     ByVal SubAccountName As String, _
     ByVal Class As NetAssetType, _
     ByVal BeginningBalance As Currency, _
@@ -119,7 +119,7 @@ Public Sub SetLastResult( _
         Call line.Initialize( _
             account, _
             SubAccountCode, _
-            SubAccountCate, _
+            subAccountCate, _
             SubAccountName, _
             Class)
 
@@ -152,7 +152,7 @@ Public Sub Build(ByVal ledgers As Object)
     Dim it As Variant
 
     For Each it In ledgers
-        Set acc = ledgers.Item(it)
+        Set acc = ledgers.item(it)
 
         '--------------------------------
         ' KeyÅiLedgerÇ∆äÆëSàÍívÅj
@@ -186,7 +186,7 @@ Public Sub Build(ByVal ledgers As Object)
             Call line.Initialize( _
                 acc.account, _
                 acc.SubAccountCode, _
-                acc.SubAccountCate, _
+                acc.subAccountCate, _
                 acc.SubAccountName, _
                 acc.NetAssetType)
 

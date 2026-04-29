@@ -405,12 +405,12 @@ Sub main()
     Call tb.Read_LastResult(master)
     
     '‡A Šú‰c‚‚ğ‘Š¨’èŒ³’ ‚Ö“]‹L
-    For Each tbLine In tb.LastGeneralTrialBalance.Lines
+    For Each tbLine In tb.LastGeneralTrialBalance.lines
         Call le.AddOpening(tbLine, True)
     Next
     
     '‡B Šú‰c‚‚ğ•â•Œ³’ ‚Ö“]‹L
-    For Each tbLine In tb.LastSubTrialBalance.Lines
+    For Each tbLine In tb.LastSubTrialBalance.lines
         Call le.AddOpening(tbLine, False)
     Next
     
@@ -421,7 +421,7 @@ Sub main()
     Call db.readJournal(master)
     
     '‡A d–ó’ ‚ğAŒ³’ ‚Ö“]‹L
-    For Each it In db.Items
+    For Each it In db.items
         Set entry = it
         Call le.AddJournal(entry)
     Next it
@@ -455,11 +455,11 @@ Sub main()
     '[3]-(1) ‘YE•‰ÂEû‰vE”ï—p
     '---------------------------------------
     '   ƒ‘Y‚Ì‘OŠúÀÑ‚ÍAZ•\ƒNƒ‰ƒX‚É“ü‚Á‚Ä‚¢‚Ü‚·B ©   ¦¡”p~—\’è
-    For Each tbLine In tb.LastGeneralTrialBalance.Lines
+    For Each tbLine In tb.LastGeneralTrialBalance.lines
         Call FS.OutFinancialStatements(tbLine.account.code, iLastX, tbLine.EndingBalance)
     Next
     
-    For Each tbLine In tb.GeneralTrialBalance.Lines
+    For Each tbLine In tb.GeneralTrialBalance.lines
         Call FS.OutFinancialStatements(tbLine.account.code, iThisX, tbLine.EndingBalance)
     Next
 

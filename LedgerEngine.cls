@@ -96,7 +96,7 @@ Private Function GetOrCreateLedger( _
         Call acc.Initialize( _
             entry.account, _
             entry.SubAccountCode, _
-            entry.SubAccountCate, _
+            entry.subAccountCate, _
             entry.SubAccountName, _
             entry.Class)
         
@@ -129,7 +129,7 @@ Public Sub AddOpening(tbLine As TrialBalanceLine, isGeneral As Boolean)
     Call entry.Initialize( _
         tbLine.account, _
         tbLine.SubAccountCode, _
-        tbLine.SubAccountCate, _
+        tbLine.subAccountCate, _
         tbLine.SubAccountName, _
         tbLine.NetAssetType, _
         tbLine.EndingBalance, _
@@ -348,8 +348,8 @@ Public Sub OutputSheet()
         .Range("I:I").HorizontalAlignment = xlCenter
     
         For Each key In m_GeneralLedger
-            Set acc = m_GeneralLedger.Item(key)
-            If (acc.Lines.Count > 0) And ((acc.AccountCode < 30000) Or (acc.AccountCode >= 40000)) Then
+            Set acc = m_GeneralLedger.item(key)
+            If (acc.lines.Count > 0) And ((acc.AccountCode < 30000) Or (acc.AccountCode >= 40000)) Then
                 y = y + 1
                 
                 '--------------------------
@@ -395,7 +395,7 @@ Public Sub OutputSheet()
                 sty = y
                 '--------------------------
                 '行
-                For Each line In acc.Lines
+                For Each line In acc.lines
                     .Cells(y, 1).Resize(1, MaxColumn).value = Array( _
                         line.entryDate, _
                         line.counterMajorAccount, _
@@ -446,8 +446,8 @@ Public Sub OutputSheet()
         .Range("I:I").HorizontalAlignment = xlCenter
         
         For Each key In m_SubLedger
-            Set acc = m_SubLedger.Item(key)
-            If (acc.Lines.Count > 0) And ((acc.AccountCode < 30000) Or (acc.AccountCode >= 40000)) Then
+            Set acc = m_SubLedger.item(key)
+            If (acc.lines.Count > 0) And ((acc.AccountCode < 30000) Or (acc.AccountCode >= 40000)) Then
                 y = y + 1
                 
                 '--------------------------
@@ -466,7 +466,7 @@ Public Sub OutputSheet()
                 '--------------------------
                 '補助勘定科目の出力
                 .Range(.Cells(y, 1), .Cells(y, 8)).Merge
-                .Cells(y, 1) = "補助科目：［" & acc.SubAccountCate & "］" & acc.SubAccountName & acc.Class
+                .Cells(y, 1) = "補助科目：［" & acc.subAccountCate & "］" & acc.SubAccountName & acc.Class
                 .Cells(y, 1).Font.Underline = True
                 .Cells(y, 1).Font.Size = 14
                 .Cells(y, 1).HorizontalAlignment = xlCenter
@@ -504,7 +504,7 @@ Public Sub OutputSheet()
                 
                 '--------------------------
                 '行
-                For Each line In acc.Lines
+                For Each line In acc.lines
                     .Cells(y, 1).Resize(1, MaxColumn).value = Array( _
                         line.entryDate, _
                         line.counterMajorAccount, _

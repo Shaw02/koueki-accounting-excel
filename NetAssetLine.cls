@@ -29,7 +29,7 @@ Private m_EndingBalance     As Currency
 '*      Property                        *
 '****************************************
 Public Property Get SubAccountCode() As Long: SubAccountCode = m_SubAccountCode: End Property
-Public Property Get SubAccountCate() As String: SubAccountCate = m_SubAccountCate: End Property
+Public Property Get subAccountCate() As String: subAccountCate = m_SubAccountCate: End Property
 Public Property Get SubAccountName() As String: SubAccountName = m_SubAccountName: End Property
 Public Property Get NetAssetType() As NetAssetType: NetAssetType = m_NetAssetType: End Property
 

@@ -75,8 +75,8 @@ Public Property Get SubAccountCode() As Long
 End Property
 
 ' ‹æ•ª‚ğæ“¾
-Public Property Get SubAccountCate() As String
-    SubAccountCate = m_SubAccountCate
+Public Property Get subAccountCate() As String
+    subAccountCate = m_SubAccountCate
 End Property
 
 ' •â•‰È–Ú–¼‚ğæ“¾

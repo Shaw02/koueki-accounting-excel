@@ -30,3 +30,11 @@ Public Const CATEGORY_ACCOUNT       As String = "会計区分"
 Public Const CATEGORY_PROJECT       As String = "補助区分"
 Public Const CATEGORY_NET_ASSET     As String = "純資産区分"
 
+'会計
+Public Const GROUP_PUBLIC           As Long = 1
+Public Const GROUP_REVENUE          As Long = 2
+Public Const GROUP_CORPORATE        As Long = 3
+Public Const GROUP_PUBLIC_LABEL     As String = "公益目的事業会計"
+Public Const GROUP_REVENUE_LABEL    As String = "収益事業等会計"
+Public Const GROUP_CORPORATE_LABEL  As String = "法人会計"
+

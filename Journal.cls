@@ -82,11 +82,11 @@ End Function
 '==============================================================================
 '   Žd–ó’ ‘S‘Ì‚ðŽæ“¾
 '==============================================================================
-Public Property Get Items() As Variant
+Public Property Get items() As Variant
     If m_size = 0 Then
-        Items = Array()
+        items = Array()
     Else
-        Items = m_record
+        items = m_record
     End If
 End Property
 

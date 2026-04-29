@@ -108,11 +108,11 @@ Public Property Let side(ByVal value As String)
     End Select
 End Property
 
-Public Property Get SubAccountCate() As Variant
-    SubAccountCate = m_SubAccountCate
+Public Property Get subAccountCate() As Variant
+    subAccountCate = m_SubAccountCate
 End Property
 
-Public Property Let SubAccountCate(ByVal value As Variant)
+Public Property Let subAccountCate(ByVal value As Variant)
 
     Dim strValue As String
     strValue = Trim(CStr(value))
@@ -190,8 +190,8 @@ Public Property Let amount(ByVal value As Currency)
     m_Amount = value
 End Property
 
-Public Property Get Row() As Long
-    Row = m_Row
+Public Property Get row() As Long
+    row = m_Row
 End Property
 
 Public Property Get ParentRow() As Long
@@ -233,25 +233,29 @@ End Sub
 Public Sub Initialize( _
     ByVal acc As account, _
     ByVal SubAccountCode As Variant, _
-    ByVal SubAccountCate As Variant, _
+    ByVal subAccountCate As Variant, _
     ByVal SubAccountName As String, _
     ByVal Class As Variant, _
     ByVal amount As Currency, _
     ByVal side As String, _
-    ByVal Row As Long, _
+    ByVal row As Long, _
     ByVal ParentRow As Long)
 
     '------------------------------
     ' ë„ì¸
     '------------------------------
+    If acc Is Nothing Then
+        Err.Raise vbObjectError + 3004, "entrySide:Initialize", "ä®íËâ»ñ⁄Ç™ñ¢ê›íËÇ≈Ç∑"
+    End If
+    
     Set m_Account = acc
     Me.SubAccountCode = SubAccountCode
-    Me.SubAccountCate = SubAccountCate
+    Me.subAccountCate = subAccountCate
     Me.SubAccountName = SubAccountName
     Me.Class = Class
     Me.amount = amount
     Me.side = side
-    m_Row = Row
+    m_Row = row
     m_ParentRow = ParentRow
     
     '------------------------------

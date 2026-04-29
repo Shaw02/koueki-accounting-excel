@@ -71,8 +71,8 @@ End Property
 '==============================================================================
 '   ‹æ•ª‚ğæ“¾
 '==============================================================================
-Public Property Get SubAccountCate() As String
-    SubAccountCate = m_SubAccountCate
+Public Property Get subAccountCate() As String
+    subAccountCate = m_SubAccountCate
 End Property
 
 '==============================================================================
@@ -103,8 +103,8 @@ End Property
 '==============================================================================
 '   Œ³’ s‚ğæ“¾
 '==============================================================================
-Public Property Get Lines() As Collection
-    Set Lines = m_Lines
+Public Property Get lines() As Collection
+    Set lines = m_Lines
 End Property
 
 '==============================================================================
