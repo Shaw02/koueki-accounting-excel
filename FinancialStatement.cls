@@ -636,7 +636,7 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
             '------------------------------------------
             ' 表示制御
             '------------------------------------------
-            If Not ShouldSkipOutputLine(line, vThis, vLast) Then
+            If Not ShouldSkipOutputLine(line, vThis, vLast, thisAmounts, lastAmounts) Then
                 
                 If UCase$(Trim$(line.filterValue)) = "EACH" Then
                     'EACHの場合
@@ -1458,7 +1458,10 @@ End Sub
 '       ・ACCOUNT系は前期・当期とも0なら非表示
 '
 '==============================================================================
-Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency) As Boolean
+Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency, ByVal thisAmounts As Object, ByVal lastAmounts As Object) As Boolean
+
+    Dim isEach As Boolean
+    isEach = (UCase$(Trim$(line.filterValue)) = "EACH")
 
     If line.lineType = "TITLE" _
         Or line.lineType = "ACCOUNTS" _
@@ -1473,13 +1476,44 @@ Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine
     End If
 
     'ゼロ行非表示
-    If (line.lineType = "ACCOUNT" Or line.lineType = "ACCOUNTS") And vThis = 0 And vLast = 0 Then
-        ShouldSkipOutputLine = True
-        Exit Function
+    If line.lineType = "ACCOUNT" Or line.lineType = "ACCOUNTS" Then
+        If isEach Then
+            ShouldSkipOutputLine = ShouldSkipEachAccountLine(line, thisAmounts, lastAmounts)
+            If ShouldSkipOutputLine Then Exit Function
+        ElseIf vThis = 0 And vLast = 0 Then
+            ShouldSkipOutputLine = True
+            Exit Function
+        End If
     End If
        
     ShouldSkipOutputLine = False  'デフォルトは表示
     
+End Function
+
+Private Function ShouldSkipEachAccountLine(ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As Object, ByVal lastAmounts As Object) As Boolean
+
+    Dim mode As String
+    Dim columns As Collection
+    Dim col As Variant
+    Dim categoryKey As String
+    Dim thisValue As Currency
+    Dim lastValue As Currency
+
+    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
+    Set columns = m_ColumnKeys.GetColumns(mode)
+
+    For Each col In columns
+        categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
+        thisValue = GetAmountByLineIDAndCategory(thisAmounts, line.lineID, categoryKey)
+        lastValue = GetAmountByLineIDAndCategory(lastAmounts, line.lineID, categoryKey)
+        If thisValue <> 0 Or lastValue <> 0 Then
+            ShouldSkipEachAccountLine = False
+            Exit Function
+        End If
+    Next col
+
+    ShouldSkipEachAccountLine = True
+
 End Function
 
 '==============================================================================
@@ -1557,11 +1591,13 @@ Private Sub ResolveFormulaAmounts(ByVal values As Object)
     Dim line As FinancialStatementMasterLine
     Dim category As Variant
     Dim key As String
-
+    Dim categories As Collection
+    
     For Each line In m_Master.lines
         If line.enabled Then
             If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
-                For Each category In GetLineCategoriesFromAmountMap(values, line.lineID)
+                Set categories = GetFormulaTargetCategories(line, values)
+                For Each category In categories
                     'キー生成（lineID|category）
                     key = BuildKey(line.lineID, CStr(category))
                     '数式評価
@@ -1572,6 +1608,44 @@ Private Sub ResolveFormulaAmounts(ByVal values As Object)
     Next
 
 End Sub
+
+Private Function GetFormulaTargetCategories(ByVal line As FinancialStatementMasterLine, ByVal values As Object) As Collection
+
+    Dim categories As Collection
+    Dim mode As String
+    Dim columns As Collection
+    Dim col As Variant
+    Dim categoryKey As String
+    Dim seen As Object
+
+    If UCase$(Trim$(line.filterValue)) <> "EACH" Then
+        Set categories = GetLineCategoriesFromAmountMap(values, line.lineID)
+        If categories.Count = 0 Then categories.Add "*"
+        Set GetFormulaTargetCategories = categories
+        Exit Function
+    End If
+
+    Set categories = New Collection
+    Set seen = CreateObject("Scripting.Dictionary")
+
+    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
+    Set columns = m_ColumnKeys.GetColumns(mode)
+
+    For Each col In columns
+        categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
+        If categoryKey <> "" Then
+            categoryKey = UCase$(Trim$(categoryKey))
+            If Not seen.Exists(categoryKey) Then
+                seen.Add categoryKey, True
+                categories.Add categoryKey
+            End If
+        End If
+    Next col
+
+    If categories.Count = 0 Then categories.Add "*"
+    Set GetFormulaTargetCategories = categories
+
+End Function
 
 '==============================================================================
 '       集計処理（Rollup）
@@ -1764,8 +1838,6 @@ Private Function ResolveFormulaByCategory(ByVal formula As String, ByVal values 
         Dim val As Currency
         If values.Exists(key) Then
             val = CCur(values(key))
-        ElseIf category <> "*" And values.Exists(BuildKey(lineID, "*")) Then
-            val = CCur(values(BuildKey(lineID, "*")))
         Else
             val = 0
         End If
