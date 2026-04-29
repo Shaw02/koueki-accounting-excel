@@ -638,8 +638,11 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
             '------------------------------------------
             If Not ShouldSkipOutputLine(line, vThis, vLast) Then
                 
-                'タイトル行は金額を表示しない
-                If line.lineType = "TITLE" Then
+                If UCase$(Trim$(line.filterValue)) = "EACH" Then
+                    'EACHの場合
+                    Call OutputEachColumns(ws, y, line, thisAmounts)
+                ElseIf line.lineType = "TITLE" Then
+                    'タイトル行は金額を表示しない
                     ws.Cells(y, 3).value = ""
                     ws.Cells(y, 4).value = ""
                     ws.Cells(y, 5).value = ""
@@ -668,6 +671,80 @@ ContinueLineLoop:
     Next
 
 End Sub
+
+Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As Object)
+
+    Dim mode As String
+    Dim columns As Collection
+    Dim col As Variant
+    Dim c As Long
+    Dim totalValue As Currency
+    Dim amountValue As Currency
+    Dim categoryKey As String
+
+    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
+    Set columns = m_ColumnKeys.GetColumns(mode)
+
+    c = 3
+    totalValue = 0
+
+    For Each col In columns
+        categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
+        amountValue = GetAmountByLineIDAndCategory(thisAmounts, line.lineID, categoryKey)
+        ws.Cells(y, c).value = amountValue
+        totalValue = totalValue + amountValue
+        c = c + 1
+    Next col
+
+    If mode <> CATEGORY_NET_ASSET Then
+        ws.Cells(y, c).value = 0     'ij
+        c = c + 1
+    End If
+
+    ws.Cells(y, c).value = totalValue
+
+    If UCase$(Trim$(line.statementID)) = "PL_NOTE3" Then
+        ws.Cells(y, c + 1).value = "" 'zi\??j
+    End If
+
+End Sub
+
+Private Function NormalizeColumnCategoryKey(ByVal columnKey As String, ByVal mode As String) As String
+
+    Dim parts() As String
+    parts = Split(columnKey, "|")
+
+    Select Case mode
+        Case CATEGORY_ACCOUNT
+            If UBound(parts) >= 1 Then
+                NormalizeColumnCategoryKey = UCase$(Trim$(parts(1)))
+            Else
+                NormalizeColumnCategoryKey = UCase$(Trim$(columnKey))
+            End If
+        Case CATEGORY_PROJECT
+            If UBound(parts) >= 2 Then
+                NormalizeColumnCategoryKey = UCase$(Trim$(parts(2)))
+            Else
+                NormalizeColumnCategoryKey = UCase$(Trim$(columnKey))
+            End If
+        Case Else
+            NormalizeColumnCategoryKey = UCase$(Trim$(parts(0)))
+    End Select
+
+End Function
+
+Private Function GetAmountByLineIDAndCategory(ByVal amountMap As Object, ByVal lineID As String, ByVal category As String) As Currency
+
+    Dim key As String
+    key = BuildKey(lineID, category)
+
+    If amountMap.Exists(key) Then
+        GetAmountByLineIDAndCategory = CCur(amountMap(key))
+    Else
+        GetAmountByLineIDAndCategory = 0
+    End If
+
+End Function
 
 '==============================================================================
 '       出力シート初期化
