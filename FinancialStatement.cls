@@ -1367,6 +1367,43 @@ Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine
 End Function
 
 '==============================================================================
+'
+'------------------------------------------------------------------------------
+'   Contents:
+'
+'
+'==============================================================================
+Private Function GetLineCategoriesFromAmountMap(ByVal values As Object, ByVal lineID As String) As Collection
+
+    Dim result As New Collection
+    Dim seen As Object
+    Dim key As Variant
+    Dim normalizedLineID As String
+    Dim suffix As String
+    Dim category As String
+
+    Set seen = CreateObject("Scripting.Dictionary")
+    normalizedLineID = UCase$(Trim$(lineID))
+
+    For Each key In values.Keys
+        suffix = UCase$(CStr(key))
+        If Left$(suffix, Len(normalizedLineID) + 1) = normalizedLineID & "|" Then
+            category = Mid$(suffix, Len(normalizedLineID) + 2)
+            If category = "" Then category = "*"
+            If Not seen.Exists(category) Then
+                seen.Add category, True
+                result.Add category
+            End If
+        End If
+    Next
+
+    If Not seen.Exists("*") Then result.Add "*"
+
+    Set GetLineCategoriesFromAmountMap = result
+
+End Function
+
+'==============================================================================
 '       金額取得
 '------------------------------------------------------------------------------
 '   Contents:
@@ -1402,15 +1439,18 @@ End Function
 Private Sub ResolveFormulaAmounts(ByVal values As Object)
 
     Dim line As FinancialStatementMasterLine
+    Dim category As Variant
     Dim key As String
 
     For Each line In m_Master.lines
         If line.enabled Then
             If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
-                'キー生成（lineID|category）
-                key = BuildKey(line.lineID, line.filterValue)
-                '数式評価
-                values(key) = ResolveFormula(line.formula, values)
+                For Each category In GetLineCategoriesFromAmountMap(values, line.lineID)
+                    'キー生成（lineID|category）
+                    key = BuildKey(line.lineID, CStr(category))
+                    '数式評価
+                    values(key) = ResolveFormulaByCategory(line.formula, values, CStr(category))
+                Next category
             End If
         End If
     Next
@@ -1487,37 +1527,37 @@ Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal 
     Dim childKey As String
     Dim parentKey As String
     Dim childAmount As Currency
+    Dim category As Variant
 
-    '------------------------------------------
-    ' 子の金額取得
-    '------------------------------------------
-    childKey = BuildKey(child.lineID, child.filterValue)
-    If amountMap.Exists(childKey) Then
-        childAmount = CCur(amountMap(childKey))
-    Else
-        childAmount = 0
-    End If
-
-    '親未定義なら終了
-    If Trim$(child.aggregateTo) = "" Then
-        Exit Sub
-    End If
-
-    '------------------------------------------
-    ' 親行取得
-    '------------------------------------------
-    Set parentLine = GetAggregateParentLine(child.aggregateTo, child.filterValue)
-    parentKey = BuildKey(parentLine.lineID, parentLine.filterValue)
-
-    '------------------------------------------
-    ' 親へ加算
-    '------------------------------------------
-    If Not amountMap.Exists(parentKey) Then
-        amountMap.Add parentKey, CCur(0)
-    End If
     
-    amountMap(parentKey) = CCur(amountMap(parentKey)) + childAmount
+    For Each category In GetLineCategoriesFromAmountMap(amountMap, child.lineID)
+        '------------------------------------------
+        ' 子の金額取得
+        '------------------------------------------
+        childKey = BuildKey(child.lineID, CStr(category))
+        If amountMap.Exists(childKey) Then
+            childAmount = CCur(amountMap(childKey))
+        Else
+            childAmount = 0
+        End If
 
+        '親未定義なら次
+        If Trim$(child.aggregateTo) <> "" Then
+        
+            '------------------------------------------
+            ' 親行取得
+            '------------------------------------------
+            Set parentLine = GetAggregateParentLine(child.aggregateTo, CStr(category))
+            parentKey = BuildKey(parentLine.lineID, CStr(category))
+    
+            '------------------------------------------
+            ' 親へ加算
+            '------------------------------------------
+            If Not amountMap.Exists(parentKey) Then amountMap.Add parentKey, CCur(0)
+            amountMap(parentKey) = CCur(amountMap(parentKey)) + childAmount
+        End If
+    Next category
+    
 End Sub
 
 '==============================================================================
@@ -1561,6 +1601,64 @@ Private Function GetAggregateParentLine(ByVal parentLineID As String, ByVal cate
     Err.Raise vbObjectError + 7103, _
         "GetAggregateParentLine", _
         "AggregateTo target does not exist: " & normalizedParent & "|" & UCase$(Trim$(category))
+
+End Function
+
+'==============================================================================
+'       数式評価処理
+'------------------------------------------------------------------------------
+Private Function ResolveFormulaByCategory(ByVal formula As String, ByVal values As Object, ByVal defaultCategory As String) As Currency
+
+    Dim expr As String
+    expr = formula
+
+    If Trim$(defaultCategory) = "" Then defaultCategory = "*"
+
+    Dim re As Object
+    Set re = CreateObject("VBScript.RegExp")
+    With re
+        .Pattern = "\[([^\]]+)\]"
+        .Global = True
+    End With
+
+    Dim matches As Object
+    Set matches = re.Execute(expr)
+
+    Dim m As Object
+    For Each m In matches
+        Dim token As String
+        token = m.SubMatches(0)
+
+        Dim lineID As String
+        Dim category As String
+
+        If InStr(token, "|") > 0 Then
+            lineID = UCase$(Trim$(Split(token, "|")(0)))
+            category = UCase$(Trim$(Split(token, "|")(1)))
+        Else
+            lineID = UCase$(Trim$(token))
+            category = UCase$(Trim$(defaultCategory))
+        End If
+
+        If category = "" Then category = "*"
+
+        Dim key As String
+        key = BuildKey(lineID, category)
+
+        Dim val As Currency
+        If values.Exists(key) Then
+            val = CCur(values(key))
+        ElseIf category <> "*" And values.Exists(BuildKey(lineID, "*")) Then
+            val = CCur(values(BuildKey(lineID, "*")))
+        Else
+            val = 0
+        End If
+
+        expr = Replace(expr, "[" & token & "]", CStr(val))
+    Next
+
+    expr = Replace(expr, " ", "")
+    ResolveFormulaByCategory = CCur(Application.Evaluate(expr))
 
 End Function
 
