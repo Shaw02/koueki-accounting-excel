@@ -656,11 +656,15 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
                 ' 見た目調整
                 '------------------------------------------
                 '横罫線（帳簿形式）
-                ws.Range(ws.Cells(y, 2), ws.Cells(y, MaxColumn)).Borders(xlEdgeBottom).LineStyle = xlContinuous
-    
+                Dim rowLastCol As Long
+                rowLastCol = GetOutputRowLastColumn(ws, y)
+                ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).Borders(xlEdgeBottom).LineStyle = xlContinuous
+                ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
+                ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).HorizontalAlignment = xlRight
+                
                 'ゼブラ（偶数行）
                 If y Mod 2 = 0 Then
-                    ws.Range(ws.Cells(y, 2), ws.Cells(y, MaxColumn)).Interior.Color = rgbAliceBlue
+                    ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).Interior.Color = rgbAliceBlue
                 End If
 
                 '次行へ
@@ -671,6 +675,15 @@ ContinueLineLoop:
     Next
 
 End Sub
+
+Private Function GetOutputRowLastColumn(ByVal ws As Worksheet, ByVal y As Long) As Long
+
+    Dim lastCol As Long
+    lastCol = ws.Cells(y, ws.columns.Count).End(xlToLeft).column
+    If lastCol < MaxColumn Then lastCol = MaxColumn
+    GetOutputRowLastColumn = lastCol
+
+End Function
 
 Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As Object)
 
@@ -688,13 +701,43 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
     c = 3
     totalValue = 0
 
-    For Each col In columns
-        categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
-        amountValue = GetAmountByLineIDAndCategory(thisAmounts, line.lineID, categoryKey)
-        ws.Cells(y, c).value = amountValue
-        totalValue = totalValue + amountValue
-        c = c + 1
-    Next col
+If mode = CATEGORY_ACCOUNT Or mode = CATEGORY_ACCOUNT_SUM Or mode = CATEGORY_PROJECT Then
+        Dim targetGroups As Variant
+        Dim grp As Variant
+        Dim i As Long
+        Dim parts() As String
+        Dim hasGroupColumn As Boolean
+
+        targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
+
+        For Each grp In targetGroups
+            hasGroupColumn = False
+            For i = 1 To columns.Count
+                parts = Split(CStr(columns(i)), "|")
+                If UBound(parts) >= 0 And CStr(parts(0)) = CStr(grp) Then
+                    categoryKey = NormalizeColumnCategoryKey(CStr(columns(i)), mode)
+                    amountValue = GetAmountByLineIDAndCategory(thisAmounts, line.lineID, categoryKey)
+                    ws.Cells(y, c).value = amountValue
+                    totalValue = totalValue + amountValue
+                    c = c + 1
+                    hasGroupColumn = True
+                End If
+            Next i
+
+            If Not hasGroupColumn Then
+                ws.Cells(y, c).value = 0
+                c = c + 1
+            End If
+        Next grp
+    Else
+        For Each col In columns
+            categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
+            amountValue = GetAmountByLineIDAndCategory(thisAmounts, line.lineID, categoryKey)
+            ws.Cells(y, c).value = amountValue
+            totalValue = totalValue + amountValue
+            c = c + 1
+        Next col
+    End If
 
     If mode <> CATEGORY_NET_ASSET Then
         ws.Cells(y, c).value = 0     'ij
@@ -704,7 +747,7 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
     ws.Cells(y, c).value = totalValue
 
     If UCase$(Trim$(line.statementID)) = "PL_NOTE3" Then
-        ws.Cells(y, c + 1).value = "" 'zi\??j
+        ws.Cells(y, c + 1).value = "配賦基準："
     End If
 
 End Sub
@@ -879,10 +922,6 @@ Private Sub SetupSheetHeader(ByVal ws As Worksheet, ByVal statementID As String,
 
     With ws
 
-        '数値フォーマット（△表示）
-        .Range("C:E").NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
-        .Range("C:E").HorizontalAlignment = xlRight
-    
         'ヘッダー項目
         .Cells(headerRow, 2) = "科目"
         .Cells(headerRow, 3) = "当期"
