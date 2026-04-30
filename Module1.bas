@@ -385,6 +385,7 @@ Sub main()
     'à–±”•\
     Dim fsReport As FinancialStatement
     Set fsReport = New FinancialStatement
+    Call fsReport.Set_Master(master)
     
     '”p~—\’è
     Dim FS As FinancialStatements

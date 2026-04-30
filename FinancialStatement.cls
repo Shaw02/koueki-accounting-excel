@@ -19,14 +19,20 @@ Private Const MASTER_SHEET_NAME As String = "財務諸表マスタ"    'マスタシート名
 '****************************************
 '*      メンバー変数                    *
 '****************************************
-Private m_Master As FinancialStatementMaster                    '財務諸表マスタクラス
-Private m_ColumnKeys As FinancialStatementColumnKeys
+Private m_Master As FinancialStatementMaster                    '財務諸表マスタ管理クラス
+Private m_ColumnKeys As FinancialStatementColumnKeys            '出力列キー管理クラス
+Private m_AccMaster As AccountMaster                            '勘定科目マスタ
 
 '==============================================================================
 '       初期化処理
 '------------------------------------------------------------------------------
 '   Contents:
-'       クラス生成時に財務諸表マスタクラスを初期化する
+'       FinancialStatement クラス生成時の初期化処理。
+'
+'       財務諸表マスタ管理クラス、および
+'       出力列キー管理クラスを生成する。
+'
+'       ※ 実データの読込は BuildAndOutput 実行時に行う。
 '
 '==============================================================================
 Private Sub Class_Initialize()
@@ -35,20 +41,52 @@ Private Sub Class_Initialize()
 End Sub
 
 '==============================================================================
-'       キー生成（lineID + category）
+'       勘定科目マスタ設定
 '------------------------------------------------------------------------------
 '   Contents:
-'       財務諸表金額マップで使用するキーを生成する。
+'       財務諸表生成時に使用する勘定科目マスタを設定する。
 '
-'       ■ 形式
+'       設定された勘定科目マスタは、
+'       集計処理・表示制御・勘定判定等で使用される。
+'
+'   Input:
+'       AccMaster     勘定科目マスタクラス
+'
+'==============================================================================
+Public Sub Set_Master(AccMaster As AccountMaster)
+    Set m_AccMaster = AccMaster
+End Sub
+
+'==============================================================================
+'       財務諸表金額マップ用キー生成
+'------------------------------------------------------------------------------
+'   Contents:
+'       財務諸表金額マップ（Dictionary）で使用する
+'       一意キーを生成する。
+'
+'       ■ キー形式
 '           lineID | category
 '
-'       ■ 仕様
+'       ■ 正規化仕様
+'           ・前後空白除去（Trim）
+'           ・大文字統一（UCase）
 '           ・category が空の場合は "*" に補正
-'           ・大文字 + Trim により正規化
+'
+'       ■ 用途
+'           財務諸表行 + 会計区分 等の組み合わせで
+'           金額を管理するために使用する。
 '
 '       ■ 注意
-'           ・キー仕様は全体で統一されている前提
+'           キー仕様変更時は、
+'           集計系処理全体へ影響するため注意すること。
+'
+'   Input:
+'       lineID         財務諸表行ID
+'       category       会計区分・事業区分等
+'
+'   Output:
+'       BuildKey       正規化済みキー文字列
+'
 '==============================================================================
 Private Function BuildKey(ByVal lineID As String, ByVal category As String) As String
     If Trim$(category) = "" Then category = "*"
@@ -59,19 +97,31 @@ End Function
 '       財務諸表生成メイン処理
 '------------------------------------------------------------------------------
 '   Contents:
-'       試算表データをもとに財務諸表を生成し、Excelへ出力する。
+'       試算表データをもとに、財務諸表用データを生成し、
+'       各帳票をExcelへ出力する。
+'
+'       本クラスにおけるメインエントリポイントであり、
+'       以下の流れで処理を実行する。
 '
 '       ■ 処理フロー
-'           ① マスタ読込
-'           ② 試算表 → 金額マップ変換
-'           ③ 純資産補完
-'           ④ 勘定ベース集計
-'           ⑤ 計算式解決
-'           ⑥ 再集計
-'           ⑦ 出力
+'           ① 財務諸表マスタ読込
+'           ② 出力列キー初期化
+'           ③ 試算表 → 財務諸表金額マップ変換
+'           ④ 純資産データ補完
+'           ⑤ 勘定科目ベース集計
+'           ⑥ 計算式解決
+'           ⑦ 計算式反映後の再集計
+'           ⑧ 財務諸表出力
 '
 '       ■ 設計ポイント
-'           ・2段階集計（実データ → 計算式反映）
+'           ・実データ集計と計算式集計を分離している
+'           ・計算式解決後に再集計を行う構造としている
+'           ・将来的な内部取引消去、配賦、会計振替等の
+'             拡張ポイントを確保している
+'
+'   Input:
+'       tbEngine       試算表生成済みエンジンクラス
+'
 '==============================================================================
 Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
 
@@ -93,7 +143,7 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
     
     '純資産データ追加
     Call AddNetAssetAmounts(thisAmounts, tbEngine, False)
-    'Call AddNetAssetAmounts(lastAmounts, tbEngine, True)
+    Call AddNetAssetAmounts(lastAmounts, tbEngine, True)
 
     '① 勘定科目の集計
     Call RollupAggregateTo(thisAmounts, False)
@@ -113,22 +163,43 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
 End Sub
 
 '==============================================================================
-'       試算表 → 財務諸表金額マップ変換
+'       財務諸表金額マップ生成
 '------------------------------------------------------------------------------
 '   Contents:
-'       試算表データを、財務諸表行単位の金額へ変換する。
+'       試算表データから、財務諸表用の金額マップを生成する。
 '
-'       ■ 出力
-'           Dictionary（lineID|category → 金額）
+'       試算表の各行について、
+'
+'           勘定科目コード
+'           会計区分
+'
+'       をもとに、財務諸表マスタ上の対応行へ金額を加算する。
+'
+'       生成される Dictionary は、
+'
+'           Key   : BuildKey(lineID, category)
+'           Value : 金額
+'
+'       の形式で保持される。
 '
 '       ■ 処理概要
-'           ・試算表 × マスタ を突き合わせ
-'           ・Aggregate で抽出
-'           ・Filter で分類
-'           ・AddAmountToMap で蓄積
+'           ① 試算表を1行ずつ走査
+'           ② 勘定科目コードから財務諸表行を取得
+'           ③ 会計区分別キーを生成
+'           ④ 金額を加算
 '
-'       ■ 分類パターン
-'           "*" / EACH / 固定指定
+'       ■ 注意
+'           本処理では、まだ Aggregate 集計や
+'           計算式解決は行わない。
+'
+'           あくまで「元データ投入フェーズ」である。
+'
+'   Input:
+'       subTB       補助元帳レベル試算表
+'
+'   Output:
+'       amounts     財務諸表金額マップ
+'
 '==============================================================================
 Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
 
@@ -136,65 +207,197 @@ Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
     Set result = CreateObject("Scripting.Dictionary")
 
     Dim tbLine As TrialBalanceLine
-    Dim masterLine As FinancialStatementMasterLine
-    Dim amount As Currency
-    Dim detailKey As String
-    Dim filterTokens As Variant
-    Dim filterToken As Variant
 
     For Each tbLine In tb.lines
-        amount = tbLine.amount()
 
-        '------------------------------------------
-        ' 試算表1行 × マスタ全行 を突き合わせる
-        '------------------------------------------
-        For Each masterLine In m_Master.lines
-            If masterLine.enabled Then
-                If masterLine.lineType = "ACCOUNT" Or masterLine.lineType = "ACCOUNTS" Then
-                    'ACCOUNT / ACCOUNTS：
-                    '実データ（試算表）から直接金額を拾う行のみ対象
-                    If IsAggregateMatch(masterLine, tbLine) And IsFilterMatch(masterLine, tbLine) Then
-                        '------------------------------------------
-                        ' マスタ定義に基づき、この試算表行が
-                        ' この財務諸表行に属するか判定
-                        '------------------------------------------
-                        Call AddAmountToMap(result, masterLine.lineID, "*", amount)
-
-                        If UCase$(Trim$(masterLine.filterValue)) = "EACH" Or UCase$(Trim$(masterLine.statementID)) = "PL_NOTE1" Then
-                            '------------------------------------------
-                            ' EACH指定：
-                            ' 試算表の値ごとに明細分解（補助科目・事業など）
-                            '------------------------------------------
-                            If UCase$(Trim$(masterLine.statementID)) = "PL_NOTE1" Then
-                                detailKey = GetFilterKey(CATEGORY_NET_ASSET, tbLine)
-                            Else
-                                detailKey = GetFilterKey(masterLine.filterField, tbLine)
-                            End If
-                            If detailKey <> "" And detailKey <> "*" Then
-                                Call AddAmountToMap(result, masterLine.lineID, detailKey, amount)
-                            End If
-                        ElseIf UCase$(Trim$(masterLine.filterValue)) <> "*" And UCase$(Trim$(masterLine.filterValue)) <> "" Then
-                            '------------------------------------------
-                            ' 固定カテゴリ指定：
-                            ' 例）"一般,指定" のような指定に従って振り分け
-                            '------------------------------------------
-                            filterTokens = Split(masterLine.filterValue, ",")
-                            For Each filterToken In filterTokens
-                                detailKey = UCase$(Trim$(CStr(filterToken)))
-                                If detailKey <> "" Then
-                                    Call AddAmountToMap(result, masterLine.lineID, detailKey, amount)
-                                End If
-                            Next filterToken
-                        End If
-                    End If
-                End If
-            End If
-        Next masterLine
+        Call ApplyMasterLineMatching(result, tbLine)
+    
     Next tbLine
 
     Set BuildStatementAmountMap = result
 
 End Function
+
+'==============================================================================
+'       純資産データ追加
+'------------------------------------------------------------------------------
+'   Contents:
+'       試算表には存在しない純資産関連項目について、
+'       財務諸表表示用の金額を追加する。
+'
+'       主に、
+'
+'           ・一般正味財産
+'           ・指定正味財産
+'
+'       の期首・期末残高等を補完する目的で使用する。
+'
+'       ■ 設計意図
+'           純資産系は通常の収益費用集計とは
+'           性質が異なるため、
+'           BuildStatementAmountMap とは分離している。
+'
+'       ■ 注意
+'           本処理は財務諸表表示用データ補完であり、
+'           TrialBalance 自体を書き換えるものではない。
+'
+'   Input:
+'       amounts         財務諸表金額マップ
+'       tbEngine        試算表エンジン
+'       isLastYear      前年度データかどうか
+'
+'==============================================================================
+Private Sub AddNetAssetAmounts( _
+    ByVal accountMap As Object, _
+    ByVal tbEngine As TrialBalanceEngine, _
+    ByVal isLastYear As Boolean)
+
+    If isLastYear Then
+
+        '==============================
+        ' 一般純資産
+        Call AddAmountToMatchedMasterLines(accountMap, idNetAssets_Begin, natGeneral, tbEngine.LastGeneralNetBegin)
+        Call AddAmountToMatchedMasterLines(accountMap, idNetAssets_End, natGeneral, tbEngine.LastGeneralNetEnd)
+ 
+        '==============================
+        ' 指定純資産
+        Call AddAmountToMatchedMasterLines(accountMap, idNetAssets_Begin, natDesignated, tbEngine.LastDesignatedNetBegin)
+        Call AddAmountToMatchedMasterLines(accountMap, idNetAssets_End, natDesignated, tbEngine.LastDesignatedNetEnd)
+        
+    Else
+
+        '==============================
+        ' 一般純資産
+        Call AddAmountToMatchedMasterLines(accountMap, idNetAssets_Begin, natGeneral, tbEngine.GeneralNetAssetBegin)
+        Call AddAmountToMatchedMasterLines(accountMap, idNetAssets_End, natGeneral, tbEngine.GeneralNetAssetEnd)
+ 
+        '==============================
+        ' 指定純資産
+        Call AddAmountToMatchedMasterLines(accountMap, idNetAssets_Begin, natDesignated, tbEngine.DesignatedNetAssetBegin)
+        Call AddAmountToMatchedMasterLines(accountMap, idNetAssets_End, natDesignated, tbEngine.DesignatedNetAssetEnd)
+
+    End If
+
+End Sub
+
+'==============================================================================
+'       純資産データを試算表形式へ変換してマスタ突合せへ投入
+'------------------------------------------------------------------------------
+'   Contents:
+'       純資産残高データを TrialBalanceLine へ変換し、
+'       通常の試算表データと同じ突合せ処理へ投入する。
+'
+'       ■ この関数の役割
+'           ・純資産データ専用の分岐処理を減らす
+'           ・試算表データと同一ロジックへ統一する
+'
+'       ■ 処理概要
+'           ① 仮想 TrialBalanceLine を生成
+'           ② 勘定科目マスタから勘定取得
+'           ③ 金額設定
+'           ④ ApplyMasterLineMatching へ投入
+'
+'   Input:
+'       amountMap      出力用Dictionary（lineID|category → 金額）
+'       code           勘定科目コード
+'       nat            純資産区分（一般／指定）
+'       amount         残高
+'
+'==============================================================================
+Private Sub AddAmountToMatchedMasterLines(ByVal amountMap As Object, ByVal code As Long, ByVal nat As NetAssetType, ByVal amount As Currency)
+
+    Dim tbLine As TrialBalanceLine
+    Set tbLine = New TrialBalanceLine
+    
+    Call tbLine.Initialize(m_AccMaster.GetAccount(code), 0, "", "", nat)
+    Call tbLine.AddAmount(0, 0, amount, amount)
+
+    Call ApplyMasterLineMatching(amountMap, tbLine)
+
+End Sub
+
+'==============================================================================
+'       試算表行と財務諸表マスタ行の突合せ
+'------------------------------------------------------------------------------
+'   Contents:
+'       試算表1行（tbLine）が、財務諸表マスタのどの行へ属するか判定し、
+'       一致した行へ金額を加算する。
+'
+'       ■ 処理概要
+'           ① 財務諸表マスタ全行を走査
+'           ② ACCOUNT / ACCOUNTS 行のみ対象
+'           ③ Aggregate 条件判定
+'           ④ Filter 条件判定
+'           ⑤ 金額マップへ加算
+'
+'       ■ 分類処理
+'           ・固定分類
+'           ・EACH展開
+'           ・注記用分類
+'           に対応している。
+'
+'       ■ EACH の役割
+'           補助科目や事業単位等へ、明細分解して出力するために使用する。
+'
+'==============================================================================
+Private Sub ApplyMasterLineMatching(ByVal amountMap As Object, ByVal tbLine As TrialBalanceLine)
+
+    Dim masterLine As FinancialStatementMasterLine
+    Dim detailKey As String
+    Dim filterTokens As Variant
+    Dim filterToken As Variant
+    Dim amount As Currency
+    
+    amount = tbLine.amount
+
+    '------------------------------------------
+    ' 試算表1行 × マスタ全行 を突き合わせる
+    '------------------------------------------
+    For Each masterLine In m_Master.lines
+        If masterLine.enabled Then
+            If masterLine.lineType = "ACCOUNT" Or masterLine.lineType = "ACCOUNTS" Then
+
+                'ACCOUNT / ACCOUNTS：
+                '実データ（試算表）から直接金額を拾う行のみ対象
+                If IsAggregateMatch(masterLine, tbLine) And IsFilterMatch(masterLine, tbLine) Then
+                    '------------------------------------------
+                    ' マスタ定義に基づき、この試算表行が
+                    ' この財務諸表行に属するか判定
+                    '------------------------------------------
+                    Call AddAmountToMap(amountMap, masterLine.lineID, "*", amount)
+
+                    If UCase$(Trim$(masterLine.filterValue)) = "EACH" Or UCase$(Trim$(masterLine.statementID)) = "PL_NOTE1" Then
+                        '------------------------------------------
+                        ' EACH指定：
+                        ' 試算表の値ごとに明細分解（補助科目・事業など）
+                        '------------------------------------------
+                        If UCase$(Trim$(masterLine.statementID)) = "PL_NOTE1" Then
+                            detailKey = GetFilterKey(CATEGORY_NET_ASSET, tbLine)
+                        Else
+                            detailKey = GetFilterKey(masterLine.filterField, tbLine)
+                        End If
+                        If detailKey <> "" And detailKey <> "*" Then
+                            Call AddAmountToMap(amountMap, masterLine.lineID, detailKey, amount)
+                        End If
+                    ElseIf UCase$(Trim$(masterLine.filterValue)) <> "*" And UCase$(Trim$(masterLine.filterValue)) <> "" Then
+                        '------------------------------------------
+                        ' 固定カテゴリ指定：
+                        ' 例）"一般,指定" のような指定に従って振り分け
+                        '------------------------------------------
+                        filterTokens = Split(masterLine.filterValue, ",")
+                        For Each filterToken In filterTokens
+                            detailKey = UCase$(Trim$(CStr(filterToken)))
+                            If detailKey <> "" Then
+                                Call AddAmountToMap(amountMap, masterLine.lineID, detailKey, amount)
+                            End If
+                        Next filterToken
+                    End If
+                End If
+            End If
+        End If
+    Next masterLine
+
+End Sub
 
 '==============================================================================
 '       集計対象判定（Aggregate / WHERE句）
@@ -218,14 +421,18 @@ End Function
 '           Terget_Sub_Class  ：中区分ベース
 '           Terget_Acc_Code   ：勘定科目コードベース
 '
-'       ■ 設計ポイント
-'           ・マスタ設定のみで抽出条件を変更可能
-'           ・一致ロジックは CsvContains に集約
-'
 '       ■ 注意（重要）
 '           ・aggregateField 未指定時は Terget_ID が適用される
 '           ・区切り文字はフィールドごとに異なる（; / ,）
 '           ・未対応フィールドは False（安全側）
+'
+'   Input:
+'       masterLine     財務諸表マスタ行
+'       tbLine         試算表行
+'
+'   Output:
+'       True           集計対象
+'       False          集計対象外
 '
 '==============================================================================
 Private Function IsAggregateMatch(ByVal masterLine As FinancialStatementMasterLine, ByVal tbLine As TrialBalanceLine) As Boolean
@@ -282,6 +489,14 @@ End Function
 '           ・EACH の実際の分解は別処理（ここではTrueのみ返す）
 '           ・GetFilterKey が "" の場合は対象外
 '
+'   Input:
+'       masterLine     財務諸表マスタ行
+'       tbLine         試算表行
+'
+'   Output:
+'       True           分類対象
+'       False          分類対象外
+'
 '==============================================================================
 Private Function IsFilterMatch(ByVal masterLine As FinancialStatementMasterLine, ByVal tbLine As TrialBalanceLine) As Boolean
 
@@ -326,6 +541,13 @@ End Function
 '       ■ 注意
 '           ・戻り値は最終的に UCase + Trim で正規化
 '           ・"" は「分類対象外」として扱われる
+'
+'   Input:
+'       filterField    分類項目
+'       tbLine         試算表行
+'
+'   Output:
+'       GetFilterKey   分類キー
 '
 '==============================================================================
 Private Function GetFilterKey(ByVal filterField As String, ByVal tbLine As TrialBalanceLine) As String
@@ -409,6 +631,15 @@ End Function
 '           ・部分一致ではなく「完全一致」
 '           ・空文字は無視
 '
+'   Input:
+'       sourceValue        比較元文字列
+'       expectedValues     比較対象文字列（カンマ区切り）
+'       sourceDelimiter    sourceValue 側区切り文字
+'
+'   Output:
+'       True               一致あり
+'       False              一致なし
+'
 '==============================================================================
 Private Function CsvContains(ByVal sourceValue As String, ByVal expectedValues As String, ByVal sourceDelimiter As String) As Boolean
 
@@ -441,32 +672,6 @@ Private Function CsvContains(ByVal sourceValue As String, ByVal expectedValues A
 
 End Function
 
-
-'==============================================================================
-'       FS_ID存在チェック
-'------------------------------------------------------------------------------
-'   Contents:
-'       指定されたlineIDがマスタに存在するか確認する
-'
-'==============================================================================
-Private Function ExistsLineID(ByVal lineID As String) As Boolean
-
-    Dim line As FinancialStatementMasterLine
-    Dim targetID As String
-
-    targetID = UCase$(Trim$(lineID))
-
-    For Each line In m_Master.lines
-        If UCase$(Trim$(line.lineID)) = targetID Then
-            ExistsLineID = True
-            Exit Function
-        End If
-    Next
-
-    ExistsLineID = False
-
-End Function
-
 '==============================================================================
 '       金額マップ加算処理（最終集計単位）
 '------------------------------------------------------------------------------
@@ -488,6 +693,12 @@ End Function
 '           ・キー生成ロジックはここに固定されている
 '           ・ここが壊れると全体集計が壊れる
 '
+'   Input:
+'       accountMap             財務諸表金額マップ
+'       lineID                 財務諸表行ID
+'       accountingCategory     分類キー
+'       amount                 加算金額
+'
 '==============================================================================
 Private Sub AddAmountToMap( _
     ByVal accountMap As Object, _
@@ -508,72 +719,6 @@ Private Sub AddAmountToMap( _
     accountMap(key) = CCur(accountMap(key)) + amount
         
     Debug.Print key & "| \" & amount
-
-End Sub
-
-'==============================================================================
-'       純資産（期首・期末・増減）のマップ追加
-'------------------------------------------------------------------------------
-'   Contents:
-'       ・貸借対照表用（期末）
-'       ・注記用（期首・増減）
-'       の両方で使えるように、純資産をフルセットで投入する
-'
-'       TrialBalanceEngine が保持する純資産情報を、
-'       財務諸表マスタの指定IDへ直接マッピングする
-'
-'   Input:
-'       accountMap     出力用Dictionary（lineID|category → 金額）
-'       tbEngine       試算表エンジン
-'       isLastYear     前年データかどうか
-'
-'==============================================================================
-Private Sub AddNetAssetAmounts( _
-    ByVal accountMap As Object, _
-    ByVal tbEngine As TrialBalanceEngine, _
-    ByVal isLastYear As Boolean)
-
-    If isLastYear Then
-
-        '==============================
-        ' 一般純資産
-        '==============================
-        Call AddAmountToMap(accountMap, "BS_NET_START", "一般", tbEngine.LastGeneralNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_END", "一般", tbEngine.LastGeneralNetEnd)
-        
-        Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.LastGeneralNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_END", "*", tbEngine.LastGeneralNetEnd)
-
-        '==============================
-        ' 指定純資産
-        '==============================
-        Call AddAmountToMap(accountMap, "BS_NET_START", "指定", tbEngine.LastDesignatedNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_END", "指定", tbEngine.LastDesignatedNetEnd)
-        
-        Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.LastDesignatedNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_END", "*", tbEngine.LastDesignatedNetEnd)
-
-    Else
-
-        '==============================
-        ' 一般純資産
-        '==============================
-        Call AddAmountToMap(accountMap, "BS_NET_START", "一般", tbEngine.GeneralNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_END", "一般", tbEngine.GeneralNetAssetEnd)
-
-        Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.GeneralNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_END", "*", tbEngine.GeneralNetAssetEnd)
-
-        '==============================
-        ' 指定純資産
-        '==============================
-        Call AddAmountToMap(accountMap, "BS_NET_START", "指定", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_END", "指定", tbEngine.DesignatedNetAssetEnd)
-
-        Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_END", "*", tbEngine.DesignatedNetAssetEnd)
-
-    End If
 
 End Sub
 
@@ -680,6 +825,20 @@ ContinueLineLoop:
 
 End Sub
 
+'==============================================================================
+'       出力行最終列取得
+'------------------------------------------------------------------------------
+'   Contents:
+'       指定行における実際の最終使用列を取得する。
+'
+'   Input:
+'       ws      対象ワークシート
+'       y       対象行
+'
+'   Output:
+'       最終使用列番号
+'
+'==============================================================================
 Private Function GetOutputRowLastColumn(ByVal ws As Worksheet, ByVal y As Long) As Long
 
     Dim lastCol As Long
@@ -689,6 +848,33 @@ Private Function GetOutputRowLastColumn(ByVal ws As Worksheet, ByVal y As Long) 
 
 End Function
 
+'==============================================================================
+'       行別区分列出力
+'------------------------------------------------------------------------------
+'   Contents:
+'       EACH指定された行について、
+'       区分別（会計区分／財源区分／事業区分）の横展開出力を行う。
+'
+'       出力モードに応じて、
+'       m_ColumnKeys に保持された列定義を参照し、各区分の金額を横方向へ出力する。
+'
+'       また、帳票種別に応じて、
+'           ・内部取引等消去列
+'           ・合計列
+'           ・配賦基準列
+'       を自動付与する。
+'
+'       【重要】
+'       会計区分系帳票では、「公益」「収益」「法人」の順序を固定する。
+'       列データが存在しない場合でも、公益法人会計基準の様式維持のため、空列を出力する。
+'
+'   Input:
+'       ws              出力対象シート
+'       y               出力行
+'       line            財務諸表行定義
+'       thisAmounts     金額マップ
+'
+'==============================================================================
 Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As Object)
 
     Dim mode As String
@@ -712,10 +898,16 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
         Dim parts() As String
         Dim hasGroupColumn As Boolean
 
+        '------------------------------------------
+        ' 会計区分固定順
+        '------------------------------------------
         targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
 
         For Each grp In targetGroups
             hasGroupColumn = False
+            '------------------------------------------
+            ' 対象グループ列抽出
+            '------------------------------------------
             For i = 1 To columns.Count
                 parts = Split(CStr(columns(i)), "|")
                 If UBound(parts) >= 0 And CStr(parts(0)) = CStr(grp) Then
@@ -728,12 +920,18 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
                 End If
             Next i
 
+            '------------------------------------------
+            ' データ未存在時も空列維持
+            '------------------------------------------
             If Not hasGroupColumn Then
                 ws.Cells(y, c).value = 0
                 c = c + 1
             End If
         Next grp
     Else
+        '------------------------------------------
+        ' 通常列出力
+        '------------------------------------------
         For Each col In columns
             categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
             amountValue = GetAmountByLineIDAndCategory(thisAmounts, line.lineID, categoryKey)
@@ -743,22 +941,48 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
         Next col
     End If
 
-    Dim hasEliminationColumn As Boolean
-    hasEliminationColumn = (mode <> CATEGORY_NET_ASSET) And (UCase$(Trim$(line.statementID)) <> "PL_NOTE3")
-
-    If hasEliminationColumn Then
-        ws.Cells(y, c).value = 0     'ij
+    '------------------------------------------
+    ' 内部取引等消去列
+    '------------------------------------------
+    If UCase$(Trim$(line.statementID)) = "PL_NOTE2" Then
+        ws.Cells(y, c).value = 0     '将来対応予定
         c = c + 1
     End If
 
+    '------------------------------------------
+    ' 合計列
+    '------------------------------------------
     ws.Cells(y, c).value = totalValue
 
+    '------------------------------------------
+    ' 配賦基準列
+    '------------------------------------------
     If UCase$(Trim$(line.statementID)) = "PL_NOTE3" Then
         ws.Cells(y, c + 1).value = "配賦基準："
     End If
 
 End Sub
 
+'==============================================================================
+'       出力区分モード解決
+'------------------------------------------------------------------------------
+'   Contents:
+'       財務諸表行定義から、横軸出力時の区分モードを決定する。
+'
+'       主な用途：
+'           ・ヘッダー生成
+'           ・EACH列出力
+'           ・数式対象category生成
+'
+'       PL_NOTE1（財源区分別内訳）のみ、強制的に CATEGORY_NET_ASSET とする。
+'
+'   Input:
+'       line        財務諸表行定義
+'
+'   Output:
+'       区分モード
+'
+'==============================================================================
 Private Function ResolveOutputCategoryMode(ByVal line As FinancialStatementMasterLine) As String
 
     If UCase$(Trim$(line.statementID)) = "PL_NOTE1" Then
@@ -769,6 +993,31 @@ Private Function ResolveOutputCategoryMode(ByVal line As FinancialStatementMaste
 
 End Function
 
+'==============================================================================
+'       列定義からcategoryキー取得
+'------------------------------------------------------------------------------
+'   Contents:
+'       columnKey の構造から、集計用 category キーを抽出する。
+'       columnKey は mode に応じて可変長構造を持つ。
+'
+'       例：
+'
+'           CATEGORY_ACCOUNT
+'               公益|公1
+'
+'           CATEGORY_PROJECT
+'               公益|公1|PRJ001|演奏会
+'
+'       本関数は、mode ごとに適切な集計キーを返却する。
+'
+'   Input:
+'       columnKey      列定義キー
+'       mode           区分モード
+'
+'   Output:
+'       categoryキー
+'
+'==============================================================================
 Private Function NormalizeColumnCategoryKey(ByVal columnKey As String, ByVal mode As String) As String
 
     Dim parts() As String
@@ -793,6 +1042,24 @@ Private Function NormalizeColumnCategoryKey(ByVal columnKey As String, ByVal mod
 
 End Function
 
+'==============================================================================
+'       行ID＋区分別金額取得
+'------------------------------------------------------------------------------
+'   Contents:
+'       lineID と category の組み合わせから、
+'       amountMap に格納された金額を取得する。
+'
+'       キー未存在時は0を返却する。
+'
+'   Input:
+'       amountMap      金額マップ
+'       lineID         財務諸表ID
+'       category       区分キー
+'
+'   Output:
+'       金額
+'
+'==============================================================================
 Private Function GetAmountByLineIDAndCategory(ByVal amountMap As Object, ByVal lineID As String, ByVal category As String) As Currency
 
     Dim key As String
@@ -813,6 +1080,9 @@ End Function
 '       ・対象シートのクリア
 '       ・ヘッダー設定
 '       ・シート毎の出力開始行を初期化
+'
+'   Input:
+'       nextRowBySheet     シート別出力行管理Dictionary
 '
 '==============================================================================
 Private Sub InitializeOutputSheets(ByVal nextRowBySheet As Object)
@@ -847,6 +1117,16 @@ End Sub
 '       ・列見出し（科目／当期／前期／増減）
 '       ・数値フォーマット
 '       ・罫線／背景色
+'
+'   Input:
+'       ws      出力対象シート
+'       y       出力行
+'       line    財務諸表行
+'
+'   Output:
+'       消費行数
+'           0 = 通常行
+'           1以上 = 特殊行として処理済
 '
 '==============================================================================
 Private Function TryOutputSpecialLine(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine) As Long
@@ -1504,6 +1784,23 @@ Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine
     
 End Function
 
+'==============================================================================
+'       EACH行ゼロ判定
+'------------------------------------------------------------------------------
+'   Contents:
+'       EACH列展開対象行について、全カテゴリが0かどうかを判定する。
+'       いずれか1カテゴリでも値が存在する場合は表示対象とする。
+'
+'   Input:
+'       line            財務諸表行
+'       thisAmounts     当期金額Map
+'       lastAmounts     前期金額Map
+'
+'   Output:
+'       True    表示不要（全カテゴリ0）
+'       False   表示対象
+'
+'==============================================================================
 Private Function ShouldSkipEachAccountLine(ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As Object, ByVal lastAmounts As Object) As Boolean
 
     Dim mode As String
@@ -1531,10 +1828,39 @@ Private Function ShouldSkipEachAccountLine(ByVal line As FinancialStatementMaste
 End Function
 
 '==============================================================================
-'
+'       行ID配下カテゴリ取得
 '------------------------------------------------------------------------------
 '   Contents:
+'       指定lineIDに紐づくカテゴリ一覧を、金額Mapから抽出する。
 '
+'       金額MapのKey形式：
+'           lineID|category
+'
+'       処理内容：
+'           ・指定lineID配下を走査
+'           ・category部分を抽出
+'           ・重複除去
+'
+'       戻り値には、
+'           "*"（全体カテゴリ）
+'       を最低1件含める。
+'
+'       本処理は、
+'           ・Rollup集計
+'           ・数式カテゴリ解決
+'           ・親子集計
+'       等で使用される。
+'
+'       【重要】
+'       amountMap に実際に存在するカテゴリを基準とするため、
+'       マスタ定義とは独立して動的にカテゴリを取得可能。
+'
+'   Input:
+'       values      金額Map
+'       lineID      対象財務諸表行ID
+'
+'   Output:
+'       category一覧Collection
 '
 '==============================================================================
 Private Function GetLineCategoriesFromAmountMap(ByVal values As Object, ByVal lineID As String) As Collection
@@ -1623,6 +1949,23 @@ Private Sub ResolveFormulaAmounts(ByVal values As Object)
 
 End Sub
 
+'==============================================================================
+'       数式対象カテゴリ取得
+'------------------------------------------------------------------------------
+'   Contents:
+'       FORMULA / CALC 行について、数式評価対象となるカテゴリ一覧を取得する。
+'
+'       【戻り値保証】
+'       最低1件 "*" を返却する。
+'
+'   Input:
+'       line        財務諸表行
+'       values      金額Map
+'
+'   Output:
+'       評価対象カテゴリCollection
+'
+'==============================================================================
 Private Function GetFormulaTargetCategories(ByVal line As FinancialStatementMasterLine, ByVal values As Object) As Collection
 
     Dim categories As Collection
@@ -1670,6 +2013,10 @@ End Function
 '       includeFormula により対象を切替：
 '           False : ACCOUNT系のみ集計（第1段階）
 '           True  : FORMULA/CALCも含める（第2段階）
+'
+'   Input:
+'       amounts             財務諸表金額マップ
+'       isFormulaAfter      数式解決後かどうか
 '
 '==============================================================================
 Private Sub RollupAggregateTo(ByVal amountMap As Object, ByVal includeFormula As Boolean)
@@ -1861,6 +2208,32 @@ Private Function ResolveFormulaByCategory(ByVal formula As String, ByVal values 
 
     expr = Replace(expr, " ", "")
     ResolveFormulaByCategory = CCur(Application.Evaluate(expr))
+
+End Function
+
+
+'==============================================================================
+'       FS_ID存在チェック
+'------------------------------------------------------------------------------
+'   Contents:
+'       指定されたlineIDがマスタに存在するか確認する
+'
+'==============================================================================
+Private Function ExistsLineID(ByVal lineID As String) As Boolean
+
+    Dim line As FinancialStatementMasterLine
+    Dim targetID As String
+
+    targetID = UCase$(Trim$(lineID))
+
+    For Each line In m_Master.lines
+        If UCase$(Trim$(line.lineID)) = targetID Then
+            ExistsLineID = True
+            Exit Function
+        End If
+    Next
+
+    ExistsLineID = False
 
 End Function
 

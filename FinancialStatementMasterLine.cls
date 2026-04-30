@@ -86,7 +86,7 @@ Private m_Enabled As Boolean              '有効フラグ（出力対象か）
 '
 '       HEADER_PL_NOTE1
 '           ・（１）財源区分別内訳表
-'           ・横軸：一般／指定／合計（EACH_FUND 固定）
+'           ・横軸：一般／指定／合計
 '
 '
 '       HEADER_PL_NOTE2
