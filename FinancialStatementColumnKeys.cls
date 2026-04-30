@@ -61,7 +61,7 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
     m_ColumnKeysByCategory(CATEGORY_NET_ASSET).Add "一般"
     m_ColumnKeysByCategory(CATEGORY_NET_ASSET).Add "指定"
     For Each line In tb.lines
-        If (Not line.account.FS = "PL") Or line.IsZero Then
+        If Not IsCollectibleProfitAndLossLine(line) Then
             GoTo ContinueLine
         End If
 
@@ -101,6 +101,22 @@ ContinueLine:
     Call SortColumnKeysByCategory
 
 End Sub
+
+'==============================================================================
+'       収集対象の活動計算書行判定
+'------------------------------------------------------------------------------
+'   Contents:
+'       活動計算書(PL)かつゼロ金額ではない行のみ収集対象とする。
+'
+'==============================================================================
+Private Function IsCollectibleProfitAndLossLine(ByVal line As TrialBalanceLine) As Boolean
+
+    If line Is Nothing Then Exit Function
+    If line.account Is Nothing Then Exit Function
+
+    IsCollectibleProfitAndLossLine = (line.account.FS = "PL") And (Not line.IsZero)
+
+End Function
 
 '==============================================================================
 '       勘定グループラベル取得

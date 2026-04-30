@@ -718,8 +718,6 @@ Private Sub AddAmountToMap( _
     End If
     accountMap(key) = CCur(accountMap(key)) + amount
         
-    Debug.Print key & "| \" & amount
-
 End Sub
 
 '==============================================================================
