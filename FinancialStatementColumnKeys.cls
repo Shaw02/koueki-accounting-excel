@@ -57,7 +57,9 @@ Private Sub BuildColumnKeysByCategory(ByVal tb As TrialBalance)
     m_ColumnKeysByCategory.Add CATEGORY_ACCOUNT, New Collection
     m_ColumnKeysByCategory.Add CATEGORY_PROJECT, New Collection
     m_ColumnKeysByCategory.Add CATEGORY_ACCOUNT_SUM, New Collection
-
+    m_ColumnKeysByCategory.Add CATEGORY_NET_ASSET, New Collection
+    m_ColumnKeysByCategory(CATEGORY_NET_ASSET).Add "ˆê”Ê"
+    m_ColumnKeysByCategory(CATEGORY_NET_ASSET).Add "Žw’è"
     For Each line In tb.lines
         If (Not line.account.FS = "PL") Or line.IsZero Then
             GoTo ContinueLine

@@ -93,7 +93,7 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
     
     '純資産データ追加
     Call AddNetAssetAmounts(thisAmounts, tbEngine, False)
-    Call AddNetAssetAmounts(lastAmounts, tbEngine, True)
+    'Call AddNetAssetAmounts(lastAmounts, tbEngine, True)
 
     '① 勘定科目の集計
     Call RollupAggregateTo(thisAmounts, False)
@@ -160,12 +160,16 @@ Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
                         '------------------------------------------
                         Call AddAmountToMap(result, masterLine.lineID, "*", amount)
 
-                        If UCase$(Trim$(masterLine.filterValue)) = "EACH" Then
+                        If UCase$(Trim$(masterLine.filterValue)) = "EACH" Or UCase$(Trim$(masterLine.statementID)) = "PL_NOTE1" Then
                             '------------------------------------------
                             ' EACH指定：
                             ' 試算表の値ごとに明細分解（補助科目・事業など）
                             '------------------------------------------
-                            detailKey = GetFilterKey(masterLine.filterField, tbLine)
+                            If UCase$(Trim$(masterLine.statementID)) = "PL_NOTE1" Then
+                                detailKey = GetFilterKey(CATEGORY_NET_ASSET, tbLine)
+                            Else
+                                detailKey = GetFilterKey(masterLine.filterField, tbLine)
+                            End If
                             If detailKey <> "" And detailKey <> "*" Then
                                 Call AddAmountToMap(result, masterLine.lineID, detailKey, amount)
                             End If
@@ -503,7 +507,7 @@ Private Sub AddAmountToMap( _
     End If
     accountMap(key) = CCur(accountMap(key)) + amount
         
-    Debug.Print key & amount
+    Debug.Print key & "| \" & amount
 
 End Sub
 
@@ -535,19 +539,19 @@ Private Sub AddNetAssetAmounts( _
         ' 一般純資産
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_START", "一般", tbEngine.LastGeneralNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "一般", tbEngine.LastGeneralNetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_END", "一般", tbEngine.LastGeneralNetEnd)
         
         Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.LastGeneralNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "*", tbEngine.LastGeneralNetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_END", "*", tbEngine.LastGeneralNetEnd)
 
         '==============================
         ' 指定純資産
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_START", "指定", tbEngine.LastDesignatedNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "指定", tbEngine.LastDesignatedNetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_END", "指定", tbEngine.LastDesignatedNetEnd)
         
         Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.LastDesignatedNetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "*", tbEngine.LastDesignatedNetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_END", "*", tbEngine.LastDesignatedNetEnd)
 
     Else
 
@@ -555,19 +559,19 @@ Private Sub AddNetAssetAmounts( _
         ' 一般純資産
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_START", "一般", tbEngine.GeneralNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "一般", tbEngine.GeneralNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_END", "一般", tbEngine.GeneralNetAssetEnd)
 
         Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.GeneralNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_GENERAL_END", "*", tbEngine.GeneralNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_END", "*", tbEngine.GeneralNetAssetEnd)
 
         '==============================
         ' 指定純資産
         '==============================
         Call AddAmountToMap(accountMap, "BS_NET_START", "指定", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "指定", tbEngine.DesignatedNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_END", "指定", tbEngine.DesignatedNetAssetEnd)
 
         Call AddAmountToMap(accountMap, "BS_NET_START", "*", tbEngine.DesignatedNetAssetBegin)
-        Call AddAmountToMap(accountMap, "BS_NET_DESIG_END", "*", tbEngine.DesignatedNetAssetEnd)
+        Call AddAmountToMap(accountMap, "BS_NET_END", "*", tbEngine.DesignatedNetAssetEnd)
 
     End If
 
@@ -638,7 +642,7 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
             '------------------------------------------
             If Not ShouldSkipOutputLine(line, vThis, vLast, thisAmounts, lastAmounts) Then
                 
-                If UCase$(Trim$(line.filterValue)) = "EACH" Then
+                If UCase$(Trim$(line.filterValue)) = "EACH" Or UCase$(Trim$(line.statementID)) = "PL_NOTE1" Then
                     'EACHの場合
                     Call OutputEachColumns(ws, y, line, thisAmounts)
                 ElseIf line.lineType = "TITLE" Then
@@ -659,8 +663,8 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
                 Dim rowLastCol As Long
                 rowLastCol = GetOutputRowLastColumn(ws, y)
                 ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).Borders(xlEdgeBottom).LineStyle = xlContinuous
-                ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
-                ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).HorizontalAlignment = xlRight
+                ws.Range(ws.Cells(y, 3), ws.Cells(y, rowLastCol)).NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
+                ws.Range(ws.Cells(y, 3), ws.Cells(y, rowLastCol)).HorizontalAlignment = xlRight
                 
                 'ゼブラ（偶数行）
                 If y Mod 2 = 0 Then
@@ -695,13 +699,13 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
     Dim amountValue As Currency
     Dim categoryKey As String
 
-    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
+    mode = ResolveOutputCategoryMode(line)
     Set columns = m_ColumnKeys.GetColumns(mode)
 
     c = 3
     totalValue = 0
 
-If mode = CATEGORY_ACCOUNT Or mode = CATEGORY_ACCOUNT_SUM Or mode = CATEGORY_PROJECT Then
+    If mode = CATEGORY_ACCOUNT Or mode = CATEGORY_ACCOUNT_SUM Or mode = CATEGORY_PROJECT Then
         Dim targetGroups As Variant
         Dim grp As Variant
         Dim i As Long
@@ -739,7 +743,10 @@ If mode = CATEGORY_ACCOUNT Or mode = CATEGORY_ACCOUNT_SUM Or mode = CATEGORY_PRO
         Next col
     End If
 
-    If mode <> CATEGORY_NET_ASSET Then
+    Dim hasEliminationColumn As Boolean
+    hasEliminationColumn = (mode <> CATEGORY_NET_ASSET) And (UCase$(Trim$(line.statementID)) <> "PL_NOTE3")
+
+    If hasEliminationColumn Then
         ws.Cells(y, c).value = 0     'ij
         c = c + 1
     End If
@@ -751,6 +758,16 @@ If mode = CATEGORY_ACCOUNT Or mode = CATEGORY_ACCOUNT_SUM Or mode = CATEGORY_PRO
     End If
 
 End Sub
+
+Private Function ResolveOutputCategoryMode(ByVal line As FinancialStatementMasterLine) As String
+
+    If UCase$(Trim$(line.statementID)) = "PL_NOTE1" Then
+        ResolveOutputCategoryMode = CATEGORY_NET_ASSET
+    Else
+        ResolveOutputCategoryMode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
+    End If
+
+End Function
 
 Private Function NormalizeColumnCategoryKey(ByVal columnKey As String, ByVal mode As String) As String
 
@@ -1461,15 +1478,12 @@ End Sub
 Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency, ByVal thisAmounts As Object, ByVal lastAmounts As Object) As Boolean
 
     Dim isEach As Boolean
-    isEach = (UCase$(Trim$(line.filterValue)) = "EACH")
+    isEach = (UCase$(Trim$(line.filterValue)) = "EACH" Or UCase$(Trim$(line.statementID)) = "PL_NOTE1")
 
     If line.lineType = "TITLE" _
         Or line.lineType = "ACCOUNTS" _
         Or line.lineType = "HEADER_MAIN" _
-        Or line.lineType = "TEXT" _
-        Or line.lineType = "NOTE_PL_FUND" _
-        Or line.lineType = "NOTE_PL_ACCOUNT_PROJECT" _
-        Or line.lineType = "NOTE_PL_NATURE" Then
+        Or line.lineType = "TEXT" Then
         
         ShouldSkipOutputLine = False
         Exit Function
@@ -1499,7 +1513,7 @@ Private Function ShouldSkipEachAccountLine(ByVal line As FinancialStatementMaste
     Dim thisValue As Currency
     Dim lastValue As Currency
 
-    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
+    mode = ResolveOutputCategoryMode(line)
     Set columns = m_ColumnKeys.GetColumns(mode)
 
     For Each col In columns
@@ -1618,7 +1632,7 @@ Private Function GetFormulaTargetCategories(ByVal line As FinancialStatementMast
     Dim categoryKey As String
     Dim seen As Object
 
-    If UCase$(Trim$(line.filterValue)) <> "EACH" Then
+    If UCase$(Trim$(line.filterValue)) <> "EACH" And UCase$(Trim$(line.statementID)) <> "PL_NOTE1" Then
         Set categories = GetLineCategoriesFromAmountMap(values, line.lineID)
         If categories.Count = 0 Then categories.Add "*"
         Set GetFormulaTargetCategories = categories
@@ -1628,7 +1642,7 @@ Private Function GetFormulaTargetCategories(ByVal line As FinancialStatementMast
     Set categories = New Collection
     Set seen = CreateObject("Scripting.Dictionary")
 
-    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
+    mode = ResolveOutputCategoryMode(line)
     Set columns = m_ColumnKeys.GetColumns(mode)
 
     For Each col In columns
