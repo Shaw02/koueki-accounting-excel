@@ -662,12 +662,13 @@ Public Sub OutputSheet()
         '==============================
         ' 列幅（帳票感）
         '==============================
-        .columns("B").ColumnWidth = 14
-        .columns("C").ColumnWidth = 18
+        .columns("B").ColumnWidth = 16
+        .columns("C").ColumnWidth = 24
         .columns("D").ColumnWidth = 10
-        .columns("E").ColumnWidth = 10
-        .columns("F").ColumnWidth = 22
-        .columns("G:K").ColumnWidth = 14
+        .columns("E").ColumnWidth = 5
+        .columns("F").ColumnWidth = 32
+        .columns("G").ColumnWidth = 5
+        .columns("H:K").ColumnWidth = 14
 
         '==============================
         ' 数値書式
@@ -971,7 +972,7 @@ Private Function OutputHeading(ws As Worksheet, y As Long) As Long
         .Cells(y, 4) = "補助科目"
         .Range(.Cells(y, 4), .Cells(y, 6)).Merge
     
-        .Cells(y, 7) = "一般／指定"
+        .Cells(y, 7) = "一般" & vbLf & "指定"
         .Range(.Cells(y, 7), .Cells(y + 1, 7)).Merge
     
         .Cells(y, 8) = "期首残高"

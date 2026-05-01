@@ -110,7 +110,8 @@ Private Sub AppendLineFromRow(ByVal ws As Worksheet, ByVal y As Long)
         CStr(ws.Cells(y, 9).value), _
         CStr(ws.Cells(y, 10).value), _
         CStr(ws.Cells(y, 11).value), _
-        ParseBoolean(ws.Cells(y, 12).value, True))
+        CLng(ws.Cells(y, 12).value), _
+        ParseBoolean(ws.Cells(y, 13).value, True))
 
     Call AddLine(line)
     

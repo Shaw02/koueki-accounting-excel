@@ -24,6 +24,7 @@ Private m_LineLabelAligh As XlHAlign      'ラベルの配置（左寄せなど）
 Private m_LineType As String              '行種別（TITLE / ACCOUNT / FORMULA / CALC 等）
 Private m_Formula As String               '計算式（FORMULA / CALC用）
 Private m_AggregateTo As String           '集計先（親行ID）
+Private m_line As Long                    '罫線
 Private m_Enabled As Boolean              '有効フラグ（出力対象か）
 
 '------------------------------------------------------------------------------
@@ -180,6 +181,7 @@ Public Sub Initialize( _
     ByVal lineType As String, _
     ByVal formula As String, _
     ByVal aggregateTo As String, _
+    ByVal r_line As Long, _
     ByVal enabled As Boolean)
 
     m_StatementID = Trim$(statementID)
@@ -201,6 +203,8 @@ Public Sub Initialize( _
     'AggregateTo はPropertyでバリデーション
     Me.aggregateTo = aggregateTo
 
+    m_line = r_line
+    
     m_Enabled = enabled
 
 End Sub
@@ -257,6 +261,36 @@ End Property
 Public Property Get filterField() As String: filterField = m_FilterField: End Property
 Public Property Get filterValue() As String: filterValue = m_FilterValue: End Property
 
+'Returns True when this line should be expanded as EACH columns.
+Public Property Get IsEachLine() As Boolean
+    IsEachLine = (UCase$(Trim$(m_FilterValue)) = "EACH" Or UCase$(Trim$(m_StatementID)) = "PL_NOTE1")
+End Property
+
+'出力区分モード解決
+Public Property Get OutputCategoryMode() As String
+    If UCase$(Trim$(m_StatementID)) = "PL_NOTE1" Then
+        OutputCategoryMode = CATEGORY_NET_ASSET
+    Else
+        Select Case UCase$(Trim$(m_FilterField))
+            Case CATEGORY_NET_ASSET: OutputCategoryMode = CATEGORY_NET_ASSET
+            Case CATEGORY_PROJECT: OutputCategoryMode = CATEGORY_PROJECT
+            Case CATEGORY_ACCOUNT: OutputCategoryMode = CATEGORY_ACCOUNT
+            Case CATEGORY_ACCOUNT_SUM: OutputCategoryMode = CATEGORY_ACCOUNT_SUM
+            Case Else: OutputCategoryMode = CATEGORY_ACCOUNT
+        End Select
+    End If
+End Property
+
+'Returns True when this line should always be visible even with zero amounts.
+Public Property Get AlwaysVisible() As Boolean
+    Select Case UCase$(Trim$(m_LineType))
+        Case "TITLE", "TEXT", "HEADER_MAIN", "ACCOUNTS"
+            AlwaysVisible = True
+        Case Else
+            AlwaysVisible = False
+    End Select
+End Property
+
 '表示ラベル（科目名）を取得する
 Public Property Get LineLabel() As String: LineLabel = m_LineLabel: End Property
 
@@ -295,6 +329,10 @@ Public Property Let aggregateTo(ByVal value As String)
 
 End Property
 
+'罫線フラグを取得する（出力対象かどうか）
+Public Property Get line() As Long: line = m_line: End Property
+
 '有効フラグを取得する（出力対象かどうか）
 Public Property Get enabled() As Boolean: enabled = m_Enabled: End Property
+
 

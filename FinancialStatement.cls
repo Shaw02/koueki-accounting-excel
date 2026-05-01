@@ -128,8 +128,8 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
     Call m_lastAmounts.RollupAggregateTo(False)
 
     '⑤ 計算式の解決
-    Call ResolveFormulaAmounts(m_thisAmounts)
-    Call ResolveFormulaAmounts(m_lastAmounts)
+    Call m_thisAmounts.ResolveFormulaAmounts(m_ColumnKeys)
+    Call m_lastAmounts.ResolveFormulaAmounts(m_ColumnKeys)
 
     '⑥ 計算式を含めた集計
     Call m_thisAmounts.RollupAggregateTo(True)
@@ -205,7 +205,7 @@ Private Sub OutputAll(ByVal thisAmounts As FinancialAmountMap, ByVal lastAmounts
             '------------------------------------------
             If Not ShouldSkipOutputLine(line, vThis, vLast, thisAmounts, lastAmounts) Then
                 
-                If UCase$(Trim$(line.filterValue)) = "EACH" Or UCase$(Trim$(line.statementID)) = "PL_NOTE1" Then
+                If line.IsEachLine Then
                     'EACHの場合
                     Call OutputEachColumns(ws, y, line, thisAmounts)
                 ElseIf line.lineType = "TITLE" Then
@@ -303,7 +303,7 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
     Dim amountValue As Currency
     Dim categoryKey As String
 
-    mode = ResolveOutputCategoryMode(line)
+    mode = line.OutputCategoryMode
     Set columns = m_ColumnKeys.GetColumns(mode)
 
     c = 3
@@ -313,13 +313,12 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
         Dim targetGroups As Variant
         Dim grp As Variant
         Dim i As Long
-        Dim parts() As String
         Dim hasGroupColumn As Boolean
 
         '------------------------------------------
         ' 会計区分固定順
         '------------------------------------------
-        targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
+        targetGroups = m_ColumnKeys.GetDisplayGroups()
 
         For Each grp In targetGroups
             hasGroupColumn = False
@@ -327,9 +326,8 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
             ' 対象グループ列抽出
             '------------------------------------------
             For i = 1 To columns.Count
-                parts = Split(CStr(columns(i)), "|")
-                If UBound(parts) >= 0 And CStr(parts(0)) = CStr(grp) Then
-                    categoryKey = NormalizeColumnCategoryKey(CStr(columns(i)), mode)
+                If CStr(m_ColumnKeys.GetGroupLabel(CStr(columns(i)))) = CStr(grp) Then
+                    categoryKey = m_ColumnKeys.ResolveCategoryKey(CStr(columns(i)), mode)
                     amountValue = thisAmounts.GetAmount(line.lineID, categoryKey)
                     ws.Cells(y, c).value = amountValue
                     totalValue = totalValue + amountValue
@@ -351,7 +349,7 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
         ' 通常列出力
         '------------------------------------------
         For Each col In columns
-            categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
+            categoryKey = m_ColumnKeys.ResolveCategoryKey(CStr(col), mode)
             amountValue = thisAmounts.GetAmount(line.lineID, categoryKey)
             ws.Cells(y, c).value = amountValue
             totalValue = totalValue + amountValue
@@ -380,85 +378,6 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
     End If
 
 End Sub
-
-'==============================================================================
-'       出力区分モード解決
-'------------------------------------------------------------------------------
-'   Contents:
-'       財務諸表行定義から、横軸出力時の区分モードを決定する。
-'
-'       主な用途：
-'           ・ヘッダー生成
-'           ・EACH列出力
-'           ・数式対象category生成
-'
-'       PL_NOTE1（財源区分別内訳）のみ、強制的に CATEGORY_NET_ASSET とする。
-'
-'   Input:
-'       line        財務諸表行定義
-'
-'   Output:
-'       区分モード
-'
-'==============================================================================
-Private Function ResolveOutputCategoryMode(ByVal line As FinancialStatementMasterLine) As String
-
-    If UCase$(Trim$(line.statementID)) = "PL_NOTE1" Then
-        ResolveOutputCategoryMode = CATEGORY_NET_ASSET
-    Else
-        ResolveOutputCategoryMode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
-    End If
-
-End Function
-
-'==============================================================================
-'       列定義からcategoryキー取得
-'------------------------------------------------------------------------------
-'   Contents:
-'       columnKey の構造から、集計用 category キーを抽出する。
-'       columnKey は mode に応じて可変長構造を持つ。
-'
-'       例：
-'
-'           CATEGORY_ACCOUNT
-'               公益|公1
-'
-'           CATEGORY_PROJECT
-'               公益|公1|PRJ001|演奏会
-'
-'       本関数は、mode ごとに適切な集計キーを返却する。
-'
-'   Input:
-'       columnKey      列定義キー
-'       mode           区分モード
-'
-'   Output:
-'       categoryキー
-'
-'==============================================================================
-Private Function NormalizeColumnCategoryKey(ByVal columnKey As String, ByVal mode As String) As String
-
-    Dim parts() As String
-    parts = Split(columnKey, "|")
-
-    Select Case mode
-        Case CATEGORY_ACCOUNT
-            If UBound(parts) >= 1 Then
-                NormalizeColumnCategoryKey = UCase$(Trim$(parts(1)))
-            Else
-                NormalizeColumnCategoryKey = UCase$(Trim$(columnKey))
-            End If
-        Case CATEGORY_PROJECT
-            If UBound(parts) >= 2 Then
-                NormalizeColumnCategoryKey = UCase$(Trim$(parts(2)))
-            Else
-                NormalizeColumnCategoryKey = UCase$(Trim$(columnKey))
-            End If
-        Case Else
-            NormalizeColumnCategoryKey = UCase$(Trim$(parts(0)))
-    End Select
-
-End Function
 
 '==============================================================================
 '       出力シート初期化
@@ -690,7 +609,6 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
     Dim columns As Collection
     Dim c As Long
     Dim i As Long
-    Dim parts() As String
     
     Dim grp As String
     Dim targetGroups As Variant
@@ -698,9 +616,8 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
     Dim it As Variant
     
     '表示項目
-    targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
-
-    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT)
+    targetGroups = m_ColumnKeys.GetDisplayGroups()
+    mode = line.OutputCategoryMode
 
     Set columns = m_ColumnKeys.GetColumns(mode)
 
@@ -749,8 +666,7 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
             ' このグループの列抽出
             '------------------------------------------
             For i = 1 To columns.Count
-                parts = Split(CStr(columns(i)), "|")
-                If parts(0) = grp Then
+                If m_ColumnKeys.GetGroupLabel(CStr(columns(i))) = grp Then
                     groupCols.Add columns(i)
                 End If
             Next i
@@ -763,21 +679,16 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
             If groupCols.Count > 0 Then
                 
                 For Each col In groupCols
-                    parts = Split(CStr(col), "|")
                     
                     'グループ
-                    .Cells(headerRow, c).value = parts(0)
+                    .Cells(headerRow, c).value = m_ColumnKeys.GetGroupLabel(CStr(col))
                     
                     '区分
-                    .Cells(headerRow + 1, c).value = parts(1)
+                    .Cells(headerRow + 1, c).value = m_ColumnKeys.GetCategoryLabel(CStr(col))
                     
-                    '★補助科目名表示
+                    '補助科目名表示
                     If headerDepth = 3 Then
-                        If UBound(parts) >= 3 Then
-                            .Cells(headerRow + 2, c).value = parts(3)
-                        Else
-                            .Cells(headerRow + 2, c).value = parts(2)
-                        End If
+                        .Cells(headerRow + 2, c).value = m_ColumnKeys.GetProjectLabel(CStr(col))
                     End If
                     
                     c = c + 1
@@ -842,7 +753,6 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
 
 End Function
 
-
 '==============================================================================
 '       活動計算書の注記    （3）事業費及び管理費の形態別区分
 '------------------------------------------------------------------------------
@@ -855,7 +765,6 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
     Dim columns As Collection
     Dim c As Long
     Dim i As Long
-    Dim parts() As String
     
     Dim grp As Variant
     Dim targetGroups As Variant
@@ -864,9 +773,8 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
     Dim startCol As Long
 
     '★固定グループ
-    targetGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
-
-    mode = GetHeaderCategoryModeFromFilterField(line.filterField, CATEGORY_ACCOUNT_SUM)
+    targetGroups = m_ColumnKeys.GetDisplayGroups()
+    mode = line.OutputCategoryMode
 
     Set columns = m_ColumnKeys.GetColumns(mode)
 
@@ -915,8 +823,7 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
             
             'このグループの列抽出
             For i = 1 To columns.Count
-                parts = Split(CStr(columns(i)), "|")
-                If parts(0) = grp Then
+                If m_ColumnKeys.GetGroupLabel(CStr(columns(i))) = grp Then
                     groupCols.Add columns(i)
                 End If
             Next i
@@ -930,23 +837,17 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
                 
                 For Each col In groupCols
                     
-                    parts = Split(CStr(col), "|")
-                    
                     'グループ
-                    .Cells(headerRow, c).value = parts(0)
+                    .Cells(headerRow, c).value = m_ColumnKeys.GetGroupLabel(CStr(col))
 
                     '区分
                     If headerDepth >= 2 Then
-                        .Cells(headerRow + 1, c).value = IIf(UBound(parts) >= 1, parts(1), "")
+                        .Cells(headerRow + 1, c).value = m_ColumnKeys.GetCategoryLabel(CStr(col))
                     End If
                     
-                    '★補助科目名
+                    '補助科目名
                     If headerDepth = 3 Then
-                        If UBound(parts) >= 3 Then
-                            .Cells(headerRow + 2, c).value = parts(3)
-                        ElseIf UBound(parts) >= 2 Then
-                            .Cells(headerRow + 2, c).value = parts(2)
-                        End If
+                        .Cells(headerRow + 2, c).value = m_ColumnKeys.GetProjectLabel(CStr(col))
                     End If
                     
                     c = c + 1
@@ -1068,43 +969,6 @@ Private Sub MergeSameCategoryCells(ByVal ws As Worksheet, ByVal row As Long, ByV
 End Sub
 
 '==============================================================================
-'       ヘッダー区分モード取得（フィルタ項目ベース）
-'------------------------------------------------------------------------------
-'   Contents:
-'       フィルタ項目（filterField）の値に応じて、
-'       ヘッダーの区分モードを決定する
-'
-'       指定されたフィルタ項目が以下のいずれかに一致する場合、
-'       対応する区分モードをそのまま返す
-'
-'           CATEGORY_NET_ASSET
-'           CATEGORY_PROJECT
-'           CATEGORY_ACCOUNT
-'           CATEGORY_ACCOUNT_SUM
-'
-'       上記以外の場合は、デフォルトモード（defaultMode）を返す
-'
-'   Input:
-'       filterField     フィルタ項目
-'       defaultMode     デフォルト区分モード
-'
-'   Output:
-'       ヘッダー区分モード
-'
-'==============================================================================
-Private Function GetHeaderCategoryModeFromFilterField(ByVal filterField As String, ByVal defaultMode As String) As String
-
-    Select Case Trim$(filterField)
-        Case CATEGORY_NET_ASSET:    GetHeaderCategoryModeFromFilterField = CATEGORY_NET_ASSET
-        Case CATEGORY_PROJECT:      GetHeaderCategoryModeFromFilterField = CATEGORY_PROJECT
-        Case CATEGORY_ACCOUNT:      GetHeaderCategoryModeFromFilterField = CATEGORY_ACCOUNT
-        Case CATEGORY_ACCOUNT_SUM:  GetHeaderCategoryModeFromFilterField = CATEGORY_ACCOUNT_SUM
-        Case Else: GetHeaderCategoryModeFromFilterField = defaultMode
-    End Select
-
-End Function
-
-'==============================================================================
 '       ヘッダースタイル適用
 '------------------------------------------------------------------------------
 '   Contents:
@@ -1145,13 +1009,9 @@ End Sub
 Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency, ByVal thisAmounts As FinancialAmountMap, ByVal lastAmounts As FinancialAmountMap) As Boolean
 
     Dim isEach As Boolean
-    isEach = (UCase$(Trim$(line.filterValue)) = "EACH" Or UCase$(Trim$(line.statementID)) = "PL_NOTE1")
+    isEach = line.IsEachLine
 
-    If line.lineType = "TITLE" _
-        Or line.lineType = "ACCOUNTS" _
-        Or line.lineType = "HEADER_MAIN" _
-        Or line.lineType = "TEXT" Then
-        
+    If line.AlwaysVisible Then
         ShouldSkipOutputLine = False
         Exit Function
     End If
@@ -1159,7 +1019,7 @@ Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine
     'ゼロ行非表示
     If line.lineType = "ACCOUNT" Or line.lineType = "ACCOUNTS" Then
         If isEach Then
-            ShouldSkipOutputLine = ShouldSkipEachAccountLine(line, thisAmounts, lastAmounts)
+            ShouldSkipOutputLine = Not thisAmounts.HasAnyAmount(line, m_ColumnKeys)
             If ShouldSkipOutputLine Then Exit Function
         ElseIf vThis = 0 And vLast = 0 Then
             ShouldSkipOutputLine = True
@@ -1169,133 +1029,5 @@ Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine
        
     ShouldSkipOutputLine = False  'デフォルトは表示
     
-End Function
-
-'==============================================================================
-'       EACH行ゼロ判定
-'------------------------------------------------------------------------------
-'   Contents:
-'       EACH列展開対象行について、全カテゴリが0かどうかを判定する。
-'       いずれか1カテゴリでも値が存在する場合は表示対象とする。
-'
-'   Input:
-'       line            財務諸表行
-'       thisAmounts     当期金額Map
-'       lastAmounts     前期金額Map
-'
-'   Output:
-'       True    表示不要（全カテゴリ0）
-'       False   表示対象
-'
-'==============================================================================
-Private Function ShouldSkipEachAccountLine(ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As FinancialAmountMap, ByVal lastAmounts As FinancialAmountMap) As Boolean
-
-    Dim mode As String
-    Dim columns As Collection
-    Dim col As Variant
-    Dim categoryKey As String
-    Dim thisValue As Currency
-    Dim lastValue As Currency
-
-    mode = ResolveOutputCategoryMode(line)
-    Set columns = m_ColumnKeys.GetColumns(mode)
-
-    For Each col In columns
-        categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
-        thisValue = thisAmounts.GetAmount(line.lineID, categoryKey)
-        lastValue = lastAmounts.GetAmount(line.lineID, categoryKey)
-        If thisValue <> 0 Or lastValue <> 0 Then
-            ShouldSkipEachAccountLine = False
-            Exit Function
-        End If
-    Next col
-
-    ShouldSkipEachAccountLine = True
-
-End Function
-
-'==============================================================================
-'       計算式行の金額解決
-'------------------------------------------------------------------------------
-'   Contents:
-'       LineType = FORMULA / CALC の行について、
-'       定義された数式を評価し、Dictionaryへ格納する
-'
-'       ※前提：
-'           ・事前にACCOUNT系の集計が完了していること
-'
-'==============================================================================
-Private Sub ResolveFormulaAmounts(ByVal values As FinancialAmountMap)
-
-    Dim line As FinancialStatementMasterLine
-    Dim category As Variant
-    Dim categories As Collection
-    
-    For Each line In m_Master.lines
-        If line.enabled Then
-            If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
-                Set categories = GetFormulaTargetCategories(line, values)
-                For Each category In categories
-                    values.SetAmount line.lineID, CStr(category), values.EvaluateFormula(line.formula, CStr(category))
-                Next category
-            End If
-        End If
-    Next
-
-End Sub
-
-'==============================================================================
-'       数式対象カテゴリ取得
-'------------------------------------------------------------------------------
-'   Contents:
-'       FORMULA / CALC 行について、数式評価対象となるカテゴリ一覧を取得する。
-'
-'       【戻り値保証】
-'       最低1件 "*" を返却する。
-'
-'   Input:
-'       line        財務諸表行
-'       values      金額Map
-'
-'   Output:
-'       評価対象カテゴリCollection
-'
-'==============================================================================
-Private Function GetFormulaTargetCategories(ByVal line As FinancialStatementMasterLine, ByVal values As FinancialAmountMap) As Collection
-
-    Dim categories As Collection
-    Dim mode As String
-    Dim columns As Collection
-    Dim col As Variant
-    Dim categoryKey As String
-    Dim seen As Object
-
-    If UCase$(Trim$(line.filterValue)) <> "EACH" And UCase$(Trim$(line.statementID)) <> "PL_NOTE1" Then
-        Set categories = values.GetCategories(line.lineID)
-        If categories.Count = 0 Then categories.Add "*"
-        Set GetFormulaTargetCategories = categories
-        Exit Function
-    End If
-
-    Set categories = New Collection
-    Set seen = CreateObject("Scripting.Dictionary")
-
-    mode = ResolveOutputCategoryMode(line)
-    Set columns = m_ColumnKeys.GetColumns(mode)
-
-    For Each col In columns
-        categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
-        If categoryKey <> "" Then
-            categoryKey = UCase$(Trim$(categoryKey))
-            If Not seen.Exists(categoryKey) Then
-                seen.Add categoryKey, True
-                categories.Add categoryKey
-            End If
-        End If
-    Next col
-
-    If categories.Count = 0 Then categories.Add "*"
-    Set GetFormulaTargetCategories = categories
-
 End Function
 

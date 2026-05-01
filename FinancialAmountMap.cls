@@ -102,20 +102,75 @@ Public Function Keys() As Variant
 End Function
 
 '==============================================================================
+'       行ID配下カテゴリ取得
+'------------------------------------------------------------------------------
+'   Contents:
+'       指定lineIDに紐づくカテゴリ一覧を、金額Mapから抽出する。
+'
+'       金額MapのKey形式：  lineID|category
+'
+'       処理内容：          ・指定lineID配下を走査
+'                           ・category部分を抽出
+'                           ・重複除去
+'
+'       戻り値には、"*"（全体カテゴリ）を最低1件含める。
+'
+'       本処理は、以下の処理等で使用される。
+'           ・Rollup集計
+'           ・数式カテゴリ解決
+'           ・親子集計
+'
+'       【重要】
+'       amountMap に実際に存在するカテゴリを基準とするため、
+'       マスタ定義とは独立して動的にカテゴリを取得可能。
+'
+'   Input:
+'       lineID      対象財務諸表行ID
+'
+'   Output:
+'       category一覧Collection
+'
+'==============================================================================
+Private Function GetCategories(ByVal lineID As String) As Collection
+    Dim result As New Collection
+    Dim seen As Object
+    Dim key As Variant
+    Dim normalizedLineID As String
+    Dim suffix As String
+    Dim category As String
+
+    Set seen = CreateObject("Scripting.Dictionary")
+    normalizedLineID = UCase$(Trim$(lineID))
+
+    For Each key In m_Map.Keys
+        suffix = UCase$(CStr(key))
+        If Left$(suffix, Len(normalizedLineID) + 1) = normalizedLineID & "|" Then
+            category = Mid$(suffix, Len(normalizedLineID) + 2)
+            If category = "" Then category = "*"
+            If Not seen.Exists(category) Then
+                seen.Add category, True
+                result.Add category
+            End If
+        End If
+    Next
+
+    If Not seen.Exists("*") Then result.Add "*"
+
+    Set GetCategories = result
+End Function
+
+'==============================================================================
 '       行ID＋区分別金額取得
 '------------------------------------------------------------------------------
 '   Contents:
-'       lineID と category の組み合わせから、
-'       amountMap に格納された金額を取得する。
-'
-'       キー未存在時は0を返却する。
+'       lineID と category の組み合わせから、amountMap に格納された金額を取得する。
 '
 '   Input:
-'       lineID         財務諸表ID
-'       category       区分キー
+'       lineID          財務諸表ID
+'       category        区分キー
 '
 '   Output:
-'       金額
+'       金額            キー未存在時は0を返却する。
 '
 '==============================================================================
 Public Function GetAmount(ByVal lineID As String, ByVal category As String) As Currency
@@ -183,68 +238,53 @@ Public Sub AddAmount(ByVal lineID As String, ByVal category As String, ByVal val
 End Sub
    
 '==============================================================================
-'       行ID配下カテゴリ取得
+'       Returns True if any amount exists for the line across target categories.
 '------------------------------------------------------------------------------
 '   Contents:
-'       指定lineIDに紐づくカテゴリ一覧を、金額Mapから抽出する。
-'
-'       金額MapのKey形式：
-'           lineID|category
-'
-'       処理内容：
-'           ・指定lineID配下を走査
-'           ・category部分を抽出
-'           ・重複除去
-'
-'       戻り値には、
-'           "*"（全体カテゴリ）
-'       を最低1件含める。
-'
-'       本処理は、
-'           ・Rollup集計
-'           ・数式カテゴリ解決
-'           ・親子集計
-'       等で使用される。
-'
-'       【重要】
-'       amountMap に実際に存在するカテゴリを基準とするため、
-'       マスタ定義とは独立して動的にカテゴリを取得可能。
+'       EACH対象に金額があるかチェック
 '
 '   Input:
-'       lineID      対象財務諸表行ID
-'
-'   Output:
-'       category一覧Collection
+'       line                    財務諸表行
+'       columnKeys              分類キー
+'       lastAmounts             前期（オプション）
+'                               指定した場合は、前期を含めてチェックする
 '
 '==============================================================================
-Public Function GetCategories(ByVal lineID As String) As Collection
-    Dim result As New Collection
-    Dim seen As Object
-    Dim key As Variant
-    Dim normalizedLineID As String
-    Dim suffix As String
-    Dim category As String
+Public Function HasAnyAmount(ByVal line As FinancialStatementMasterLine, ByVal columnKeys As FinancialStatementColumnKeys, Optional ByVal lastAmounts As FinancialAmountMap) As Boolean
 
-    Set seen = CreateObject("Scripting.Dictionary")
-    normalizedLineID = UCase$(Trim$(lineID))
+    Dim mode As String
+    Dim columns As Collection
+    Dim col As Variant
+    Dim categoryKey As String
+    Dim thisValue As Currency
+    Dim lastValue As Currency
 
-    For Each key In m_Map.Keys
-        suffix = UCase$(CStr(key))
-        If Left$(suffix, Len(normalizedLineID) + 1) = normalizedLineID & "|" Then
-            category = Mid$(suffix, Len(normalizedLineID) + 2)
-            If category = "" Then category = "*"
-            If Not seen.Exists(category) Then
-                seen.Add category, True
-                result.Add category
-            End If
+    mode = line.OutputCategoryMode
+    Set columns = columnKeys.GetColumns(mode)
+
+    For Each col In columns
+        categoryKey = columnKeys.ResolveCategoryKey(CStr(col), mode)
+        thisValue = Me.GetAmount(line.lineID, categoryKey)
+        If Not lastAmounts Is Nothing Then
+            lastValue = lastAmounts.GetAmount(line.lineID, categoryKey)
+        Else
+            lastValue = 0
         End If
-    Next
+        If thisValue <> 0 Or lastValue <> 0 Then
+            HasAnyAmount = True
+            Exit Function
+        End If
+    Next col
 
-    If Not seen.Exists("*") Then result.Add "*"
+    HasAnyAmount = False
 
-    Set GetCategories = result
 End Function
 
+'******************************************************************************
+'*                                                                            *
+'*                          マップ作成                                        *
+'*                                                                            *
+'******************************************************************************
 '==============================================================================
 '       財務諸表金額マップ生成
 '------------------------------------------------------------------------------
@@ -297,19 +337,15 @@ End Sub
 '       純資産データ追加
 '------------------------------------------------------------------------------
 '   Contents:
-'       試算表には存在しない純資産関連項目について、
-'       財務諸表表示用の金額を追加する。
+'       試算表には存在しない純資産関連項目について、財務諸表表示用の金額を追加する。
 '
 '       主に、
-'
 '           ・一般正味財産
 '           ・指定正味財産
-'
 '       の期首・期末残高等を補完する目的で使用する。
 '
 '       ■ 設計意図
-'           純資産系は通常の収益費用集計とは
-'           性質が異なるため、
+'           純資産系は通常の収益費用集計とは性質が異なるため、
 '           BuildStatementAmountMap とは分離している。
 '
 '       ■ 注意
@@ -321,6 +357,7 @@ End Sub
 '       cur_general_end         期末残高
 '       cur_desig_start         期初残高
 '       cur_desig_end           期末残高
+'
 '==============================================================================
 Public Sub AddNetAssetAmounts( _
     ByVal cur_general_start As Currency, _
@@ -350,12 +387,6 @@ End Sub
 '       ■ この関数の役割
 '           ・純資産データ専用の分岐処理を減らす
 '           ・試算表データと同一ロジックへ統一する
-'
-'       ■ 処理概要
-'           ① 仮想 TrialBalanceLine を生成
-'           ② 勘定科目マスタから勘定取得
-'           ③ 金額設定
-'           ④ ApplyMasterLineMatching へ投入
 '
 '   Input:
 '       code           勘定科目コード
@@ -476,11 +507,6 @@ End Sub
 '           ③ 定数ごとに対象フィールドを切替
 '           ④ CsvContains により一致判定
 '
-'       ■ 使用定数
-'           Terget_ID         ：財務諸表IDベース
-'           Terget_Sub_Class  ：中区分ベース
-'           Terget_Acc_Code   ：勘定科目コードベース
-'
 '       ■ 注意（重要）
 '           ・aggregateField 未指定時は Terget_ID が適用される
 '           ・区切り文字はフィールドごとに異なる（; / ,）
@@ -504,13 +530,13 @@ Private Function IsAggregateMatch(ByVal masterLine As FinancialStatementMasterLi
 
     Select Case fieldName
 
-        Case Terget_ID
+        Case Terget_ID          '財務諸表IDベース   （デフォルト）
             IsAggregateMatch = CsvContains(tbLine.account.fsLineIDs, masterLine.aggregateValue, ";")
 
-        Case Terget_Sub_Class
+        Case Terget_Sub_Class   '中区分ベース
             IsAggregateMatch = CsvContains(tbLine.account.SubCategory, masterLine.aggregateValue, ",")
 
-        Case Terget_Acc_Code
+        Case Terget_Acc_Code    '勘定科目コードベース
             IsAggregateMatch = CsvContains(tbLine.account.code, masterLine.aggregateValue, ",")
 
         Case Else
@@ -524,16 +550,10 @@ End Function
 '       分類対象判定（Filter / GROUP BY前段）
 '------------------------------------------------------------------------------
 '   Contents:
-'       試算表1行（tbLine）が、
-'       財務諸表マスタ行の「分類対象」として扱われるか判定する。
+'       試算表1行（tbLine）が、財務諸表マスタ行の「分類対象」として扱われるか判定する。
 '
 '       ■ この関数の役割
-'           ・Aggregateで抽出されたデータを
-'             「分類に使うかどうか」を決める
-'
-'       ■ Aggregateとの違い
-'           Aggregate：拾うか（WHERE）
-'           Filter   ：分類するか（GROUP BY対象）
+'           ・Aggregateで抽出されたデータを「分類に使うかどうか」を決める（SQLのGROUP BY条件）
 '
 '       ■ 判定仕様
 '           ・"" / "*" / "EACH" → 常に True
@@ -583,17 +603,11 @@ End Function
 '       分類キー生成（GROUP BYキー）
 '------------------------------------------------------------------------------
 '   Contents:
-'       試算表行（tbLine）から、
-'       財務諸表出力用の分類キーを生成する。
+'       試算表行（tbLine）から、財務諸表出力用の分類キーを生成する（SQLのGROUP BYキー）
 '
 '       ■ この関数の役割
 '           ・分類単位（accountingCategory）を決定
 '           ・Dictionaryキーの一部になる
-'
-'       ■ 重要な位置づけ
-'           Aggregate → WHERE
-'           Filter    → GROUP BY条件
-'           本関数    → GROUP BYキー生成
 '
 '       ■ 分岐ロジック
 '           filterField に応じて取得値を切替
@@ -732,6 +746,11 @@ Private Function CsvContains(ByVal sourceValue As String, ByVal expectedValues A
 
 End Function
 
+'******************************************************************************
+'*                                                                            *
+'*                          集計処理                                          *
+'*                                                                            *
+'******************************************************************************
 '==============================================================================
 '       集計処理（Rollup）
 '------------------------------------------------------------------------------
@@ -869,6 +888,41 @@ Private Function GetAggregateParentLine(ByVal parentLineID As String, ByVal cate
 
 End Function
 
+'******************************************************************************
+'*                                                                            *
+'*                          計算処理                                          *
+'*                                                                            *
+'******************************************************************************
+'==============================================================================
+'       計算式行の金額解決
+'------------------------------------------------------------------------------
+'   Contents:
+'       LineType = FORMULA / CALC の行について、
+'       定義された数式を評価し、Dictionaryへ格納する
+'
+'       ※前提：
+'           ・事前にACCOUNT系の集計が完了していること
+'
+'==============================================================================
+Public Sub ResolveFormulaAmounts(ByVal m_ColumnKeys As FinancialStatementColumnKeys)
+
+    Dim line As FinancialStatementMasterLine
+    Dim category As Variant
+    Dim categories As Collection
+    
+    For Each line In m_fs_master.lines
+        If line.enabled Then
+            If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
+                Set categories = GetFormulaTargetCategories(line, m_ColumnKeys)
+                For Each category In categories
+                    SetAmount line.lineID, CStr(category), EvaluateFormula(line.formula, CStr(category))
+                Next category
+            End If
+        End If
+    Next
+
+End Sub
+
 '==============================================================================
 '       Evaluate formula
 '------------------------------------------------------------------------------
@@ -876,7 +930,7 @@ End Function
 '       Replace [FS_ID] / [FS_ID|category] tokens with values and evaluate.
 '
 '==============================================================================
-Public Function EvaluateFormula(ByVal formula As String, ByVal defaultCategory As String) As Currency
+Private Function EvaluateFormula(ByVal formula As String, ByVal defaultCategory As String) As Currency
     Dim expr As String
     expr = formula
 
@@ -934,4 +988,44 @@ Private Sub ParseReferenceToken(ByVal token As String, ByVal defaultCategory As 
     If category = "" Then category = "*"
 End Sub
 
+'==============================================================================
+'       Get categories used for FORMULA/CALC evaluation.
+'==============================================================================
+Public Function GetFormulaTargetCategories(ByVal line As FinancialStatementMasterLine, ByVal columnKeys As FinancialStatementColumnKeys) As Collection
+
+    Dim categories As Collection
+    Dim mode As String
+    Dim columns As Collection
+    Dim col As Variant
+    Dim categoryKey As String
+    Dim seen As Object
+
+    If Not line.IsEachLine Then
+        Set categories = GetCategories(line.lineID)
+        If categories.Count = 0 Then categories.Add "*"
+        Set GetFormulaTargetCategories = categories
+        Exit Function
+    End If
+
+    Set categories = New Collection
+    Set seen = CreateObject("Scripting.Dictionary")
+
+    mode = line.OutputCategoryMode
+    Set columns = columnKeys.GetColumns(mode)
+
+    For Each col In columns
+        categoryKey = columnKeys.ResolveCategoryKey(CStr(col), mode)
+        If categoryKey <> "" Then
+            categoryKey = UCase$(Trim$(categoryKey))
+            If Not seen.Exists(categoryKey) Then
+                seen.Add categoryKey, True
+                categories.Add categoryKey
+            End If
+        End If
+    Next col
+
+    If categories.Count = 0 Then categories.Add "*"
+    Set GetFormulaTargetCategories = categories
+
+End Function
 

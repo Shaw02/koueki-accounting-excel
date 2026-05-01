@@ -191,6 +191,96 @@ Private Sub AddAccountGroupIfMissing(ByVal groupSeen As Object, ByVal target As 
 
 End Sub
 
+
+'==============================================================================
+'       Resolve aggregate category key from columnKey.
+'==============================================================================
+Public Function ResolveCategoryKey(ByVal columnKey As String, ByVal mode As String) As String
+
+    Dim parts() As String
+    parts = Split(columnKey, "|")
+
+    Select Case mode
+        Case CATEGORY_ACCOUNT
+            If UBound(parts) >= 1 Then
+                ResolveCategoryKey = UCase$(Trim$(parts(1)))
+            Else
+                ResolveCategoryKey = UCase$(Trim$(columnKey))
+            End If
+        Case CATEGORY_PROJECT
+            If UBound(parts) >= 2 Then
+                ResolveCategoryKey = UCase$(Trim$(parts(2)))
+            Else
+                ResolveCategoryKey = UCase$(Trim$(columnKey))
+            End If
+        Case Else
+            ResolveCategoryKey = UCase$(Trim$(parts(0)))
+    End Select
+
+End Function
+
+'==============================================================================
+'       Return columns grouped by display group.
+'==============================================================================
+Public Function GetGroupedColumns(ByVal mode As String) As Object
+
+    Dim result As Object
+    Dim cols As Collection
+    Dim col As Variant
+    Dim parts() As String
+    Dim grp As String
+
+    Set result = CreateObject("Scripting.Dictionary")
+    Set cols = GetColumns(mode)
+
+    For Each col In cols
+        parts = Split(CStr(col), "|")
+        grp = parts(0)
+        If Not result.Exists(grp) Then
+            Set result(grp) = New Collection
+        End If
+        result(grp).Add CStr(col)
+    Next col
+
+    Set GetGroupedColumns = result
+
+End Function
+
+'==============================================================================
+'       Return display groups in fixed order.
+'==============================================================================
+Public Function GetDisplayGroups() As Variant
+    GetDisplayGroups = Array(GROUP_PUBLIC_LABEL, GROUP_REVENUE_LABEL, GROUP_CORPORATE_LABEL)
+End Function
+
+Public Function GetGroupLabel(ByVal columnKey As String) As String
+    GetGroupLabel = GetPartByIndex(columnKey, 0)
+End Function
+
+Public Function GetCategoryLabel(ByVal columnKey As String) As String
+    GetCategoryLabel = GetPartByIndex(columnKey, 1)
+End Function
+
+Public Function GetProjectLabel(ByVal columnKey As String) As String
+    Dim p3 As String
+    p3 = GetPartByIndex(columnKey, 3)
+    If p3 <> "" Then
+        GetProjectLabel = p3
+    Else
+        GetProjectLabel = GetPartByIndex(columnKey, 2)
+    End If
+End Function
+
+Private Function GetPartByIndex(ByVal columnKey As String, ByVal index As Long) As String
+    Dim parts() As String
+    parts = Split(columnKey, "|")
+    If index <= UBound(parts) Then
+        GetPartByIndex = parts(index)
+    Else
+        GetPartByIndex = ""
+    End If
+End Function
+
 '==============================================================================
 '       列キーのカテゴリ別ソート
 '------------------------------------------------------------------------------
