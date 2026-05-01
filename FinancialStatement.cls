@@ -19,9 +19,11 @@ Private Const MASTER_SHEET_NAME As String = "財務諸表マスタ"    'マスタシート名
 '****************************************
 '*      メンバー変数                    *
 '****************************************
+Private m_AccMaster As AccountMaster                            '勘定科目マスタ
 Private m_Master As FinancialStatementMaster                    '財務諸表マスタ管理クラス
 Private m_ColumnKeys As FinancialStatementColumnKeys            '出力列キー管理クラス
-Private m_AccMaster As AccountMaster                            '勘定科目マスタ
+Private m_thisAmounts As FinancialAmountMap                     '今期財務諸表
+Private m_lastAmounts As FinancialAmountMap                     '前期財務諸表
 
 '==============================================================================
 '       初期化処理
@@ -38,6 +40,8 @@ Private m_AccMaster As AccountMaster                            '勘定科目マスタ
 Private Sub Class_Initialize()
     Set m_Master = New FinancialStatementMaster
     Set m_ColumnKeys = New FinancialStatementColumnKeys
+    Set m_thisAmounts = New FinancialAmountMap
+    Set m_lastAmounts = New FinancialAmountMap
 End Sub
 
 '==============================================================================
@@ -56,42 +60,6 @@ End Sub
 Public Sub Set_Master(AccMaster As AccountMaster)
     Set m_AccMaster = AccMaster
 End Sub
-
-'==============================================================================
-'       財務諸表金額マップ用キー生成
-'------------------------------------------------------------------------------
-'   Contents:
-'       財務諸表金額マップ（Dictionary）で使用する
-'       一意キーを生成する。
-'
-'       ■ キー形式
-'           lineID | category
-'
-'       ■ 正規化仕様
-'           ・前後空白除去（Trim）
-'           ・大文字統一（UCase）
-'           ・category が空の場合は "*" に補正
-'
-'       ■ 用途
-'           財務諸表行 + 会計区分 等の組み合わせで
-'           金額を管理するために使用する。
-'
-'       ■ 注意
-'           キー仕様変更時は、
-'           集計系処理全体へ影響するため注意すること。
-'
-'   Input:
-'       lineID         財務諸表行ID
-'       category       会計区分・事業区分等
-'
-'   Output:
-'       BuildKey       正規化済みキー文字列
-'
-'==============================================================================
-Private Function BuildKey(ByVal lineID As String, ByVal category As String) As String
-    If Trim$(category) = "" Then category = "*"
-    BuildKey = UCase$(Trim$(lineID)) & "|" & UCase$(Trim$(category))
-End Function
 
 '==============================================================================
 '       財務諸表生成メイン処理
@@ -125,9 +93,6 @@ End Function
 '==============================================================================
 Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
 
-    Dim thisAmounts As Object
-    Dim lastAmounts As Object
-    
     Dim wsMaster As Worksheet
     Set wsMaster = ThisWorkbook.Worksheets(MASTER_SHEET_NAME)
     
@@ -138,27 +103,27 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
     Call m_ColumnKeys.Initialize(tbEngine.SubTrialBalance)
     
     '試算表→財務諸表マップ生成
-    Set thisAmounts = BuildStatementAmountMap(tbEngine.SubTrialBalance)
-    Set lastAmounts = BuildStatementAmountMap(tbEngine.LastSubTrialBalance)
+    Call BuildStatementAmountMap(m_thisAmounts, tbEngine.SubTrialBalance)
+    Call BuildStatementAmountMap(m_lastAmounts, tbEngine.LastSubTrialBalance)
     
     '純資産データ追加
-    Call AddNetAssetAmounts(thisAmounts, tbEngine, False)
-    Call AddNetAssetAmounts(lastAmounts, tbEngine, True)
+    Call AddNetAssetAmounts(m_thisAmounts, tbEngine, False)
+    Call AddNetAssetAmounts(m_lastAmounts, tbEngine, True)
 
     '① 勘定科目の集計
-    Call RollupAggregateTo(thisAmounts, False)
-    Call RollupAggregateTo(lastAmounts, False)
+    Call RollupAggregateTo(m_thisAmounts, False)
+    Call RollupAggregateTo(m_lastAmounts, False)
 
     '② 計算式の解決
-    Call ResolveFormulaAmounts(thisAmounts)
-    Call ResolveFormulaAmounts(lastAmounts)
+    Call ResolveFormulaAmounts(m_thisAmounts)
+    Call ResolveFormulaAmounts(m_lastAmounts)
 
     '③ 計算式を含めた集計
-    Call RollupAggregateTo(thisAmounts, True)
-    Call RollupAggregateTo(lastAmounts, True)
+    Call RollupAggregateTo(m_thisAmounts, True)
+    Call RollupAggregateTo(m_lastAmounts, True)
         
     '出力
-    Call OutputAll(thisAmounts, lastAmounts)
+    Call OutputAll(m_thisAmounts, m_lastAmounts)
 
 End Sub
 
@@ -201,22 +166,17 @@ End Sub
 '       amounts     財務諸表金額マップ
 '
 '==============================================================================
-Private Function BuildStatementAmountMap(ByVal tb As TrialBalance) As Object
-
-    Dim result As Object
-    Set result = CreateObject("Scripting.Dictionary")
+Private Sub BuildStatementAmountMap(ByVal accountMap As FinancialAmountMap, ByVal tb As TrialBalance)
 
     Dim tbLine As TrialBalanceLine
 
     For Each tbLine In tb.lines
 
-        Call ApplyMasterLineMatching(result, tbLine)
+        Call ApplyMasterLineMatching(accountMap, tbLine)
     
     Next tbLine
 
-    Set BuildStatementAmountMap = result
-
-End Function
+End Sub
 
 '==============================================================================
 '       純資産データ追加
@@ -248,7 +208,7 @@ End Function
 '
 '==============================================================================
 Private Sub AddNetAssetAmounts( _
-    ByVal accountMap As Object, _
+    ByVal accountMap As FinancialAmountMap, _
     ByVal tbEngine As TrialBalanceEngine, _
     ByVal isLastYear As Boolean)
 
@@ -304,7 +264,7 @@ End Sub
 '       amount         残高
 '
 '==============================================================================
-Private Sub AddAmountToMatchedMasterLines(ByVal amountMap As Object, ByVal code As Long, ByVal nat As NetAssetType, ByVal amount As Currency)
+Private Sub AddAmountToMatchedMasterLines(ByVal amountMap As FinancialAmountMap, ByVal code As Long, ByVal nat As NetAssetType, ByVal amount As Currency)
 
     Dim tbLine As TrialBalanceLine
     Set tbLine = New TrialBalanceLine
@@ -340,7 +300,7 @@ End Sub
 '           補助科目や事業単位等へ、明細分解して出力するために使用する。
 '
 '==============================================================================
-Private Sub ApplyMasterLineMatching(ByVal amountMap As Object, ByVal tbLine As TrialBalanceLine)
+Private Sub ApplyMasterLineMatching(ByVal amountMap As FinancialAmountMap, ByVal tbLine As TrialBalanceLine)
 
     Dim masterLine As FinancialStatementMasterLine
     Dim detailKey As String
@@ -364,7 +324,8 @@ Private Sub ApplyMasterLineMatching(ByVal amountMap As Object, ByVal tbLine As T
                     ' マスタ定義に基づき、この試算表行が
                     ' この財務諸表行に属するか判定
                     '------------------------------------------
-                    Call AddAmountToMap(amountMap, masterLine.lineID, "*", amount)
+                    
+                    Call amountMap.AddAmount(masterLine.lineID, "*", amount)
 
                     If UCase$(Trim$(masterLine.filterValue)) = "EACH" Or UCase$(Trim$(masterLine.statementID)) = "PL_NOTE1" Then
                         '------------------------------------------
@@ -377,7 +338,7 @@ Private Sub ApplyMasterLineMatching(ByVal amountMap As Object, ByVal tbLine As T
                             detailKey = GetFilterKey(masterLine.filterField, tbLine)
                         End If
                         If detailKey <> "" And detailKey <> "*" Then
-                            Call AddAmountToMap(amountMap, masterLine.lineID, detailKey, amount)
+                            Call amountMap.AddAmount(masterLine.lineID, detailKey, amount)
                         End If
                     ElseIf UCase$(Trim$(masterLine.filterValue)) <> "*" And UCase$(Trim$(masterLine.filterValue)) <> "" Then
                         '------------------------------------------
@@ -388,7 +349,7 @@ Private Sub ApplyMasterLineMatching(ByVal amountMap As Object, ByVal tbLine As T
                         For Each filterToken In filterTokens
                             detailKey = UCase$(Trim$(CStr(filterToken)))
                             If detailKey <> "" Then
-                                Call AddAmountToMap(amountMap, masterLine.lineID, detailKey, amount)
+                                Call amountMap.AddAmount(masterLine.lineID, detailKey, amount)
                             End If
                         Next filterToken
                     End If
@@ -673,54 +634,6 @@ Private Function CsvContains(ByVal sourceValue As String, ByVal expectedValues A
 End Function
 
 '==============================================================================
-'       金額マップ加算処理（最終集計単位）
-'------------------------------------------------------------------------------
-'   Contents:
-'       Dictionary（lineID|category）に金額を加算する。
-'
-'       ■ この関数の役割
-'           ・全ての集計結果がここに集約される
-'           ・最終的な財務諸表の数値を構成する基盤
-'
-'       ■ 動作
-'           ・キーがなければ新規作成（0初期化）
-'           ・既存なら加算
-'
-'       ■ キー構造
-'           lineID | accountingCategory
-'
-'       ■ 注意（重要）
-'           ・キー生成ロジックはここに固定されている
-'           ・ここが壊れると全体集計が壊れる
-'
-'   Input:
-'       accountMap             財務諸表金額マップ
-'       lineID                 財務諸表行ID
-'       accountingCategory     分類キー
-'       amount                 加算金額
-'
-'==============================================================================
-Private Sub AddAmountToMap( _
-    ByVal accountMap As Object, _
-    ByVal lineID As String, _
-    ByVal accountingCategory As String, _
-    ByVal amount As Currency)
-
-    '------------------------------------------
-    ' 一意キー生成（ロジックは BuildKey に集約）
-    Dim key As String
-    key = UCase$(Trim$(lineID)) & "|" & UCase$(Trim$(accountingCategory))
-
-    '------------------------------------------
-    ' 既存キーなら加算、なければ新規作成
-    If Not accountMap.Exists(key) Then
-        accountMap.Add key, CCur(0)
-    End If
-    accountMap(key) = CCur(accountMap(key)) + amount
-        
-End Sub
-
-'==============================================================================
 '       財務諸表出力
 '------------------------------------------------------------------------------
 '   Contents:
@@ -734,7 +647,7 @@ End Sub
 '       lastAmounts    前期金額マップ
 '
 '==============================================================================
-Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
+Private Sub OutputAll(ByVal thisAmounts As FinancialAmountMap, ByVal lastAmounts As FinancialAmountMap)
 
     Dim line As FinancialStatementMasterLine
     
@@ -755,8 +668,8 @@ Private Sub OutputAll(ByVal thisAmounts As Object, ByVal lastAmounts As Object)
         If line.enabled Then
     
             '金額取得
-            vThis = GetAmountByLine(thisAmounts, line)
-            vLast = GetAmountByLine(lastAmounts, line)
+            vThis = thisAmounts.GetAmount(line.lineID, line.filterValue)
+            vLast = lastAmounts.GetAmount(line.lineID, line.filterValue)
             vDiff = vThis - vLast
             
             '------------------------------------------
@@ -873,7 +786,7 @@ End Function
 '       thisAmounts     金額マップ
 '
 '==============================================================================
-Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As Object)
+Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As FinancialAmountMap)
 
     Dim mode As String
     Dim columns As Collection
@@ -910,7 +823,7 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
                 parts = Split(CStr(columns(i)), "|")
                 If UBound(parts) >= 0 And CStr(parts(0)) = CStr(grp) Then
                     categoryKey = NormalizeColumnCategoryKey(CStr(columns(i)), mode)
-                    amountValue = GetAmountByLineIDAndCategory(thisAmounts, line.lineID, categoryKey)
+                    amountValue = thisAmounts.GetAmount(line.lineID, categoryKey)
                     ws.Cells(y, c).value = amountValue
                     totalValue = totalValue + amountValue
                     c = c + 1
@@ -932,7 +845,7 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
         '------------------------------------------
         For Each col In columns
             categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
-            amountValue = GetAmountByLineIDAndCategory(thisAmounts, line.lineID, categoryKey)
+            amountValue = thisAmounts.GetAmount(line.lineID, categoryKey)
             ws.Cells(y, c).value = amountValue
             totalValue = totalValue + amountValue
             c = c + 1
@@ -1037,37 +950,6 @@ Private Function NormalizeColumnCategoryKey(ByVal columnKey As String, ByVal mod
         Case Else
             NormalizeColumnCategoryKey = UCase$(Trim$(parts(0)))
     End Select
-
-End Function
-
-'==============================================================================
-'       行ID＋区分別金額取得
-'------------------------------------------------------------------------------
-'   Contents:
-'       lineID と category の組み合わせから、
-'       amountMap に格納された金額を取得する。
-'
-'       キー未存在時は0を返却する。
-'
-'   Input:
-'       amountMap      金額マップ
-'       lineID         財務諸表ID
-'       category       区分キー
-'
-'   Output:
-'       金額
-'
-'==============================================================================
-Private Function GetAmountByLineIDAndCategory(ByVal amountMap As Object, ByVal lineID As String, ByVal category As String) As Currency
-
-    Dim key As String
-    key = BuildKey(lineID, category)
-
-    If amountMap.Exists(key) Then
-        GetAmountByLineIDAndCategory = CCur(amountMap(key))
-    Else
-        GetAmountByLineIDAndCategory = 0
-    End If
 
 End Function
 
@@ -1753,7 +1635,7 @@ End Sub
 '       ・ACCOUNT系は前期・当期とも0なら非表示
 '
 '==============================================================================
-Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency, ByVal thisAmounts As Object, ByVal lastAmounts As Object) As Boolean
+Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine, ByVal vThis As Currency, ByVal vLast As Currency, ByVal thisAmounts As FinancialAmountMap, ByVal lastAmounts As FinancialAmountMap) As Boolean
 
     Dim isEach As Boolean
     isEach = (UCase$(Trim$(line.filterValue)) = "EACH" Or UCase$(Trim$(line.statementID)) = "PL_NOTE1")
@@ -1799,7 +1681,7 @@ End Function
 '       False   表示対象
 '
 '==============================================================================
-Private Function ShouldSkipEachAccountLine(ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As Object, ByVal lastAmounts As Object) As Boolean
+Private Function ShouldSkipEachAccountLine(ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As FinancialAmountMap, ByVal lastAmounts As FinancialAmountMap) As Boolean
 
     Dim mode As String
     Dim columns As Collection
@@ -1813,8 +1695,8 @@ Private Function ShouldSkipEachAccountLine(ByVal line As FinancialStatementMaste
 
     For Each col In columns
         categoryKey = NormalizeColumnCategoryKey(CStr(col), mode)
-        thisValue = GetAmountByLineIDAndCategory(thisAmounts, line.lineID, categoryKey)
-        lastValue = GetAmountByLineIDAndCategory(lastAmounts, line.lineID, categoryKey)
+        thisValue = thisAmounts.GetAmount(line.lineID, categoryKey)
+        lastValue = lastAmounts.GetAmount(line.lineID, categoryKey)
         If thisValue <> 0 Or lastValue <> 0 Then
             ShouldSkipEachAccountLine = False
             Exit Function
@@ -1824,94 +1706,6 @@ Private Function ShouldSkipEachAccountLine(ByVal line As FinancialStatementMaste
     ShouldSkipEachAccountLine = True
 
 End Function
-
-'==============================================================================
-'       行ID配下カテゴリ取得
-'------------------------------------------------------------------------------
-'   Contents:
-'       指定lineIDに紐づくカテゴリ一覧を、金額Mapから抽出する。
-'
-'       金額MapのKey形式：
-'           lineID|category
-'
-'       処理内容：
-'           ・指定lineID配下を走査
-'           ・category部分を抽出
-'           ・重複除去
-'
-'       戻り値には、
-'           "*"（全体カテゴリ）
-'       を最低1件含める。
-'
-'       本処理は、
-'           ・Rollup集計
-'           ・数式カテゴリ解決
-'           ・親子集計
-'       等で使用される。
-'
-'       【重要】
-'       amountMap に実際に存在するカテゴリを基準とするため、
-'       マスタ定義とは独立して動的にカテゴリを取得可能。
-'
-'   Input:
-'       values      金額Map
-'       lineID      対象財務諸表行ID
-'
-'   Output:
-'       category一覧Collection
-'
-'==============================================================================
-Private Function GetLineCategoriesFromAmountMap(ByVal values As Object, ByVal lineID As String) As Collection
-
-    Dim result As New Collection
-    Dim seen As Object
-    Dim key As Variant
-    Dim normalizedLineID As String
-    Dim suffix As String
-    Dim category As String
-
-    Set seen = CreateObject("Scripting.Dictionary")
-    normalizedLineID = UCase$(Trim$(lineID))
-
-    For Each key In values.Keys
-        suffix = UCase$(CStr(key))
-        If Left$(suffix, Len(normalizedLineID) + 1) = normalizedLineID & "|" Then
-            category = Mid$(suffix, Len(normalizedLineID) + 2)
-            If category = "" Then category = "*"
-            If Not seen.Exists(category) Then
-                seen.Add category, True
-                result.Add category
-            End If
-        End If
-    Next
-
-    If Not seen.Exists("*") Then result.Add "*"
-
-    Set GetLineCategoriesFromAmountMap = result
-
-End Function
-
-'==============================================================================
-'       金額取得
-'------------------------------------------------------------------------------
-'   Contents:
-'       lineID + category に対応する金額をDictionaryから取得する
-'       存在しない場合は0を返す
-'
-'==============================================================================
-Private Function GetAmountByLine(ByVal amountMap As Object, ByVal line As FinancialStatementMasterLine) As Currency
-
-    Dim key As String
-    key = BuildKey(line.lineID, line.filterValue)
-
-    If amountMap.Exists(key) Then
-        GetAmountByLine = CCur(amountMap(key))
-    Else
-        GetAmountByLine = 0
-    End If
-
-End Function
-
 
 '==============================================================================
 '       計算式行の金額解決
@@ -1924,11 +1718,10 @@ End Function
 '           ・事前にACCOUNT系の集計が完了していること
 '
 '==============================================================================
-Private Sub ResolveFormulaAmounts(ByVal values As Object)
+Private Sub ResolveFormulaAmounts(ByVal values As FinancialAmountMap)
 
     Dim line As FinancialStatementMasterLine
     Dim category As Variant
-    Dim key As String
     Dim categories As Collection
     
     For Each line In m_Master.lines
@@ -1936,10 +1729,7 @@ Private Sub ResolveFormulaAmounts(ByVal values As Object)
             If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
                 Set categories = GetFormulaTargetCategories(line, values)
                 For Each category In categories
-                    'キー生成（lineID|category）
-                    key = BuildKey(line.lineID, CStr(category))
-                    '数式評価
-                    values(key) = ResolveFormulaByCategory(line.formula, values, CStr(category))
+                    values.SetAmount line.lineID, CStr(category), ResolveFormulaByCategory(line.formula, values, CStr(category))
                 Next category
             End If
         End If
@@ -1964,7 +1754,7 @@ End Sub
 '       評価対象カテゴリCollection
 '
 '==============================================================================
-Private Function GetFormulaTargetCategories(ByVal line As FinancialStatementMasterLine, ByVal values As Object) As Collection
+Private Function GetFormulaTargetCategories(ByVal line As FinancialStatementMasterLine, ByVal values As FinancialAmountMap) As Collection
 
     Dim categories As Collection
     Dim mode As String
@@ -1974,7 +1764,7 @@ Private Function GetFormulaTargetCategories(ByVal line As FinancialStatementMast
     Dim seen As Object
 
     If UCase$(Trim$(line.filterValue)) <> "EACH" And UCase$(Trim$(line.statementID)) <> "PL_NOTE1" Then
-        Set categories = GetLineCategoriesFromAmountMap(values, line.lineID)
+        Set categories = values.GetCategories(line.lineID)
         If categories.Count = 0 Then categories.Add "*"
         Set GetFormulaTargetCategories = categories
         Exit Function
@@ -2017,7 +1807,7 @@ End Function
 '       isFormulaAfter      数式解決後かどうか
 '
 '==============================================================================
-Private Sub RollupAggregateTo(ByVal amountMap As Object, ByVal includeFormula As Boolean)
+Private Sub RollupAggregateTo(ByVal amountMap As FinancialAmountMap, ByVal includeFormula As Boolean)
 
     Dim line As FinancialStatementMasterLine
     Dim childType As String
@@ -2070,40 +1860,28 @@ End Sub
 '       amountMap   金額マップ（Dictionary）
 '
 '==============================================================================
-Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal amountMap As Object)
+Private Sub RollupLineAmount(ByVal child As FinancialStatementMasterLine, ByVal amountMap As FinancialAmountMap)
 
     Dim parentLine As FinancialStatementMasterLine
-    Dim childKey As String
-    Dim parentKey As String
     Dim childAmount As Currency
     Dim category As Variant
 
-    
-    For Each category In GetLineCategoriesFromAmountMap(amountMap, child.lineID)
+    For Each category In amountMap.GetCategories(child.lineID)
         '------------------------------------------
         ' 子の金額取得
         '------------------------------------------
-        childKey = BuildKey(child.lineID, CStr(category))
-        If amountMap.Exists(childKey) Then
-            childAmount = CCur(amountMap(childKey))
-        Else
-            childAmount = 0
-        End If
+        childAmount = amountMap.GetAmount(child.lineID, CStr(category))
 
         '親未定義なら次
         If Trim$(child.aggregateTo) <> "" Then
         
             '------------------------------------------
             ' 親行取得
-            '------------------------------------------
             Set parentLine = GetAggregateParentLine(child.aggregateTo, CStr(category))
-            parentKey = BuildKey(parentLine.lineID, CStr(category))
-    
+            
             '------------------------------------------
             ' 親へ加算
-            '------------------------------------------
-            If Not amountMap.Exists(parentKey) Then amountMap.Add parentKey, CCur(0)
-            amountMap(parentKey) = CCur(amountMap(parentKey)) + childAmount
+            amountMap.AddAmount parentLine.lineID, CStr(category), childAmount
         End If
     Next category
     
@@ -2156,7 +1934,7 @@ End Function
 '==============================================================================
 '       数式評価処理
 '------------------------------------------------------------------------------
-Private Function ResolveFormulaByCategory(ByVal formula As String, ByVal values As Object, ByVal defaultCategory As String) As Currency
+Private Function ResolveFormulaByCategory(ByVal formula As String, ByVal values As FinancialAmountMap, ByVal defaultCategory As String) As Currency
 
     Dim expr As String
     expr = formula
@@ -2191,15 +1969,8 @@ Private Function ResolveFormulaByCategory(ByVal formula As String, ByVal values 
 
         If category = "" Then category = "*"
 
-        Dim key As String
-        key = BuildKey(lineID, category)
-
         Dim val As Currency
-        If values.Exists(key) Then
-            val = CCur(values(key))
-        Else
-            val = 0
-        End If
+        val = values.GetAmount(lineID, category)
 
         expr = Replace(expr, "[" & token & "]", CStr(val))
     Next
@@ -2252,7 +2023,7 @@ End Function
 '           ③ 見つからない場合はエラー
 '
 '==============================================================================
-Private Function ResolveFormula(ByVal formula As String, ByVal values As Object) As Currency
+Private Function ResolveFormula(ByVal formula As String, ByVal values As FinancialAmountMap) As Currency
 
     '空なら0
     If Trim$(formula) = "" Then
@@ -2316,16 +2087,13 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
             End If
         End If
         
-        Dim key As String
-        key = BuildKey(lineID, category)
-        
         Dim val As Currency
         
         '------------------------------------------
         ' ① 完全一致
         '------------------------------------------
-        If values.Exists(key) Then
-            val = values(key)
+        If values.Exists(lineID, category) Then
+            val = values.GetAmount(lineID, category)
         
         '------------------------------------------
         ' ② "*"（合算）
@@ -2337,7 +2105,7 @@ Private Function ResolveFormula(ByVal formula As String, ByVal values As Object)
             
             For Each k In values.Keys
                 If Left$(UCase$(CStr(k)), Len(UCase$(lineID)) + 1) = UCase$(lineID) & "|" Then
-                    val = val + values(k)
+                    val = val + CCur(values.GetAmount(lineID, Mid$(UCase$(CStr(k)), Len(UCase$(lineID)) + 2)))
                 End If
             Next
         

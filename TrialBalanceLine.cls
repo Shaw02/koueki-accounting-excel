@@ -213,7 +213,7 @@ End Function
 '   符号付き期末残高（BS表示用）
 '------------------------------------------------------------------------------
 '   Contents:
-'       負債・収益・純資産は符号反転
+'       負債・収益は符号反転
 '
 '==============================================================================
 Public Function SignedEndingBalance() As Currency
@@ -223,10 +223,10 @@ Public Function SignedEndingBalance() As Currency
 
     Select Case m_Account.CategoryEnum
         
-        Case ackAsset, ackExpense
+        Case ackAsset, ackExpense, ackNetAsset
             SignedEndingBalance = val
             
-        Case ackLiability, ackRevenue, ackNetAsset
+        Case ackLiability, ackRevenue
             SignedEndingBalance = -val
             
         Case Else
