@@ -14,6 +14,12 @@ Option Explicit
 '****************************************
 Private m_ColumnKeysByCategory As Object
 
+Private m_mode As String                '出力中の列情報
+Private m_columns As Collection         '出力中の列情報
+
+Public Property Get Columns() As Collection: Set Columns = m_columns: End Property
+Public Property Get Mode() As String: Mode = m_mode: End Property
+
 '==============================================================================
 '       初期化処理
 '------------------------------------------------------------------------------
@@ -195,12 +201,12 @@ End Sub
 '==============================================================================
 '       Resolve aggregate category key from columnKey.
 '==============================================================================
-Public Function ResolveCategoryKey(ByVal columnKey As String, ByVal mode As String) As String
+Public Function ResolveCategoryKey(ByVal columnKey As String, ByVal Mode As String) As String
 
     Dim parts() As String
     parts = Split(columnKey, "|")
 
-    Select Case mode
+    Select Case Mode
         Case CATEGORY_ACCOUNT
             If UBound(parts) >= 1 Then
                 ResolveCategoryKey = UCase$(Trim$(parts(1)))
@@ -216,33 +222,6 @@ Public Function ResolveCategoryKey(ByVal columnKey As String, ByVal mode As Stri
         Case Else
             ResolveCategoryKey = UCase$(Trim$(parts(0)))
     End Select
-
-End Function
-
-'==============================================================================
-'       Return columns grouped by display group.
-'==============================================================================
-Public Function GetGroupedColumns(ByVal mode As String) As Object
-
-    Dim result As Object
-    Dim cols As Collection
-    Dim col As Variant
-    Dim parts() As String
-    Dim grp As String
-
-    Set result = CreateObject("Scripting.Dictionary")
-    Set cols = GetColumns(mode)
-
-    For Each col In cols
-        parts = Split(CStr(col), "|")
-        grp = parts(0)
-        If Not result.Exists(grp) Then
-            Set result(grp) = New Collection
-        End If
-        result(grp).Add CStr(col)
-    Next col
-
-    Set GetGroupedColumns = result
 
 End Function
 
@@ -319,7 +298,7 @@ End Sub
 '       ソート済コレクション
 '
 '==============================================================================
-Private Function SortColumnKeyCollection(ByVal source As Collection, ByVal mode As String) As Collection
+Private Function SortColumnKeyCollection(ByVal source As Collection, ByVal Mode As String) As Collection
 
     Dim sorted As Collection
     Dim values() As String
@@ -346,7 +325,7 @@ Private Function SortColumnKeyCollection(ByVal source As Collection, ByVal mode 
 
     For i = 1 To UBound(values) - 1
         For j = i + 1 To UBound(values)
-            If ShouldSwapColumnKey(values(i), values(j), mode) Then
+            If ShouldSwapColumnKey(values(i), values(j), Mode) Then
                 tmp = values(i)
                 values(i) = values(j)
                 values(j) = tmp
@@ -383,7 +362,7 @@ End Function
 '       False：維持
 '
 '==============================================================================
-Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As String, ByVal mode As String) As Boolean
+Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As String, ByVal Mode As String) As Boolean
 
     Dim leftParts() As String
     Dim rightParts() As String
@@ -398,7 +377,7 @@ Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As 
         Exit Function
     End If
 
-    If mode = CATEGORY_ACCOUNT_SUM Then
+    If Mode = CATEGORY_ACCOUNT_SUM Then
         ShouldSwapColumnKey = False
         Exit Function
     End If
@@ -409,7 +388,7 @@ Private Function ShouldSwapColumnKey(ByVal leftKey As String, ByVal rightKey As 
         Exit Function
     End If
 
-    If mode = CATEGORY_PROJECT Then
+    If Mode = CATEGORY_PROJECT Then
         ShouldSwapColumnKey = (UCase$(GetPartValue(leftParts, 2)) > UCase$(GetPartValue(rightParts, 2)))
     Else
         ShouldSwapColumnKey = False
@@ -593,17 +572,21 @@ End Function
 '       列キーコレクション
 '
 '==============================================================================
-Public Function GetColumns(ByVal category As String) As Collection
+Public Function SetColumns(ByVal category As String)
+
+    m_mode = category
 
     If m_ColumnKeysByCategory Is Nothing Then
         Set m_ColumnKeysByCategory = CreateObject("Scripting.Dictionary")
     End If
 
     If m_ColumnKeysByCategory.Exists(category) Then
-        Set GetColumns = m_ColumnKeysByCategory(category)
+        Set m_columns = m_ColumnKeysByCategory(category)
     Else
-        Set GetColumns = New Collection
+        Set m_columns = New Collection
     End If
+
+    Set SetColumns = m_columns
 
 End Function
 

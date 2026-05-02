@@ -263,7 +263,10 @@ Public Property Get filterValue() As String: filterValue = m_FilterValue: End Pr
 
 'Returns True when this line should be expanded as EACH columns.
 Public Property Get IsEachLine() As Boolean
-    IsEachLine = (UCase$(Trim$(m_FilterValue)) = "EACH" Or UCase$(Trim$(m_StatementID)) = "PL_NOTE1")
+    IsEachLine = (UCase$(Trim$(m_FilterValue)) = "EACH" Or _
+                UCase$(Trim$(m_StatementID)) = "PL_NOTE1" Or _
+                UCase$(Trim$(m_StatementID)) = "PL_NOTE2" Or _
+                UCase$(Trim$(m_StatementID)) = "PL_NOTE3")
 End Property
 
 'o—Í‹æ•ªƒ‚[ƒh‰ğŒˆ

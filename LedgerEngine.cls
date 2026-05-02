@@ -339,7 +339,7 @@ Public Sub OutputSheet()
     y = styGeneralLedger
     With wsGL
     
-         .columns("A").NumberFormat = "yyyy/mm/dd"
+         .Columns("A").NumberFormat = "yyyy/mm/dd"
     
         '数値表示形式（小数点なし）
         .Range("E:F, H:H").NumberFormat = "#,##0;△#,##0;;@"
@@ -437,7 +437,7 @@ Public Sub OutputSheet()
     '----------------------------------
     y = styGeneralLedger
     With wsSL
-         .columns("A").NumberFormat = "yyyy/mm/dd"
+         .Columns("A").NumberFormat = "yyyy/mm/dd"
     
         '数値表示形式（小数点なし）
         .Range("E:F, H:H").NumberFormat = "#,##0;△#,##0;;@"

@@ -106,6 +106,9 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
     '① 会計区分・補助科目抽出
     Call m_ColumnKeys.Initialize(tbEngine.SubTrialBalance)
     
+    Call m_thisAmounts.Set_ColumnKeys(m_ColumnKeys)
+    Call m_lastAmounts.Set_ColumnKeys(m_ColumnKeys)
+    
     '② 試算表→財務諸表マップ生成
     Call m_thisAmounts.BuildStatementAmountMap(tbEngine.SubTrialBalance)
     Call m_lastAmounts.BuildStatementAmountMap(tbEngine.LastSubTrialBalance)
@@ -128,8 +131,8 @@ Public Sub BuildAndOutput(ByVal tbEngine As TrialBalanceEngine)
     Call m_lastAmounts.RollupAggregateTo(False)
 
     '⑤ 計算式の解決
-    Call m_thisAmounts.ResolveFormulaAmounts(m_ColumnKeys)
-    Call m_lastAmounts.ResolveFormulaAmounts(m_ColumnKeys)
+    Call m_thisAmounts.ResolveFormulaAmounts
+    Call m_lastAmounts.ResolveFormulaAmounts
 
     '⑥ 計算式を含めた集計
     Call m_thisAmounts.RollupAggregateTo(True)
@@ -196,15 +199,15 @@ Private Sub OutputAll(ByVal thisAmounts As FinancialAmountMap, ByVal lastAmounts
                 GoTo ContinueLineLoop
             End If
             
-            '科目名出力
-            ws.Cells(y, 2) = line.LineLabel
-            ws.Cells(y, 2).HorizontalAlignment = line.LineLabelAligh
-    
             '------------------------------------------
             ' 表示制御
             '------------------------------------------
             If Not ShouldSkipOutputLine(line, vThis, vLast, thisAmounts, lastAmounts) Then
                 
+                '科目名出力
+                ws.Cells(y, 2) = line.LineLabel
+                ws.Cells(y, 2).HorizontalAlignment = line.LineLabelAligh
+        
                 If line.IsEachLine Then
                     'EACHの場合
                     Call OutputEachColumns(ws, y, line, thisAmounts)
@@ -225,9 +228,20 @@ Private Sub OutputAll(ByVal thisAmounts As FinancialAmountMap, ByVal lastAmounts
                 '横罫線（帳簿形式）
                 Dim rowLastCol As Long
                 rowLastCol = GetOutputRowLastColumn(ws, y)
-                ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).Borders(xlEdgeBottom).LineStyle = xlContinuous
                 ws.Range(ws.Cells(y, 3), ws.Cells(y, rowLastCol)).NumberFormat = "_ * #,##0_ ;_ * △#,##0_ ;_ * ""-""??_ ;_ @_ "
                 ws.Range(ws.Cells(y, 3), ws.Cells(y, rowLastCol)).HorizontalAlignment = xlRight
+                
+                Select Case line.line
+                    Case 1
+                        ws.Range(ws.Cells(y, 3), ws.Cells(y, rowLastCol)).Borders(xlEdgeTop).LineStyle = xlContinuous
+                        ws.Range(ws.Cells(y, 3), ws.Cells(y, rowLastCol)).Borders(xlEdgeBottom).LineStyle = xlContinuous
+                    Case 2
+                        ws.Range(ws.Cells(y, 3), ws.Cells(y, rowLastCol)).Borders(xlEdgeTop).LineStyle = xlContinuous
+                        ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).Borders(xlEdgeBottom).LineStyle = xlContinuous
+                        ws.Range(ws.Cells(y, 3), ws.Cells(y, rowLastCol)).Borders(xlEdgeBottom).LineStyle = xlDouble
+                    Case 9
+                        ws.Range(ws.Cells(y, 2), ws.Cells(y, rowLastCol)).Borders(xlEdgeBottom).LineStyle = xlContinuous
+                End Select
                 
                 'ゼブラ（偶数行）
                 If y Mod 2 = 0 Then
@@ -260,7 +274,7 @@ End Sub
 Private Function GetOutputRowLastColumn(ByVal ws As Worksheet, ByVal y As Long) As Long
 
     Dim lastCol As Long
-    lastCol = ws.Cells(y, ws.columns.Count).End(xlToLeft).column
+    lastCol = ws.Cells(y, ws.Columns.Count).End(xlToLeft).column
     If lastCol < MaxColumn Then lastCol = MaxColumn
     GetOutputRowLastColumn = lastCol
 
@@ -295,21 +309,21 @@ End Function
 '==============================================================================
 Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line As FinancialStatementMasterLine, ByVal thisAmounts As FinancialAmountMap)
 
-    Dim mode As String
-    Dim columns As Collection
+    Dim Mode As String
+    Dim Columns As Collection
     Dim col As Variant
     Dim c As Long
     Dim totalValue As Currency
     Dim amountValue As Currency
     Dim categoryKey As String
 
-    mode = line.OutputCategoryMode
-    Set columns = m_ColumnKeys.GetColumns(mode)
+        Mode = m_ColumnKeys.Mode
+    Set Columns = m_ColumnKeys.Columns()
 
     c = 3
     totalValue = 0
 
-    If mode = CATEGORY_ACCOUNT Or mode = CATEGORY_ACCOUNT_SUM Or mode = CATEGORY_PROJECT Then
+    If Mode = CATEGORY_ACCOUNT Or Mode = CATEGORY_ACCOUNT_SUM Or Mode = CATEGORY_PROJECT Then
         Dim targetGroups As Variant
         Dim grp As Variant
         Dim i As Long
@@ -325,9 +339,9 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
             '------------------------------------------
             ' 対象グループ列抽出
             '------------------------------------------
-            For i = 1 To columns.Count
-                If CStr(m_ColumnKeys.GetGroupLabel(CStr(columns(i)))) = CStr(grp) Then
-                    categoryKey = m_ColumnKeys.ResolveCategoryKey(CStr(columns(i)), mode)
+            For i = 1 To Columns.Count
+                If CStr(m_ColumnKeys.GetGroupLabel(CStr(Columns(i)))) = CStr(grp) Then
+                    categoryKey = m_ColumnKeys.ResolveCategoryKey(CStr(Columns(i)), Mode)
                     amountValue = thisAmounts.GetAmount(line.lineID, categoryKey)
                     ws.Cells(y, c).value = amountValue
                     totalValue = totalValue + amountValue
@@ -348,8 +362,8 @@ Private Sub OutputEachColumns(ByVal ws As Worksheet, ByVal y As Long, ByVal line
         '------------------------------------------
         ' 通常列出力
         '------------------------------------------
-        For Each col In columns
-            categoryKey = m_ColumnKeys.ResolveCategoryKey(CStr(col), mode)
+        For Each col In Columns
+            categoryKey = m_ColumnKeys.ResolveCategoryKey(CStr(col), Mode)
             amountValue = thisAmounts.GetAmount(line.lineID, categoryKey)
             ws.Cells(y, c).value = amountValue
             totalValue = totalValue + amountValue
@@ -409,7 +423,9 @@ Private Sub InitializeOutputSheets(ByVal nextRowBySheet As Object)
                 
                 '既存データクリア
                 Call ClearSheet(ws, START_ROW)
-                
+                ws.Columns("B").ColumnWidth = 36
+                ws.Columns("C:Z").ColumnWidth = 16
+
             End If
         End If
     Next
@@ -557,6 +573,9 @@ Private Function OutputNotePLFundHeader(ByVal ws As Worksheet, ByVal y As Long, 
     Dim y_inc As Long
     Dim headerRow As Long
 
+
+    Call m_ColumnKeys.SetColumns(CATEGORY_NET_ASSET)
+
     y_inc = 0
     
     With ws
@@ -605,8 +624,8 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
     Dim y_inc As Long
     Dim headerRow As Long
     Dim headerDepth As Long
-    Dim mode As String
-    Dim columns As Collection
+    Dim Mode As String
+    Dim Columns As Collection
     Dim c As Long
     Dim i As Long
     
@@ -617,9 +636,9 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
     
     '表示項目
     targetGroups = m_ColumnKeys.GetDisplayGroups()
-    mode = line.OutputCategoryMode
-
-    Set columns = m_ColumnKeys.GetColumns(mode)
+    
+    Mode = line.OutputCategoryMode
+    Set Columns = m_ColumnKeys.SetColumns(Mode)
 
     y_inc = 0
 
@@ -633,20 +652,19 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
             .Name = "Meiryo UI"
             .Bold = True
         End With
-        y_inc = y_inc + 1
         
         '========================
         ' ２行目：  単位
         '========================
-        .Cells(y + y_inc, 3 + columns.Count + 1).value = "（単位：円）"
-        .Cells(y + y_inc, 3 + columns.Count + 1).HorizontalAlignment = xlRight
+        .Cells(y + y_inc, Columns.Count + 5).value = "（単位：円）"
+        .Cells(y + y_inc, Columns.Count + 5).HorizontalAlignment = xlRight
         y_inc = y_inc + 1
         
         '========================
         ' ３行目：  会計
         '========================
         headerRow = y + y_inc
-        headerDepth = IIf(mode = CATEGORY_PROJECT, 3, 2)
+        headerDepth = IIf(Mode = CATEGORY_PROJECT, 3, 2)
 
         .Cells(headerRow, 2).value = "科目"
         If headerDepth > 1 Then .Range(.Cells(headerRow, 2), .Cells(headerRow + headerDepth - 1, 2)).Merge
@@ -665,9 +683,9 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
             '------------------------------------------
             ' このグループの列抽出
             '------------------------------------------
-            For i = 1 To columns.Count
-                If m_ColumnKeys.GetGroupLabel(CStr(columns(i))) = grp Then
-                    groupCols.Add columns(i)
+            For i = 1 To Columns.Count
+                If m_ColumnKeys.GetGroupLabel(CStr(Columns(i))) = grp Then
+                    groupCols.Add Columns(i)
                 End If
             Next i
             
@@ -676,7 +694,7 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
             '------------------------------------------
             ' データあり
             '------------------------------------------
-            If groupCols.Count > 0 Then
+            If groupCols.Count > 0 And grp <> "法人会計" Then
                 
                 For Each col In groupCols
                     
@@ -689,6 +707,7 @@ Private Function OutputNotePLAccountProjectHeader(ByVal ws As Worksheet, ByVal y
                     '補助科目名表示
                     If headerDepth = 3 Then
                         .Cells(headerRow + 2, c).value = m_ColumnKeys.GetProjectLabel(CStr(col))
+                        .Cells(headerRow + 2, c).ShrinkToFit = True
                     End If
                     
                     c = c + 1
@@ -761,8 +780,8 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
     Dim y_inc As Long
     Dim headerRow As Long
     Dim headerDepth As Long
-    Dim mode As String
-    Dim columns As Collection
+    Dim Mode As String
+    Dim Columns As Collection
     Dim c As Long
     Dim i As Long
     
@@ -774,9 +793,9 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
 
     '★固定グループ
     targetGroups = m_ColumnKeys.GetDisplayGroups()
-    mode = line.OutputCategoryMode
-
-    Set columns = m_ColumnKeys.GetColumns(mode)
+    
+    Mode = line.OutputCategoryMode
+    Set Columns = m_ColumnKeys.SetColumns(Mode)
 
     y_inc = 0
 
@@ -787,13 +806,12 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
         '========================
         .Cells(y + y_inc, 2).value = line.LineLabel
         .Cells(y + y_inc, 2).Font.Bold = True
-        y_inc = y_inc + 1
         
         '========================
         ' 単位
         '========================
-        .Cells(y + y_inc, 10).value = "（単位：円）"
-        .Cells(y + y_inc, 10).HorizontalAlignment = xlRight
+        .Cells(y + y_inc, Columns.Count + 5).value = "（単位：円）"
+        .Cells(y + y_inc, Columns.Count + 5).HorizontalAlignment = xlRight
         y_inc = y_inc + 1
         
         '========================
@@ -801,7 +819,7 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
         '========================
         headerRow = y + y_inc
         
-        Select Case mode
+        Select Case Mode
             Case CATEGORY_PROJECT: headerDepth = 3
             Case CATEGORY_ACCOUNT: headerDepth = 2
             Case Else: headerDepth = 1
@@ -822,9 +840,9 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
             Set groupCols = New Collection
             
             'このグループの列抽出
-            For i = 1 To columns.Count
-                If m_ColumnKeys.GetGroupLabel(CStr(columns(i))) = grp Then
-                    groupCols.Add columns(i)
+            For i = 1 To Columns.Count
+                If m_ColumnKeys.GetGroupLabel(CStr(Columns(i))) = grp Then
+                    groupCols.Add Columns(i)
                 End If
             Next i
             
@@ -833,7 +851,7 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
             '------------------------------------------
             ' データあり
             '------------------------------------------
-            If groupCols.Count > 0 Then
+            If groupCols.Count > 0 And grp <> "法人会計" Then
                 
                 For Each col In groupCols
                     
@@ -848,6 +866,7 @@ Private Function OutputNotePLNatureHeader(ByVal ws As Worksheet, ByVal y As Long
                     '補助科目名
                     If headerDepth = 3 Then
                         .Cells(headerRow + 2, c).value = m_ColumnKeys.GetProjectLabel(CStr(col))
+                        .Cells(headerRow + 2, c).ShrinkToFit = True
                     End If
                     
                     c = c + 1
@@ -1019,7 +1038,7 @@ Private Function ShouldSkipOutputLine(ByVal line As FinancialStatementMasterLine
     'ゼロ行非表示
     If line.lineType = "ACCOUNT" Or line.lineType = "ACCOUNTS" Then
         If isEach Then
-            ShouldSkipOutputLine = Not thisAmounts.HasAnyAmount(line, m_ColumnKeys)
+            ShouldSkipOutputLine = Not thisAmounts.HasAnyAmount(line)
             If ShouldSkipOutputLine Then Exit Function
         ElseIf vThis = 0 And vLast = 0 Then
             ShouldSkipOutputLine = True

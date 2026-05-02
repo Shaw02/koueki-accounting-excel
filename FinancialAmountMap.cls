@@ -12,8 +12,9 @@ Option Explicit
 '****************************************
 '*      メンバー変数                    *
 '****************************************
-Private m_acc_Master As AccountMaster                            '勘定科目マスタ
-Private m_fs_master As FinancialStatementMaster                    '財務諸表マスタ管理クラス
+Private m_acc_Master As AccountMaster                           '勘定科目マスタ
+Private m_fs_master As FinancialStatementMaster                 '財務諸表マスタ管理クラス
+Private m_ColumnKeys As FinancialStatementColumnKeys            '出力列キー管理クラス
 Private m_Map As Object
 
 '==============================================================================
@@ -43,6 +44,10 @@ End Sub
 Public Sub Set_Master(fs_master As FinancialStatementMaster, acc_master As AccountMaster)
     Set m_fs_master = fs_master
     Set m_acc_Master = acc_master
+End Sub
+
+Public Sub Set_ColumnKeys(ColumnKeys As FinancialStatementColumnKeys)
+    Set m_ColumnKeys = ColumnKeys
 End Sub
 
 '==============================================================================
@@ -245,25 +250,24 @@ End Sub
 '
 '   Input:
 '       line                    財務諸表行
-'       columnKeys              分類キー
 '       lastAmounts             前期（オプション）
 '                               指定した場合は、前期を含めてチェックする
 '
 '==============================================================================
-Public Function HasAnyAmount(ByVal line As FinancialStatementMasterLine, ByVal columnKeys As FinancialStatementColumnKeys, Optional ByVal lastAmounts As FinancialAmountMap) As Boolean
+Public Function HasAnyAmount(ByVal line As FinancialStatementMasterLine, Optional ByVal lastAmounts As FinancialAmountMap) As Boolean
 
-    Dim mode As String
-    Dim columns As Collection
+    Dim Mode As String
+    Dim Columns As Collection
     Dim col As Variant
     Dim categoryKey As String
     Dim thisValue As Currency
     Dim lastValue As Currency
 
-    mode = line.OutputCategoryMode
-    Set columns = columnKeys.GetColumns(mode)
+    Mode = m_ColumnKeys.Mode
+    Set Columns = m_ColumnKeys.Columns()
 
-    For Each col In columns
-        categoryKey = columnKeys.ResolveCategoryKey(CStr(col), mode)
+    For Each col In Columns
+        categoryKey = m_ColumnKeys.ResolveCategoryKey(CStr(col), Mode)
         thisValue = Me.GetAmount(line.lineID, categoryKey)
         If Not lastAmounts Is Nothing Then
             lastValue = lastAmounts.GetAmount(line.lineID, categoryKey)
@@ -445,8 +449,13 @@ Private Sub ApplyMasterLineMatching(ByVal tbLine As TrialBalanceLine)
     '------------------------------------------
     For Each masterLine In m_fs_master.lines
         If masterLine.enabled Then
-            If masterLine.lineType = "ACCOUNT" Or masterLine.lineType = "ACCOUNTS" Then
-
+        
+        Select Case UCase$(Trim$(masterLine.lineType))
+            Case "HEADER_PL_NOTE1"
+                Call m_ColumnKeys.SetColumns(CATEGORY_NET_ASSET)
+            Case "HEADER_PL_NOTE2", "HEADER_PL_NOTE3"
+                Call m_ColumnKeys.SetColumns(masterLine.OutputCategoryMode)
+            Case "ACCOUNT", "ACCOUNTS"
                 'ACCOUNT / ACCOUNTS：
                 '実データ（試算表）から直接金額を拾う行のみ対象
                 If IsAggregateMatch(masterLine, tbLine) And IsFilterMatch(masterLine, tbLine) Then
@@ -457,7 +466,7 @@ Private Sub ApplyMasterLineMatching(ByVal tbLine As TrialBalanceLine)
                     
                     Call AddAmount(masterLine.lineID, "*", amount)
 
-                    If UCase$(Trim$(masterLine.filterValue)) = "EACH" Or UCase$(Trim$(masterLine.statementID)) = "PL_NOTE1" Then
+                    If masterLine.IsEachLine Then
                         '------------------------------------------
                         ' EACH指定：
                         ' 試算表の値ごとに明細分解（補助科目・事業など）
@@ -465,7 +474,7 @@ Private Sub ApplyMasterLineMatching(ByVal tbLine As TrialBalanceLine)
                         If UCase$(Trim$(masterLine.statementID)) = "PL_NOTE1" Then
                             detailKey = GetFilterKey(CATEGORY_NET_ASSET, tbLine)
                         Else
-                            detailKey = GetFilterKey(masterLine.filterField, tbLine)
+                            detailKey = GetFilterKey(m_ColumnKeys.Mode, tbLine)
                         End If
                         If detailKey <> "" And detailKey <> "*" Then
                             Call AddAmount(masterLine.lineID, detailKey, amount)
@@ -484,8 +493,10 @@ Private Sub ApplyMasterLineMatching(ByVal tbLine As TrialBalanceLine)
                         Next filterToken
                     End If
                 End If
-            End If
+        End Select
+        
         End If
+        
     Next masterLine
 
 End Sub
@@ -904,7 +915,7 @@ End Function
 '           ・事前にACCOUNT系の集計が完了していること
 '
 '==============================================================================
-Public Sub ResolveFormulaAmounts(ByVal m_ColumnKeys As FinancialStatementColumnKeys)
+Public Sub ResolveFormulaAmounts()
 
     Dim line As FinancialStatementMasterLine
     Dim category As Variant
@@ -912,12 +923,19 @@ Public Sub ResolveFormulaAmounts(ByVal m_ColumnKeys As FinancialStatementColumnK
     
     For Each line In m_fs_master.lines
         If line.enabled Then
-            If line.lineType = "FORMULA" Or line.lineType = "CALC" Then
-                Set categories = GetFormulaTargetCategories(line, m_ColumnKeys)
-                For Each category In categories
-                    SetAmount line.lineID, CStr(category), EvaluateFormula(line.formula, CStr(category))
-                Next category
-            End If
+            
+            Select Case UCase$(Trim$(line.lineType))
+                Case "HEADER_PL_NOTE1"
+                    Call m_ColumnKeys.SetColumns(CATEGORY_NET_ASSET)
+                Case "HEADER_PL_NOTE2", "HEADER_PL_NOTE3"
+                    Call m_ColumnKeys.SetColumns(line.OutputCategoryMode)
+                Case "FORMULA", "CALC"
+                    Set categories = GetFormulaTargetCategories(line)
+                    For Each category In categories
+                        SetAmount line.lineID, CStr(category), EvaluateFormula(line.formula, CStr(category))
+                    Next category
+            End Select
+        
         End If
     Next
 
@@ -991,11 +1009,11 @@ End Sub
 '==============================================================================
 '       Get categories used for FORMULA/CALC evaluation.
 '==============================================================================
-Public Function GetFormulaTargetCategories(ByVal line As FinancialStatementMasterLine, ByVal columnKeys As FinancialStatementColumnKeys) As Collection
+Public Function GetFormulaTargetCategories(ByVal line As FinancialStatementMasterLine) As Collection
 
     Dim categories As Collection
-    Dim mode As String
-    Dim columns As Collection
+    Dim Mode As String
+    Dim Columns As Collection
     Dim col As Variant
     Dim categoryKey As String
     Dim seen As Object
@@ -1010,11 +1028,11 @@ Public Function GetFormulaTargetCategories(ByVal line As FinancialStatementMaste
     Set categories = New Collection
     Set seen = CreateObject("Scripting.Dictionary")
 
-    mode = line.OutputCategoryMode
-    Set columns = columnKeys.GetColumns(mode)
+    Mode = m_ColumnKeys.Mode
+    Set Columns = m_ColumnKeys.Columns()
 
-    For Each col In columns
-        categoryKey = columnKeys.ResolveCategoryKey(CStr(col), mode)
+    For Each col In Columns
+        categoryKey = m_ColumnKeys.ResolveCategoryKey(CStr(col), Mode)
         If categoryKey <> "" Then
             categoryKey = UCase$(Trim$(categoryKey))
             If Not seen.Exists(categoryKey) Then
